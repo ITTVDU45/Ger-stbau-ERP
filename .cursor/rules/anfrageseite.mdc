@@ -1,0 +1,124 @@
+🧭 ROADMAP: Anfrageseite (Modul „Anfragen“)
+Ziel: Zentrale Verwaltung und Erfassung von Kundenanfragen, die später in Angebote überführt werden können.
+Status: neues Modul zur Erweiterung der Geschäftslogik zwischen Kunde → Anfrage → Angebot.
+1️⃣ Ziel & Zweck
+Die Anfrageseite dient als erste Station im Geschäftsprozess.
+Hier werden neue Anfragen von Kunden oder Interessenten erfasst, kategorisiert und anschließend in ein Angebot überführt.
+Sie schafft Transparenz darüber, welche Anfragen offen, in Bearbeitung oder bereits in Angebote umgewandelt wurden.
+Die Seite ist sowohl für Büro-Mitarbeiter (Vertrieb, Kalkulation) als auch für Bauleiter und Projektleiter relevant, um neue Aufträge schnell zu strukturieren und weiterzuverarbeiten.
+2️⃣ Hauptaufbau der Seite
+A. Kopfbereich (Dashboard-Übersicht)
+Oben auf der Seite befinden sich Statuskarten, die den Fortschritt aller Anfragen anzeigen:
+Gesamt – alle erfassten Anfragen
+In Bearbeitung – Anfragen, die geprüft, aber noch nicht als Angebot angelegt wurden
+Angebot erstellt – Anfragen, aus denen bereits ein Angebot generiert wurde
+Rechts oben befindet sich ein Button „Neue Anfrage erstellen“, der ein Formular öffnet (Modal oder separate Seite).
+Ziel: Schnelle Übersicht über den Status und Zugriff auf die Erfassung neuer Anfragen.
+3️⃣ Funktionen im Detail
+A. Anfrageliste (Tabelle)
+Anzeige aller Anfragen in einer tabellarischen Ansicht
+Spalten:
+Anfragenummer (automatisch generiert)
+Kunde / Firma
+Ansprechpartner
+Bauvorhaben / Projektname
+Art der Arbeiten (z. B. Dachdecker, Fassade, Dämmung, Sonstige)
+Seiten / Flächen (z. B. vorne, hinten, rechts, links, gesamt)
+Status (Offen, In Bearbeitung, Angebot erstellt)
+Erstelldatum
+Verantwortlicher Mitarbeiter
+Filtermöglichkeiten: nach Status, Kunde, Zeitraum, Mitarbeiter
+Suchfeld mit Live-Filter
+Ziel: Übersichtliche Verwaltung und schnelle Auffindbarkeit aller Anfragen.
+Technologieempfehlung: React DataGrid oder TanStack Table.
+B. Anfrage erstellen (Formular)
+Beim Klick auf „Neue Anfrage erstellen“ öffnet sich ein Eingabeformular (als Modal oder eigene Seite).
+Hier werden alle relevanten Informationen aufgenommen:
+Kundenauswahl
+Dropdown-Liste bestehender Kunden aus der Kundendatenbank
+Optional: Button „Neuen Kunden anlegen“, falls der Kunde noch nicht existiert
+Bauvorhaben
+Freitextfeld für Bauvorhaben / Adresse
+Felder: Objektname, Straße, PLZ, Ort, Besonderheiten
+Art der Arbeiten
+Mehrfachauswahl aus vordefinierten Optionen:
+Dachdecker
+Fassade
+Dämmung
+Sonstige
+Freies Eingabefeld für eigene Bezeichnungen
+Gerüstseiten
+Checkboxen oder Eingabefelder für:
+Vorderseite
+Rückseite
+Rechte Seite
+Linke Seite
+Gesamtfläche (optional m²-Angabe)
+Zusatzinformationen
+Feld für Anmerkungen, technische Anforderungen, Besonderheiten
+Datei-Upload für Pläne oder Fotos (z. B. PDF, JPG)
+Speicherung in /requests/{requestId}/docs
+Status & Zuweisung
+Dropdown „Zuständig“ → Mitarbeiterauswahl
+Statusstandard: „Offen“
+Nach Speichern → automatische Statuskarte aktualisieren
+Ziel: Einheitliche und vollständige Erfassung aller relevanten Anfragedaten.
+Technologieempfehlung: React Form + Zustand-Verwaltung (Context / Zustand) + MongoDB Collection requests.
+C. Anfrage-Detailseite
+Jede Anfrage kann einzeln geöffnet werden, um Details anzuzeigen und zu bearbeiten.
+Inhalte:
+Headerbereich:
+Kundendaten (Name, Ansprechpartner, Kontaktdaten)
+Bauvorhaben, Status, Erstellungsdatum
+Buttons: „Bearbeiten“, „Angebot erstellen“, „Löschen“
+Detailfelder:
+Art der Arbeiten (mit Icons oder Badges dargestellt)
+Gerüstseiten / Flächen
+Notizen / Kommentare
+Dokumente (Upload + Vorschau)
+Statusverlauf / Aktivitätenprotokoll
+Zeigt, wann die Anfrage angelegt, geändert oder in ein Angebot umgewandelt wurde
+Optional: Aktivitätsfeed (wer hat wann welche Aktion ausgeführt)
+Aktion: Angebot erstellen
+Button „Angebot erstellen“ öffnet automatisch das Angebotsformular,
+überträgt alle vorhandenen Informationen aus der Anfrage (Kunde, Bauvorhaben, Leistungen, Notizen)
+und legt in der Angebotsdatenbank einen neuen Eintrag mit Verknüpfung zur Anfrage (offer.requestId) an.
+Nach Erstellung → Anfrage-Status wechselt auf „Angebot erstellt“
+Ziel: Effizienter Übergang von Anfrage zu Angebot ohne doppelte Dateneingabe.
+4️⃣ Integration mit anderen Modulen
+Modul	Verbindung
+Kunden	Auswahl oder Neuanlage direkt im Anfrageformular. Automatische Verknüpfung über customerId.
+Angebote	Direkte Erstellung eines Angebots aus der Anfrage. Angebot enthält Referenz zur Anfrage (requestId).
+Projekte	Sobald ein Angebot angenommen wird, kann daraus ein Projekt erstellt werden.
+Kalender	Anfragen mit geplanter Besichtigung oder Baustellenbegehung können mit Terminen im Kalender verknüpft werden.
+Statistik	Anzahl neuer Anfragen, Umwandlungsrate in Angebote, durchschnittliche Bearbeitungszeit.
+5️⃣ Seitenlayout & UX-Konzept
+Seitenstruktur:
+Oben: Statuskarten (Gesamt, In Bearbeitung, Angebot erstellt)
+Rechts oben: Button „Neue Anfrage erstellen“
+Darunter: Tabelle mit allen Anfragen
+Klick auf Zeile → Detailansicht
+UX-Elemente:
+Farben für Statuskarten (z. B. Grau = Gesamt, Blau = In Bearbeitung, Grün = Angebot erstellt)
+Badges oder Icons zur Visualisierung der Arbeitstypen (Dach, Fassade, Dämmung)
+Tooltipps über Projektangaben für schnelle Info
+Ziel: Schnelle, intuitive Bedienung – mit Fokus auf Effizienz und Übersichtlichkeit.
+6️⃣ Technische Empfehlungen (ohne Code)
+Frontend: Next.js + React + TailwindCSS + ShadCN UI
+Backend: Node.js / NestJS mit MongoDB
+Storage: MinIO für Dokumente
+State Management: Context API oder Zustand
+PDF / Übergabe an Angebot: Übergabe über REST API /api/offers/create-from-request
+Charts (optional): Recharts zur Darstellung von Anfragenstatistiken
+7️⃣ Erweiterungen & zukünftige Ideen
+Automatische E-Mail-Bestätigung an Kunden nach Erfassung der Anfrage
+KI-gestützte Erkennung des passenden Angebots-Templates je nach Arbeitstyp
+Automatische Zuordnung von Mitarbeitern nach Region oder Fachgebiet
+Prioritätensystem (z. B. dringende Anfragen farblich hervorheben)
+Integration von Formular-Importen (z. B. Online-Formulare auf der Website → ERP-Anfrage)
+8️⃣ Erfolgskriterien
+Neue Anfragen können schnell, vollständig und mit Kunde verknüpft erfasst werden.
+Die Anfrageliste bietet klare Statusübersicht und Filterfunktionen.
+Aus jeder Anfrage kann mit einem Klick ein Angebot erstellt werden.
+Statusänderungen erfolgen automatisch und werden visuell dargestellt.
+Die Anfrageseite bildet die perfekte Schnittstelle zwischen Kundenanfrage und Angebotsprozess.

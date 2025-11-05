@@ -1,0 +1,243 @@
+@import "tailwindcss";
+@import "@chatscope/chat-ui-kit-styles/dist/default/styles.min.css";
+
+@theme {
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  
+  /* Radius */
+  --radius: 0.5rem;
+  
+  /* Custom Brand Colors */
+  --gradient-green: linear-gradient(135deg, #C7E70C, #A3E635);
+  --gradient-blue: linear-gradient(135deg, #1b3a4b, #2c5364);
+  
+  /* Base Colors */
+  --color-background: #f8fafc;
+  --color-foreground: #0f172a;
+  
+  /* Card - Blue Gradient */
+  --color-card: #1b3a4b;
+  --color-card-foreground: #ffffff;
+  
+  --color-popover: #ffffff;
+  --color-popover-foreground: #0a0a0a;
+  
+  /* Primary - Green Gradient */
+  --color-primary: #A3E635;
+  --color-primary-foreground: #0f172a;
+  
+  /* Secondary */
+  --color-secondary: #e2e8f0;
+  --color-secondary-foreground: #1e293b;
+  
+  /* Muted */
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+  
+  /* Accent - Green */
+  --color-accent: #C7E70C;
+  --color-accent-foreground: #0f172a;
+  
+  /* Destructive */
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+  
+  /* Border & Input */
+  --color-border: #e2e8f0;
+  --color-input: #e2e8f0;
+  --color-ring: #A3E635;
+  
+  /* Charts */
+  --color-chart-1: #C7E70C;
+  --color-chart-2: #1b3a4b;
+  --color-chart-3: #A3E635;
+  --color-chart-4: #2c5364;
+  --color-chart-5: #84cc16;
+  
+  /* Sidebar */
+  --color-sidebar-background: #ffffff;
+  --color-sidebar-foreground: #334155;
+  --color-sidebar-primary: #1b3a4b;
+  --color-sidebar-primary-foreground: #ffffff;
+  --color-sidebar-accent: #f1f5f9;
+  --color-sidebar-accent-foreground: #0f172a;
+  --color-sidebar-border: #e2e8f0;
+  --color-sidebar-ring: #A3E635;
+}
+
+/* Admin tables: ensure text is visible (override white in some headers/buttons) */
+.admin-table th,
+.admin-table td,
+.admin-table caption,
+.admin-table a {
+  color: var(--color-foreground) !important;
+}
+.admin-table th {
+  color: var(--color-muted-foreground) !important;
+  font-weight: 600;
+}
+.admin-table td {
+  color: var(--color-foreground) !important;
+}
+.admin-table .badge,
+.admin-table .btn {
+  color: inherit !important;
+}
+
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+  
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer components {
+  /* Card with blue gradient */
+  .card-gradient-blue {
+    background: linear-gradient(135deg, #1b3a4b, #2c5364);
+    color: white;
+  }
+  
+  /* Button with green gradient */
+  .btn-gradient-green {
+    background: linear-gradient(135deg, #C7E70C, #A3E635);
+    color: #1b3a4b;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  
+  .btn-gradient-green:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+
+  /* Glass Effect */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+  }
+
+  /* Chat UI Kit Custom Overrides */
+  .cs-main-container {
+    font-family: var(--font-sans) !important;
+  }
+
+  /* Smooth scrolling for message lists */
+  .cs-message-list__scroll-wrapper {
+    scroll-behavior: smooth;
+  }
+
+  /* Custom animations for messages */
+  @keyframes slideInFromLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slideInFromRight {
+    from {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .cs-message--incoming {
+    animation: slideInFromLeft 0.3s ease-out;
+  }
+
+  .cs-message--outgoing {
+    animation: slideInFromRight 0.3s ease-out;
+  }
+
+  /* Smooth hover effects */
+  .cs-conversation,
+  .cs-button {
+    transition: all 0.2s ease-in-out !important;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .cs-message__content-wrapper {
+      max-width: 85% !important;
+    }
+    
+    .cs-conversation-header__content {
+      font-size: 0.875rem;
+    }
+  }
+
+  /* Avatar Image Styling */
+  .cs-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+  }
+
+  /* Prefers reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .cs-message--incoming,
+    .cs-message--outgoing {
+      animation: none;
+    }
+
+    .cs-message-list__scroll-wrapper {
+      scroll-behavior: auto;
+    }
+  }
+
+  /* Toast/Snackbar Animations */
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slideOut {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+  }
+
+  .animate-slide-in {
+    animation: slideIn 0.3s ease-out;
+  }
+
+  .animate-slide-out {
+    animation: slideOut 0.3s ease-in;
+  }
+}

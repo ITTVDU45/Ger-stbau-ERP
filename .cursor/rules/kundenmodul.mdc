@@ -1,0 +1,118 @@
+🧭 ROADMAP: Kundenverwaltung (Modul „Kunden“)
+Phase: Kernmodul-Erweiterung
+Ziel: Zentrale Verwaltung aller Kunden, direkte Verknüpfung mit Projekten, Angeboten und Rechnungen
+1️⃣ Ziel & Zweck
+Das Kundenmodul bildet die zentrale Datenbasis für alle geschäftlichen Beziehungen.
+Es ermöglicht:
+das Anlegen und Verwalten von Kundenstammdaten,
+die Verknüpfung zu Projekten, Angeboten und Rechnungen,
+sowie eine schnelle Übersicht über den Umsatz, offene Posten und laufende Aktivitäten pro Kunde.
+Der Kunde steht damit als zentraler Drehpunkt im System und verbindet alle anderen Module (Projekte, Rechnungen, Angebote, Kommunikation).
+2️⃣ Hauptfunktionen
+A. Kundenübersicht (Liste / Tabelle)
+Ansicht aller angelegten Kunden in einer filter- und sortierbaren Tabelle
+Spalten:
+Kundenname / Firma
+Ansprechpartner
+Telefonnummer / E-Mail
+Anzahl der Projekte
+Offene Rechnungen
+Gesamtumsatz
+Status (aktiv, inaktiv)
+Suchfeld mit Live-Filter
+Pagination oder Lazy Loading bei vielen Einträgen
+Ziel: Schnelle Übersicht und Zugriff auf relevante Kundendaten.
+Technologien: React-Table oder DataGrid (z. B. TanStack Table oder MUI DataGrid)
+B. Kunden anlegen / bearbeiten / deaktivieren
+Eingabeformular mit den Feldern:
+Firmenname / Name
+Ansprechpartner (Vor- & Nachname)
+Telefonnummer
+E-Mail-Adresse
+Adresse (Straße, PLZ, Stadt, Land)
+Kundennummer (automatisch generiert)
+Notizen / interne Bemerkungen
+Kundentyp (privat, gewerblich, öffentlicher Auftraggeber)
+Speicherung in zentraler Datenbank (customers Collection / Tabelle)
+Möglichkeit, Kunden zu deaktivieren, ohne sie zu löschen (Archiv-Funktion)
+Ziel: Einheitliche, vollständige Kundendatensätze anlegen und aktuell halten.
+Technologien: Next.js Form + API-Route mit MongoDB-Anbindung.
+C. Kundendetailseite
+Die Kundendetailseite ist das Dashboard pro Kunde.
+Sie zeigt alle verbundenen Informationen auf einen Blick und fungiert als zentrales Hub.
+Inhalte:
+Kundeninformationen (Headerbereich)
+Firmenlogo (optional), Name, Ansprechpartner, Kontaktinformationen, Adresse
+Kundennummer, Typ, Status
+Button: „Bearbeiten“, „E-Mail senden“, „Archivieren“
+Tabs oder Unterbereiche:
+Projekte
+Liste aller Projekte dieses Kunden
+Verknüpfung zur Projektseite (Klick auf Projektnummer öffnet Projektdetailseite)
+Angebote
+Alle Angebote des Kunden, mit Status (Entwurf, gesendet, angenommen)
+Möglichkeit, neues Angebot direkt aus Kundenseite zu erstellen
+Rechnungen
+Übersicht über Rechnungen dieses Kunden mit Zahlungsstatus
+Summe offener Posten & Gesamtumsatz
+Kommunikation / Notizen
+Interner Verlauf von Kontakten oder Besprechungen
+Möglichkeit, Kommentare hinzuzufügen
+Dokumente
+Vertragliche Unterlagen, Schriftwechsel, PDF-Uploads
+Speicherung in MinIO unter /customers/{customerId}/docs
+Ziel: Ein vollständiger Überblick über alle kundenbezogenen Aktivitäten.
+Technologien: React Tabs (z. B. ShadCN Tabs oder Headless UI), Datenverknüpfung via REST/GraphQL API.
+D. Verknüpfung mit anderen Modulen
+Das Kundenmodul steht im Zentrum aller anderen Entitäten:
+Modul	Verknüpfung
+Projekte	Jedes Projekt ist einem Kunden zugeordnet (customerId). Kunde → Projekte-Übersicht mit Filter.
+Angebote	Angebote werden im Kundenkontext erstellt und gespeichert. Kunde → Angebot → Rechnung.
+Rechnungen	Alle Rechnungen eines Kunden sind direkt sichtbar und summierbar. Umsatz und offene Posten werden automatisch berechnet.
+Kalender	Kundentermine oder Baustellenbesuche werden synchronisiert und unter dem Kunden gespeichert.
+Statistiken	KPIs wie Gesamtumsatz, offene Beträge, Anzahl laufender Projekte, Angebotserfolgsquote.
+Ziel: Einheitliche Datenstruktur für Auswertungen und Automatisierungen.
+Technologien: Verknüpfung über Foreign Keys / Referenzen (z. B. project.customerId, invoice.customerId)
+E. Aktionen & Automatisierungen
+Beim Erstellen eines Projekts kann direkt ein neuer Kunde angelegt werden („Neuer Kunde + Projekt anlegen“).
+Beim Anlegen eines Angebots kann der Kunde automatisch verknüpft werden.
+Automatische E-Mail-Benachrichtigung beim Versenden eines Angebots oder einer Rechnung.
+Option, den Kundenkontakt in Outlook zu synchronisieren (über Microsoft Graph API).
+Ziel: Reduzierung manueller Arbeit durch Automatisierung wiederkehrender Abläufe.
+Technologien: n8n-Workflows, Event-basierte Trigger im Backend.
+3️⃣ Zusatzfunktionen (spätere Erweiterung)
+Kundenklassifizierung / Bonitätsbewertung
+Kategorien: A-Kunde (wiederkehrend), B-Kunde (Gelegenheitskunde), C-Kunde (einmalig)
+Umsatzentwicklung über Zeit
+Diagramm zur Darstellung der monatlichen Umsätze je Kunde
+Kundensegmentierung für Marketing
+Exportfunktion für Newsletter oder CRM-System
+Verknüpfung mit Versicherungsverwaltung
+Speicherung der Versicherungszertifikate oder Haftpflichtdokumente pro Kunde
+4️⃣ Seitenstruktur & Navigation
+Menüeintrag:
+🧍‍♂️ Kunden
+Untermenü:
+Alle Kunden
+Neuer Kunde
+Kundenberichte (optional)
+Navigationslogik:
+Klick auf „Kunden“ → Tabelle mit Übersicht
+Klick auf einen Kunden → Detailseite
+Von der Detailseite → direkte Verknüpfung zu Projekten, Rechnungen, Angeboten
+5️⃣ Technische Empfehlungen (ohne Code)
+Frontend: Next.js / React mit ShadCN UI (Tabs, Tabellen, Formulare)
+Backend: Node.js + Express oder NestJS mit MongoDB
+Storage: MinIO für Dokumente
+Sync: Outlook über Microsoft Graph API (optional)
+Charts: Recharts für Umsatzdiagramme
+PDF: pdfmake für Vertragsunterlagen oder Kundenreports
+6️⃣ Phase-Zuordnung
+Phase	Titel	Ziel
+Phase 11	Kundenverwaltung	Zentrales Modul zur Verwaltung, Verknüpfung und Auswertung von Kundendaten
+7️⃣ Erfolgskriterien
+Kunden können angelegt, bearbeitet, deaktiviert und eingesehen werden.
+Kunden sind mit Projekten, Rechnungen und Angeboten bidirektional verknüpft.
+Eine Kundendetailseite liefert vollständige Transparenz über alle Aktivitäten.
+Automatische Datenverknüpfung minimiert manuelle Fehler.
+Zentrale KPI-Auswertung ermöglicht strategische Kundenanalyse.
