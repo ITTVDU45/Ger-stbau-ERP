@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { FileText, Eye, Trash2, Home, Layers, Building2, Wrench } from 'lucide-react'
+import { FileText, Eye, Trash2, Home, Layers, Building2, Wrench, ArrowRight, ExternalLink } from 'lucide-react'
 import { Projekt, Anfrage } from '@/lib/db/types'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -16,9 +16,10 @@ import AngebotErstellenDialog from '../../anfragen/components/AngebotErstellenDi
 interface ProjektAnfragenTabProps {
   projekt: Projekt
   onProjektUpdated: () => void
+  onAnfragenCountChange?: (count: number) => void
 }
 
-export default function ProjektAnfragenTab({ projekt, onProjektUpdated }: ProjektAnfragenTabProps) {
+export default function ProjektAnfragenTab({ projekt, onProjektUpdated, onAnfragenCountChange }: ProjektAnfragenTabProps) {
   const [anfragen, setAnfragen] = useState<Anfrage[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -26,28 +27,71 @@ export default function ProjektAnfragenTab({ projekt, onProjektUpdated }: Projek
     loadAnfragen()
   }, [projekt])
 
-  const loadAnfragen = async () => {
-    if (!projekt.anfrageIds || projekt.anfrageIds.length === 0) {
-      setLoading(false)
-      return
+  // Initialisiere Anzahl wenn Anfragen geladen wurden
+  useEffect(() => {
+    if (!loading && onAnfragenCountChange) {
+      onAnfragenCountChange(anfragen.length)
     }
+  }, [loading, anfragen.length, onAnfragenCountChange])
 
+  const loadAnfragen = async () => {
     try {
       setLoading(true)
-      // Lade alle Anfragen für dieses Projekt
-      const anfragenPromises = projekt.anfrageIds.map(anfrageId =>
-        fetch(`/api/anfragen/${anfrageId}`).then(res => res.json())
-      )
+      const geladeneAnfragen: Anfrage[] = []
 
-      const results = await Promise.all(anfragenPromises)
-      const geladeneAnfragen = results
-        .filter(r => r.erfolg)
-        .map(r => r.anfrage)
+      // 1. Lade Anfragen aus projekt.anfrageIds
+      if (projekt.anfrageIds && projekt.anfrageIds.length > 0) {
+        const anfragenPromises = projekt.anfrageIds.map(anfrageId =>
+          fetch(`/api/anfragen/${anfrageId}`).then(res => res.json())
+        )
+
+        const results = await Promise.all(anfragenPromises)
+        const anfragenAusIds = results
+          .filter(r => r.erfolg)
+          .map(r => r.anfrage)
+        
+        geladeneAnfragen.push(...anfragenAusIds)
+      }
+
+      // 2. Lade Anfrage über zugewiesenes Angebot (falls vorhanden)
+      if (projekt.angebotId) {
+        try {
+          const angebotResponse = await fetch(`/api/angebote/${projekt.angebotId}`)
+          const angebotData = await angebotResponse.json()
+          
+          if (angebotData.erfolg && angebotData.angebot?.anfrageId) {
+            // Prüfe ob diese Anfrage bereits geladen wurde
+            const bereitsGeladen = geladeneAnfragen.some(
+              a => a._id === angebotData.angebot.anfrageId
+            )
+            
+            if (!bereitsGeladen) {
+              const anfrageResponse = await fetch(`/api/anfragen/${angebotData.angebot.anfrageId}`)
+              const anfrageData = await anfrageResponse.json()
+              
+              if (anfrageData.erfolg && anfrageData.anfrage) {
+                geladeneAnfragen.push(anfrageData.anfrage)
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Fehler beim Laden der Anfrage über Angebot:', error)
+          // Nicht kritisch, weiter machen
+        }
+      }
 
       setAnfragen(geladeneAnfragen)
+      
+      // Kommuniziere die Anzahl nach oben
+      if (onAnfragenCountChange) {
+        onAnfragenCountChange(geladeneAnfragen.length)
+      }
     } catch (error) {
       console.error('Fehler beim Laden der Anfragen:', error)
       toast.error('Fehler beim Laden der Anfragen')
+      if (onAnfragenCountChange) {
+        onAnfragenCountChange(0)
+      }
     } finally {
       setLoading(false)
     }
@@ -206,12 +250,28 @@ export default function ProjektAnfragenTab({ projekt, onProjektUpdated }: Projek
               {anfragen.map((anfrage) => (
                 <TableRow key={anfrage._id} className="border-gray-200">
                   <TableCell className="font-medium text-gray-900">
-                    <Link 
-                      href={`/dashboard/admin/anfragen/${anfrage._id}`}
-                      className="text-blue-600 hover:text-blue-700 hover:underline"
-                    >
-                      {anfrage.anfragenummer}
-                    </Link>
+                    <div className="flex flex-col gap-1">
+                      <Link 
+                        href={`/dashboard/admin/anfragen/${anfrage._id}`}
+                        className="text-blue-600 hover:text-blue-700 hover:underline"
+                      >
+                        {anfrage.anfragenummer}
+                      </Link>
+                      {anfrage.angebotId && (
+                        <div className="flex items-center gap-1 text-xs text-green-700">
+                          <ArrowRight className="h-3 w-3" />
+                          <span>In Angebot umgewandelt:</span>
+                          <Link 
+                            href={`/dashboard/admin/angebote/neu?id=${anfrage.angebotId}`}
+                            className="font-semibold hover:underline flex items-center gap-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Angebot ansehen
+                            <ExternalLink className="h-3 w-3" />
+                          </Link>
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-gray-900">{anfrage.kundeName}</TableCell>
                   <TableCell className="text-gray-700">

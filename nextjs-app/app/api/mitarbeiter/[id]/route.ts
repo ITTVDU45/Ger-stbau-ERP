@@ -6,14 +6,15 @@ import { ObjectId } from 'mongodb'
 // GET - Einzelnen Mitarbeiter abrufen
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const db = await getDatabase()
     const mitarbeiterCollection = db.collection<Mitarbeiter>('mitarbeiter')
     
     const mitarbeiter = await mitarbeiterCollection.findOne({ 
-      _id: new ObjectId(params.id) 
+      _id: new ObjectId(id) 
     })
     
     if (!mitarbeiter) {
@@ -39,9 +40,10 @@ export async function GET(
 // PUT - Mitarbeiter aktualisieren
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     
     // Validierung
@@ -58,7 +60,7 @@ export async function PUT(
     // Prüfen ob E-Mail bereits von einem anderen Mitarbeiter verwendet wird
     const existing = await mitarbeiterCollection.findOne({ 
       email: body.email,
-      _id: { $ne: new ObjectId(params.id) }
+      _id: { $ne: new ObjectId(id) }
     })
     
     if (existing) {
@@ -71,7 +73,7 @@ export async function PUT(
     const { _id, ...updateData } = body
     
     const result = await mitarbeiterCollection.updateOne(
-      { _id: new ObjectId(params.id) },
+      { _id: new ObjectId(id) },
       { 
         $set: {
           ...updateData,
@@ -103,14 +105,15 @@ export async function PUT(
 // DELETE - Mitarbeiter löschen
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const db = await getDatabase()
     const mitarbeiterCollection = db.collection<Mitarbeiter>('mitarbeiter')
     
     const result = await mitarbeiterCollection.deleteOne({ 
-      _id: new ObjectId(params.id) 
+      _id: new ObjectId(id) 
     })
     
     if (result.deletedCount === 0) {

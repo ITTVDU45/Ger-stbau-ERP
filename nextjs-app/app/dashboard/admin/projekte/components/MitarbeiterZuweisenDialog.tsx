@@ -50,10 +50,9 @@ export default function MitarbeiterZuweisenDialog({ projekt, onSuccess, children
       const response = await fetch('/api/mitarbeiter')
       if (response.ok) {
         const data = await response.json()
-        // Filter nur aktive Mitarbeiter, die noch nicht zugewiesen sind
+        // Filter nur aktive Mitarbeiter (mehrfache Zuweisungen sind erlaubt für verschiedene Zeiträume)
         const aktiveMitarbeiter = (data.mitarbeiter || []).filter((m: Mitarbeiter) => 
-          m.aktiv === true && 
-          !projekt.zugewieseneMitarbeiter?.some(pm => pm.mitarbeiterId === m._id)
+          m.aktiv === true
         )
         setMitarbeiterListe(aktiveMitarbeiter)
       } else {
@@ -101,15 +100,12 @@ export default function MitarbeiterZuweisenDialog({ projekt, onSuccess, children
         }
       })
 
-      // Bestehende Mitarbeiter mit neuen kombinieren
-      const alleMitarbeiter = [...(projekt.zugewieseneMitarbeiter || []), ...neueMitarbeiter]
-
-      const response = await fetch(`/api/projekte/${projekt._id}`, {
-        method: 'PUT',
+      // Verwende neue API-Route, die auch Zeiterfassungen erstellt
+      const response = await fetch(`/api/projekte/${projekt._id}/mitarbeiter-zuweisen`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...projekt,
-          zugewieseneMitarbeiter: alleMitarbeiter
+          neueMitarbeiter
         })
       })
 
@@ -117,7 +113,11 @@ export default function MitarbeiterZuweisenDialog({ projekt, onSuccess, children
         throw new Error('Fehler beim Zuweisen der Mitarbeiter')
       }
 
-      toast.success(`${selectedMitarbeiter.size} Mitarbeiter erfolgreich zugewiesen`)
+      const result = await response.json()
+      
+      toast.success(
+        `${selectedMitarbeiter.size} Mitarbeiter zugewiesen. ${result.erstellteZeiterfassungen || 0} Zeiterfassungen erstellt.`
+      )
       setOpen(false)
       setSelectedMitarbeiter(new Set())
       setFormData({

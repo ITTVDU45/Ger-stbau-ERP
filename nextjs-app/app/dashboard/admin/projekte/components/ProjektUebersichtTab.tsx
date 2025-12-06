@@ -2,9 +2,11 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Projekt } from '@/lib/db/types'
-import { Home, Building2, Layers, Package } from 'lucide-react'
+import { Home, Building2, Layers, Package, RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface ProjektUebersichtTabProps {
   projekt: Projekt
@@ -61,7 +63,36 @@ export default function ProjektUebersichtTab({ projekt }: ProjektUebersichtTabPr
       {/* Bauvorhabeninformationen */}
       <Card className="bg-white border-gray-200">
         <CardHeader>
-          <CardTitle className="text-gray-900">Bauvorhabeninformationen</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-gray-900">Bauvorhabeninformationen</CardTitle>
+            {(!projekt.bauvorhaben?.adresse || projekt.bauvorhaben.adresse === '') && projekt.angebotId && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const response = await fetch(`/api/projekte/${projekt._id}/bauvorhaben-aktualisieren`, {
+                      method: 'POST'
+                    })
+                    const data = await response.json()
+                    if (data.erfolg) {
+                      toast.success('Bauvorhabeninformationen wurden aktualisiert')
+                      window.location.reload()
+                    } else {
+                      toast.error(data.fehler || 'Fehler beim Aktualisieren')
+                    }
+                  } catch (error) {
+                    console.error('Fehler:', error)
+                    toast.error('Fehler beim Aktualisieren')
+                  }
+                }}
+                className="border-blue-300 text-blue-700 hover:bg-blue-50"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Aus Anfrage laden
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>

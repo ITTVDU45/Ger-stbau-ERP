@@ -19,7 +19,7 @@ export async function POST(
       { 
         $set: {
           status: 'abgelehnt',
-          ablehnungsgrund: body.ablehnungsgrund || '',
+          ablehnungsgrund: body.grund || '',
           zuletztGeaendert: new Date()
         }
       }
@@ -44,4 +44,3 @@ export async function POST(
     )
   }
 }
-

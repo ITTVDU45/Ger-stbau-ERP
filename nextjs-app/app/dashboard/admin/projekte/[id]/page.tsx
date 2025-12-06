@@ -16,6 +16,7 @@ import ProjektRechnungenTab from '../components/ProjektRechnungenTab'
 import ProjektDokumenteTab from '../components/ProjektDokumenteTab'
 import ProjektMitarbeiterTab from '../components/ProjektMitarbeiterTab'
 import ProjektAnfragenTab from '../components/ProjektAnfragenTab'
+import ProjektKalkulationTab from '../components/ProjektKalkulationTab'
 import ProjektAktivitaetenSidebar from '../components/ProjektAktivitaetenSidebar'
 import ManuelleRechnungDialog from '../components/ManuelleRechnungDialog'
 
@@ -27,12 +28,40 @@ export default function ProjektDetailPage() {
   const [projekt, setProjekt] = useState<Projekt | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('uebersicht')
+  const [anfragenCount, setAnfragenCount] = useState(0)
 
   useEffect(() => {
     if (id) {
       loadProjekt()
     }
   }, [id])
+
+  // Initialisiere Anfragen-Count basierend auf projekt.anfrageIds und Angebot
+  useEffect(() => {
+    if (projekt) {
+      const initialCount = projekt.anfrageIds?.length || 0
+      setAnfragenCount(initialCount)
+      
+      // Prüfe ob es eine zusätzliche Anfrage über das Angebot gibt
+      if (projekt.angebotId && initialCount === 0) {
+        // Lade Angebot um zu prüfen ob es eine anfrageId hat
+        fetch(`/api/angebote/${projekt.angebotId}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.erfolg && data.angebot?.anfrageId) {
+              // Prüfe ob diese Anfrage bereits in anfrageIds ist
+              const istBereitsInIds = projekt.anfrageIds?.includes(data.angebot.anfrageId)
+              if (!istBereitsInIds) {
+                setAnfragenCount(1)
+              }
+            }
+          })
+          .catch(error => {
+            console.error('Fehler beim Laden des Angebots für Anfragen-Count:', error)
+          })
+      }
+    }
+  }, [projekt])
 
   const loadProjekt = async () => {
     try {
@@ -178,11 +207,12 @@ export default function ProjektDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-7 bg-gray-100">
+            <TabsList className="grid w-full grid-cols-8 bg-gray-100">
               <TabsTrigger value="uebersicht" className="data-[state=active]:bg-white">Übersicht</TabsTrigger>
               <TabsTrigger value="kunde" className="data-[state=active]:bg-white">Kunde</TabsTrigger>
+              <TabsTrigger value="kalkulation" className="data-[state=active]:bg-white">Kalkulation</TabsTrigger>
               <TabsTrigger value="anfragen" className="data-[state=active]:bg-white">
-                Anfragen ({projekt.anfrageIds?.length || 0})
+                Anfragen ({anfragenCount})
               </TabsTrigger>
               <TabsTrigger value="angebote" className="data-[state=active]:bg-white">
                 Angebote
@@ -206,8 +236,16 @@ export default function ProjektDetailPage() {
               <ProjektKundeTab projekt={projekt} />
             </TabsContent>
 
+            <TabsContent value="kalkulation">
+              <ProjektKalkulationTab projekt={projekt} onProjektUpdated={loadProjekt} />
+            </TabsContent>
+
             <TabsContent value="anfragen">
-              <ProjektAnfragenTab projekt={projekt} onProjektUpdated={loadProjekt} />
+              <ProjektAnfragenTab 
+                projekt={projekt} 
+                onProjektUpdated={loadProjekt}
+                onAnfragenCountChange={setAnfragenCount}
+              />
             </TabsContent>
 
             <TabsContent value="angebote">

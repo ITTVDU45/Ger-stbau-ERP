@@ -2,14 +2,23 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db/client'
 import { Urlaub } from '@/lib/db/types'
 
-// GET - Alle Urlaubsanträge abrufen
+// GET - Alle Urlaubsanträge abrufen (optional gefiltert nach mitarbeiterId)
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const mitarbeiterId = searchParams.get('mitarbeiterId')
+    
     const db = await getDatabase()
     const urlaubCollection = db.collection<Urlaub>('urlaub')
     
+    // Baue Filter auf
+    const filter: any = {}
+    if (mitarbeiterId) {
+      filter.mitarbeiterId = mitarbeiterId
+    }
+    
     const urlaube = await urlaubCollection
-      .find({})
+      .find(filter)
       .sort({ von: -1 })
       .toArray()
     

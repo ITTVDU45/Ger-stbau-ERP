@@ -338,3 +338,50 @@ export async function deleteProjektDokument(objectName: string): Promise<void> {
   await client.removeObject(PROJEKTE_BUCKET, objectName)
 }
 
+// ============================================================================
+// MITARBEITER-DOKUMENTE
+// ============================================================================
+
+export const MITARBEITER_BUCKET = 'mitarbeiter'
+
+/**
+ * Mitarbeiter-Dokument hochladen
+ * Pfadstruktur: /mitarbeiter/{mitarbeiterId}/docs/{kategorie}/{filename}
+ */
+export async function uploadMitarbeiterDokument(
+  mitarbeiterId: string,
+  file: File,
+  kategorie?: string
+): Promise<{ url: string; objectName: string }> {
+  const client = getMinioClient()
+  
+  // Sicherstellen, dass Bucket existiert
+  await ensureBucketExists(MITARBEITER_BUCKET)
+  
+  const timestamp = Date.now()
+  const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+  const kategoriePrefix = kategorie || 'sonstiges'
+  const objectName = `mitarbeiter/${mitarbeiterId}/docs/${kategoriePrefix}/${timestamp}_${sanitizedFileName}`
+  
+  // Datei in Buffer konvertieren
+  const buffer = Buffer.from(await file.arrayBuffer())
+  
+  // Upload
+  await client.putObject(MITARBEITER_BUCKET, objectName, buffer, buffer.length, {
+    'Content-Type': file.type || 'application/octet-stream'
+  })
+  
+  // Generiere presigned URL (7 Tage gültig - MinIO Maximum)
+  const url = await client.presignedGetObject(MITARBEITER_BUCKET, objectName, 7 * 24 * 60 * 60)
+  
+  return { url, objectName }
+}
+
+/**
+ * Mitarbeiter-Dokument löschen
+ */
+export async function deleteMitarbeiterDokument(objectName: string): Promise<void> {
+  const client = getMinioClient()
+  await client.removeObject(MITARBEITER_BUCKET, objectName)
+}
+

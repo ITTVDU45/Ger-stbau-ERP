@@ -3,7 +3,27 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { LogOut } from "lucide-react"
+import {
+  LogOut,
+  LayoutDashboard,
+  Users,
+  Building2,
+  UserCheck,
+  FileText,
+  ClipboardList,
+  Receipt,
+  AlertTriangle,
+  Calendar,
+  BarChart3,
+  DollarSign,
+  Download,
+  Briefcase,
+  Settings,
+  TrendingUp,
+  Calculator,
+  FolderArchive,
+  Plug,
+} from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -18,148 +38,156 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar"
 
-// Gerüstbau ERP Admin Navigation
+// Gerüstbau ERP Admin Navigation - Strukturiert in Kategorien
 const adminData = {
-  navMain: [
+  kategorien: [
     {
-      title: "📊 Dashboard",
-      url: "/dashboard/admin/uebersicht",
+      name: "Hauptfunktionen",
       items: [
         {
-          title: "📊 Übersicht",
+          title: "Dashboard",
+          icon: LayoutDashboard,
           url: "/dashboard/admin/uebersicht",
         },
-      ],
-    },
-    {
-      title: "👷 Mitarbeiter",
-      url: "/dashboard/admin/mitarbeiter",
-      items: [
         {
-          title: "👷 Mitarbeiter-Verwaltung",
+          title: "Projekte",
+          icon: Building2,
+          url: "/dashboard/admin/projekte",
+        },
+        {
+          title: "Mitarbeiter",
+          icon: Users,
           url: "/dashboard/admin/mitarbeiter",
         },
         {
-          title: "⏰ Zeiterfassung",
-          url: "/dashboard/admin/zeiterfassung",
-        },
-        {
-          title: "📅 Einsatzplanung",
-          url: "/dashboard/admin/einsatzplanung",
-        },
-        {
-          title: "🏖️ Urlaub & Abwesenheiten",
-          url: "/dashboard/admin/urlaub",
-        },
-      ],
-    },
-    {
-      title: "🏗️ Projekte",
-      url: "/dashboard/admin/projekte",
-      items: [
-        {
-          title: "🏗️ Projekt-Verwaltung",
-          url: "/dashboard/admin/projekte",
-        },
-      ],
-    },
-    {
-      title: "👥 Kunden",
-      url: "/dashboard/admin/kunden",
-      items: [
-        {
-          title: "👥 Alle Kunden",
+          title: "Kunden",
+          icon: UserCheck,
           url: "/dashboard/admin/kunden",
-        },
-        {
-          title: "📊 Kundenberichte",
-          url: "/dashboard/admin/kunden/berichte",
+          items: [
+            {
+              title: "Alle Kunden",
+              icon: UserCheck,
+              url: "/dashboard/admin/kunden",
+            },
+            {
+              title: "Kundenberichte",
+              icon: BarChart3,
+              url: "/dashboard/admin/kunden/berichte",
+            },
+          ],
         },
       ],
     },
     {
-      title: "💰 Angebote & Rechnungen",
-      url: "/dashboard/admin/angebote",
+      name: "Finanzen",
       items: [
         {
-          title: "📋 Anfragen",
-          url: "/dashboard/admin/anfragen",
-        },
-        {
-          title: "📝 Angebote",
+          title: "Angebote & Rechnungen",
+          icon: FileText,
           url: "/dashboard/admin/angebote",
+          items: [
+            {
+              title: "Anfragen",
+              icon: ClipboardList,
+              url: "/dashboard/admin/anfragen",
+            },
+            {
+              title: "Angebote",
+              icon: FileText,
+              url: "/dashboard/admin/angebote",
+            },
+            {
+              title: "Rechnungen",
+              icon: Receipt,
+              url: "/dashboard/admin/rechnungen",
+            },
+            {
+              title: "Mahnwesen",
+              icon: AlertTriangle,
+              url: "/dashboard/admin/mahnwesen",
+            },
+          ],
         },
         {
-          title: "🧾 Rechnungen",
-          url: "/dashboard/admin/rechnungen",
-        },
-        {
-          title: "⚠️ Mahnwesen",
-          url: "/dashboard/admin/mahnwesen",
+          title: "Buchhaltung",
+          icon: Briefcase,
+          url: "/dashboard/admin/buchhaltung",
+          items: [
+            {
+              title: "DATEV-Export",
+              icon: Calculator,
+              url: "/dashboard/admin/buchhaltung/datev",
+            },
+            {
+              title: "Archiv",
+              icon: FolderArchive,
+              url: "/dashboard/admin/buchhaltung/archiv",
+            },
+          ],
         },
       ],
     },
     {
-      title: "📆 Kalender",
-      url: "/dashboard/admin/kalender",
+      name: "Planung & Analyse",
       items: [
         {
-          title: "📆 Einsatz- & Terminplanung",
+          title: "Kalender",
+          icon: Calendar,
           url: "/dashboard/admin/kalender",
         },
-      ],
-    },
-    {
-      title: "📊 Statistiken & Reports",
-      url: "/dashboard/admin/statistiken",
-      items: [
         {
-          title: "💵 Finanzen",
-          url: "/dashboard/admin/statistiken/finanzen",
-        },
-        {
-          title: "🏗️ Projekte",
-          url: "/dashboard/admin/statistiken/projekte",
-        },
-        {
-          title: "👷 Mitarbeiter",
-          url: "/dashboard/admin/statistiken/mitarbeiter",
-        },
-        {
-          title: "📥 Export",
-          url: "/dashboard/admin/statistiken/export",
-        },
-      ],
-    },
-    {
-      title: "💼 Buchhaltung",
-      url: "/dashboard/admin/buchhaltung",
-      items: [
-        {
-          title: "📊 DATEV-Export",
-          url: "/dashboard/admin/buchhaltung/datev",
-        },
-        {
-          title: "📁 Archiv",
-          url: "/dashboard/admin/buchhaltung/archiv",
+          title: "Statistiken & Reports",
+          icon: TrendingUp,
+          url: "/dashboard/admin/statistiken",
+          items: [
+            {
+              title: "Finanzen",
+              icon: DollarSign,
+              url: "/dashboard/admin/statistiken/finanzen",
+            },
+            {
+              title: "Projekte",
+              icon: Building2,
+              url: "/dashboard/admin/statistiken/projekte",
+            },
+            {
+              title: "Mitarbeiter",
+              icon: Users,
+              url: "/dashboard/admin/statistiken/mitarbeiter",
+            },
+            {
+              title: "Export",
+              icon: Download,
+              url: "/dashboard/admin/statistiken/export",
+            },
+          ],
         },
       ],
     },
     {
-      title: "⚙️ Einstellungen",
-      url: "/dashboard/admin/einstellungen",
+      name: "Verwaltung",
       items: [
         {
-          title: "⚙️ Allgemein",
+          title: "Einstellungen",
+          icon: Settings,
           url: "/dashboard/admin/einstellungen",
-        },
-        {
-          title: "👥 Benutzer",
-          url: "/dashboard/admin/einstellungen/benutzer",
-        },
-        {
-          title: "🔗 Integration",
-          url: "/dashboard/admin/einstellungen/integration",
+          items: [
+            {
+              title: "Allgemein",
+              icon: Settings,
+              url: "/dashboard/admin/einstellungen",
+            },
+            {
+              title: "Benutzer",
+              icon: Users,
+              url: "/dashboard/admin/einstellungen/benutzer",
+            },
+            {
+              title: "Integration",
+              icon: Plug,
+              url: "/dashboard/admin/einstellungen/integration",
+            },
+          ],
         },
       ],
     },
@@ -195,22 +223,67 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar> & 
         </div>
       </SidebarHeader>
       <SidebarContent>
-        {/* We create a SidebarGroup for each parent. */}
-        {navigationData.navMain.map((item) => (
-          <SidebarGroup key={item.title}>
-            <SidebarGroupLabel>{item.title}</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {item.items.map((child) => (
-                  <SidebarMenuItem key={child.title}>
-                    <SidebarMenuButton asChild isActive={pathname?.startsWith(child.url)}>
-                      <Link href={child.url}>{child.title}</Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+        {navigationData.kategorien.map((kategorie, kategorieIndex) => (
+          <React.Fragment key={kategorie.name}>
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 py-1.5">
+                {kategorie.name}
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                {kategorie.items.map((item) => {
+                  const ItemIcon = item.icon
+                  const hasSubItems = item.items && item.items.length > 0
+                  
+                  // Wenn nur ein Item ohne Untermenü, direkt als Link
+                  if (!hasSubItems) {
+                    return (
+                      <SidebarMenu key={item.title}>
+                        <SidebarMenuItem>
+                          <SidebarMenuButton asChild isActive={pathname === item.url || pathname?.startsWith(item.url + '/')}>
+                            <Link href={item.url} className="flex items-center gap-2">
+                              {ItemIcon && <ItemIcon className="w-4 h-4" />}
+                              <span>{item.title}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      </SidebarMenu>
+                    )
+                  }
+                  
+                  // Wenn Untermenü vorhanden, als Gruppe mit Label
+                  return (
+                    <SidebarMenu key={item.title}>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={pathname?.startsWith(item.url)}>
+                          <Link href={item.url} className="flex items-center gap-2 font-medium">
+                            {ItemIcon && <ItemIcon className="w-4 h-4" />}
+                            <span>{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                      {item.items?.map((child) => {
+                        const ChildIcon = child.icon
+                        return (
+                          <SidebarMenuItem key={child.title}>
+                            <SidebarMenuButton asChild isActive={pathname === child.url || pathname?.startsWith(child.url + '/')}>
+                              <Link href={child.url} className="flex items-center gap-2 pl-6 text-sm">
+                                {ChildIcon && <ChildIcon className="w-3.5 h-3.5" />}
+                                <span>{child.title}</span>
+                              </Link>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        )
+                      })}
+                    </SidebarMenu>
+                  )
+                })}
+              </SidebarGroupContent>
+            </SidebarGroup>
+            {/* Trennlinie zwischen Kategorien (außer letzte) */}
+            {kategorieIndex < navigationData.kategorien.length - 1 && (
+              <div className="border-t border-gray-200 my-2" />
+            )}
+          </React.Fragment>
         ))}
       </SidebarContent>
       

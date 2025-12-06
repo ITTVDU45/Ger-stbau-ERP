@@ -115,19 +115,43 @@ export default function ProjektAngeboteTab({ projekt, onProjektUpdated }: Projek
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {zugewiesenesAngebot.positionen.map((pos: any, index: number) => (
-                        <TableRow key={index}>
-                          <TableCell className="text-gray-900">{pos.position || index + 1}</TableCell>
-                          <TableCell className="text-gray-900">{pos.beschreibung}</TableCell>
-                          <TableCell className="text-gray-700 text-right">{pos.menge} {pos.einheit}</TableCell>
-                          <TableCell className="text-gray-700 text-right">
-                            {pos.einzelpreis.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
-                          </TableCell>
-                          <TableCell className="text-gray-900 font-semibold text-right">
-                            {pos.gesamtpreis.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {zugewiesenesAngebot.positionen.map((pos: any, index: number) => {
+                        // FALLBACK: Alle Miete-Positionen sind standardmäßig Einheitspreise
+                        // außer explizit als 'fest' markiert
+                        const istEinheitspreis = 
+                          pos.preisTyp === 'einheitspreis' || 
+                          (pos.typ === 'miete' && pos.preisTyp !== 'fest')
+                        
+                        return (
+                          <TableRow key={index}>
+                            <TableCell className="text-gray-900">{pos.position || index + 1}</TableCell>
+                            <TableCell className="text-gray-900">
+                              <div 
+                                className="prose prose-sm max-w-none [&_p]:my-1 [&_strong]:font-bold [&_u]:underline [&_em]:italic"
+                                dangerouslySetInnerHTML={{ __html: pos.beschreibung || '' }}
+                              />
+                              {istEinheitspreis && pos.verknuepftMitPosition && (
+                                <span className="ml-2 text-xs text-blue-600 font-medium block mt-1">(bezieht sich auf Pos. {pos.verknuepftMitPosition || '1'})</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-gray-700 text-right">{pos.menge} {pos.einheit}</TableCell>
+                            <TableCell className="text-gray-700 text-right">
+                              {istEinheitspreis ? (
+                                <span className="font-semibold text-blue-600">E.P.</span>
+                              ) : (
+                                <>{pos.einzelpreis.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-gray-900 font-semibold text-right">
+                              {istEinheitspreis ? (
+                                <span className="font-semibold text-blue-600">E.P.</span>
+                              ) : (
+                                <>{pos.gesamtpreis.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
                     </TableBody>
                   </Table>
                 </div>

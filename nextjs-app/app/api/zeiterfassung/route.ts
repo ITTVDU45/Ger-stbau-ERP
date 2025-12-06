@@ -1,19 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db/client'
 import { Zeiterfassung } from '@/lib/db/types'
+import { KalkulationService } from '@/lib/db/services/kalkulationService'
 
-// GET - Alle Zeiteinträge abrufen
+// GET - Alle Zeiteinträge abrufen (optional gefiltert nach mitarbeiterId oder projektId)
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const mitarbeiterId = searchParams.get('mitarbeiterId')
+    const projektId = searchParams.get('projektId')
+    
     const db = await getDatabase()
     const zeiterfassungCollection = db.collection<Zeiterfassung>('zeiterfassung')
     
-    const zeiteintraege = await zeiterfassungCollection
-      .find({})
+    // Baue Filter auf
+    const filter: any = {}
+    if (mitarbeiterId) {
+      filter.mitarbeiterId = mitarbeiterId
+    }
+    if (projektId) {
+      filter.projektId = projektId
+    }
+    
+    const zeiterfassungen = await zeiterfassungCollection
+      .find(filter)
       .sort({ datum: -1 })
       .toArray()
     
-    return NextResponse.json({ erfolg: true, zeiteintraege })
+    return NextResponse.json({ erfolg: true, zeiterfassungen })
   } catch (error) {
     console.error('Fehler beim Abrufen der Zeiteinträge:', error)
     return NextResponse.json(
@@ -40,11 +54,20 @@ export async function POST(request: NextRequest) {
     
     const neuerEintrag: Zeiterfassung = {
       ...body,
+      taetigkeitstyp: body.taetigkeitstyp || 'aufbau', // Default: Aufbau
       erstelltAm: new Date(),
       zuletztGeaendert: new Date()
     }
     
     const result = await zeiterfassungCollection.insertOne(neuerEintrag as any)
+    
+    // Wenn Zeiterfassung mit Projekt verknüpft ist, berechne Nachkalkulation neu
+    if (neuerEintrag.projektId && neuerEintrag.status === 'freigegeben') {
+      // Asynchrone Berechnung ohne auf Ergebnis zu warten
+      KalkulationService.berechneNachkalkulation(neuerEintrag.projektId).catch(err => {
+        console.error('Fehler bei automatischer Nachkalkulation:', err)
+      })
+    }
     
     return NextResponse.json({ 
       erfolg: true, 

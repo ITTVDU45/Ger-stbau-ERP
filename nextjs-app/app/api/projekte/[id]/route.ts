@@ -54,11 +54,25 @@ export async function GET(
       sicherheitsanforderungen: bauvorhaben.sicherheitsanforderungen || ''
     }
 
+    // Normalisiere angebotId (kann ObjectId oder String sein)
+    const angebotId = projekt.angebotId 
+      ? (projekt.angebotId instanceof ObjectId ? projekt.angebotId.toString() : projekt.angebotId)
+      : undefined
+    
+    console.log(`[GET /api/projekte/${id}] Projekt geladen:`, {
+      projektId: projekt._id.toString(),
+      angebotId: angebotId,
+      angebotsnummer: projekt.angebotsnummer,
+      budget: projekt.budget,
+      angebotssumme: projekt.angebotssumme
+    })
+
     return NextResponse.json({
       erfolg: true,
       projekt: {
         ...projekt,
         _id: projekt._id.toString(),
+        angebotId: angebotId, // Explizit als String
         bauvorhaben: normalizedBauvorhaben,
         dokumente: projekt.dokumente || [],
         aktivitaeten: projekt.aktivitaeten || []

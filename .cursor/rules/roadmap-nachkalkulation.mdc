@@ -1,0 +1,79 @@
+1. Ziele und Hintergründe
+Eine Nachkalkulation ist laut Fachliteratur eine Kontrollrechnung, bei der die im Vorfeld ermittelten Soll‑Werte mit den tatsächlichen Ist‑Werten verglichen werden
+hero-software.de
+. Durch diesen Vergleich werden Abweichungen sichtbar, die helfen, zukünftige Angebote und Kalkulationen zu optimieren
+hero-software.de
+.
+Die Vorkalkulation (Planung vor Projektstart) und die Nachkalkulation (Analyse nach Ausführung) sind komplementäre Bausteine der Kostenkontrolle
+whk-controlling.de
+. Beim Bauwesen liefert die Nachkalkulation wichtige Erkenntnisse über die tatsächliche Kostenstruktur und den Zeitaufwand
+whk-controlling.de
+.
+Ziel des neuen Moduls ist es, diese Prozesse zu digitalisieren, damit Zeiten und Summen nicht mehr manuell in Excel, sondern direkt im Projekt erfasst und ausgewertet werden.
+🧱 2. Datenmodell & Grundfunktionen
+2.1 Anlegen der Vorkalkulation im Projekt
+Neue Eingabemaske im Projekt für Soll‑Werte (Vorkalkulation). Felder:
+Soll-Stunden Aufbau und Soll-Stunden Abbau.
+Soll-Umsatz Aufbau und Soll-Umsatz Abbau (Berechnung aus Soll-Stunden × Stundensatz).
+Optional: Material- und Gemeinkosten wie in der Vorkalkulation beschrieben
+whk-controlling.de
+.
+Hinterlegung des Stundensatzes pro Projekt oder zentral (z. B. 72 €).
+2.2 Erfassung der Ist-Daten
+Verknüpfung mit Zeiterfassung: Bei jeder Buchung wählen Mitarbeitende, ob es sich um Aufbau oder Abbau handelt.
+Für jede Zeitbuchung werden:
+Ist-Stunden (Aufbau/Abbau) summiert.
+Ist-Umsatz (Stunden × Stundensatz) berechnet.
+Falls kein Zeiterfassungseintrag vorliegt, kann der Ist‑Wert manuell ergänzt werden.
+2.3 70 % / 30 %‑Verteilung
+In den Projektein­stellungen eine Konfigurationsoption für den Aufteilungs­schlüssel (Standard: 70 % Aufbau, 30 % Abbau).
+Bei der Berechnung der Gesamtstunden und ‑umsätze werden die Soll‑ und Ist‑Werte entsprechend gewichtet, sodass z. B. Gesamt-Soll = (Soll-Stunden-Aufbau × 0,70) + (Soll-Stunden-Abbau × 0,30).
+Diese Logik ist zentral, damit spätere Auswertungen die unterschiedlichen Belastungen bei Aufbau und Abbau berücksichtigen.
+📊 3. Benutzeroberfläche & Funktionsumfang
+3.1 Kalkulations‑Tab im Projekt
+Tab „Kalkulation“ auf der Projektdetailseite.
+Unterteilt in:
+Vorkalkulation – Anzeige der Soll‑Werte: Stunden (Aufbau/Abbau), Umsatz, Gesamt-Soll (gewichtete Summe).
+Ist‑Werte – Summen aus den Zeiterfassungen: Stunden (Aufbau/Abbau), Ist-Umsatz, Gesamt-Ist.
+Abweichung – Automatische Berechnung (Differenz & Prozent) für Stunden und Umsatz.
+Tabellenansicht pro Arbeitstag oder pro Position (ähnlich dem Excel‑Sheet): Spalten Datum, Kunde, Baustelle, Art (Aufbau/Abbau), Brutto/Netto (optional), Gesamt Netto, Netto, %.
+Zweite Tabelle Mitarbeiter‑Abgleich: Mitarbeiter, Zeit-SOLL, Zeit-IST, Differenz, Summe-SOLL, Summe-IST, Differenz, % – entspricht der grünen Tabelle im Excelbild.
+3.2 Monats‑ und Projektresultate
+Über dem Kalkulationstab eine Monats‑ oder Projektzusammenfassung (z. B. „Monatsresultat: 97 %“), die das Verhältnis Gesamt-Ist zu Gesamt-Soll visualisiert.
+Möglichkeit, die Ansicht nach Zeiträumen (Monat, Quartal, Projektlaufzeit) zu filtern.
+3.3 Stundensatz & Einstellungen
+Im Einstellungsmenü ein Abschnitt „Kalkulationsparameter“:
+Hinterlegung des Standard‑Stundensatzes (z. B. 72 €/h).
+Auswahl der Verteilung (70/30), falls sie projektübergreifend gelten soll.
+Diese Einstellungen fließen automatisch in die Vorkalkulation ein, können aber projektweise überschrieben werden.
+🔄 4. Prozessintegration
+4.1 Verknüpfung mit Angeboten
+Beim Erstellen eines Angebots kann ein Vorkalkulations‑Entwurf erzeugt werden, indem die geplanten Stunden (Aufbau/Abbau) und Kosten erfasst werden.
+Nach Annahme des Angebots werden diese Soll‑Werte ins Projekt übernommen; die Nachkalkulation wird sofort aktiviert.
+4.2 Verknüpfung mit Zeiterfassung und Mitarbeiter
+Zeiterfassungseinträge im Projektkontext werden automatisch der Nachkalkulation zugeordnet.
+Die Tabelle Mitarbeiter Anzahl / Zeit-SOLL / Zeit-IST / Differenz bildet die Stunden jedes Mitarbeiters ab.
+Auf Basis der bestehenden Einsatzplanung (wer ist wann wo) können Soll‑Stunden pro Mitarbeiter automatisch berechnet werden (z. B. Anteil am Gesamt-Soll).
+4.3 Verknüpfung mit Rechnungen
+Nach Abschluss der Arbeiten kann die Nachkalkulation genutzt werden, um Teil- oder Schlussrechnungen zu begründen:
+Teilrechnung: nur ein Teil der Ist‑Umsätze (z. B. bis Monatsende) wird abgerechnet.
+Schlussrechnung: Abrechnung des Gesamt-Ist nach Projektende.
+Abweichungen zwischen Soll und Ist können als internes Controlling genutzt werden.
+4.4 Export & Reporting
+Möglichkeit, die Kalkulationsdaten als Excel-, CSV- oder PDF‑Report zu exportieren.
+Integration in das Statistik‑Dashboard: Kennzahlen wie Deckungsbeitrag je Projekt, Gesamtauslastung pro Monat etc.
+🛠️ 5. Technische Empfehlungen
+Backend: Erweiterung des bestehenden Datenmodells (MongoDB/PostgreSQL) um eine calculations‑Collection, die Soll‑ und Ist‑Werte pro Projekt speichert.
+Zeiterfassung-Schnittstelle: Eine time_entries‑Tabelle liefert Ist‑Stunden, inklusive Zuordnung zu Aufbau/Abbau.
+Berechnungsschicht: Cronjob oder Event‑Listener, der bei jeder Zeiterfassungs‑ oder Angebotsänderung die Nachkalkulation neu berechnet.
+Frontend: Next.js/React mit ShadCN‑Komponenten; DataGrid für tabellarische Darstellungen; Charting (z. B. Recharts) für Monatsresultate.
+✅ 6. Erfolgskriterien
+Vollständige Erfassung: Für jedes Projekt sind Soll‑ und Ist‑Stunden, Umsätze und Differenzen klar dokumentiert.
+Automatische Berechnung: Die 70 %‑/30 %‑Verteilung wird korrekt angewendet und muss nicht manuell nachgerechnet werden.
+Integration: Zeiterfassung, Angebot und Rechnungsstellung sind miteinander verbunden, sodass keine doppelten Dateneingaben nötig sind.
+Transparenz: Mitarbeitende und Projektleitung sehen jederzeit den Fortschritt und die Rentabilität des Projekts.
+Flexibilität: Parameter wie Stundensatz und Verteilungsfaktor können angepasst werden, sodass die Software auch für andere Gewerke nutzbar bleibt.
+Diese Roadmap legt damit die Grundlage für eine digitale Nachkalkulation, die – wie in der Fachliteratur beschrieben – den Soll‑Ist‑Vergleich automatisiert
+hero-software.de
+whk-controlling.de
+ und so die Wirtschaftlichkeit eurer Gerüstbauprojekte steigert.

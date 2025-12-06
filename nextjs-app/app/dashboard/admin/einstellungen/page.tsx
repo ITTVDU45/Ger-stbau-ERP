@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import VorlagenFirmendatenContent from './components/VorlagenFirmendatenContent'
+import KalkulationsparameterTab from './components/KalkulationsparameterTab'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -64,9 +65,10 @@ export default function AdminEinstellungenPage() {
       </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="general">Allgemein</TabsTrigger>
           <TabsTrigger value="company">Vorlagen & Firmendaten</TabsTrigger>
+          <TabsTrigger value="kalkulation">Kalkulation</TabsTrigger>
           <TabsTrigger value="invitations">Einladungen</TabsTrigger>
           <TabsTrigger value="notifications">Benachrichtigungen</TabsTrigger>
         </TabsList>
@@ -112,6 +114,10 @@ export default function AdminEinstellungenPage() {
 
         <TabsContent value="company" className="space-y-4">
           <VorlagenFirmendatenContent />
+        </TabsContent>
+
+        <TabsContent value="kalkulation" className="space-y-4">
+          <KalkulationsparameterTab />
         </TabsContent>
 
         <TabsContent value="invitations" className="space-y-6">

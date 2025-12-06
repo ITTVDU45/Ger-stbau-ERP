@@ -5,14 +5,15 @@ import { ObjectId } from 'mongodb'
 // POST - Zeiteintrag ablehnen
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const db = await getDatabase()
     const zeiterfassungCollection = db.collection('zeiterfassung')
     
     const result = await zeiterfassungCollection.updateOne(
-      { _id: new ObjectId(params.id) },
+      { _id: new ObjectId(id) },
       { 
         $set: {
           status: 'abgelehnt',

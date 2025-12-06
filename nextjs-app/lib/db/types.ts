@@ -57,6 +57,7 @@ export interface Zeiterfassung {
   pause?: number // Pause in Minuten
   von?: string // Uhrzeit von (z.B. "08:00")
   bis?: string // Uhrzeit bis (z.B. "17:00")
+  taetigkeitstyp?: 'aufbau' | 'abbau' // NEU: Für Nachkalkulation
   status: 'offen' | 'freigegeben' | 'abgelehnt'
   beschreibung?: string
   notizen?: string
@@ -84,6 +85,78 @@ export interface Urlaub {
   ablehnungsgrund?: string
   erstelltAm: Date
   zuletztGeaendert: Date
+}
+
+// ========================================
+// KALKULATION & NACHKALKULATION
+// ========================================
+
+// Kalkulationsparameter (Globale Einstellungen)
+export interface KalkulationsParameter {
+  _id?: string
+  standardStundensatz: number // z.B. 72 €/h
+  verteilungsfaktor: {
+    aufbau: number // Standard: 70
+    abbau: number  // Standard: 30
+  }
+  rundungsregel: 'auf' | 'ab' | 'kaufmaennisch' // Standard: 'kaufmaennisch'
+  farbschwellen: {
+    gruen: { min: number, max: number } // z.B. 95-105%
+    gelb: { min: number, max: number }  // z.B. 90-95% und 105-110%
+    rot: { min: number, max: number }   // z.B. <90% und >110%
+  }
+  aktiv: boolean
+  erstelltAm: Date
+  zuletztGeaendert: Date
+}
+
+// Vorkalkulation (Teil des Projekts)
+export interface Vorkalkulation {
+  sollStundenAufbau: number
+  sollStundenAbbau: number
+  sollUmsatzAufbau: number  // berechnet aus sollStundenAufbau × Stundensatz
+  sollUmsatzAbbau: number   // berechnet aus sollStundenAbbau × Stundensatz
+  stundensatz: number       // Projekt-spezifisch oder aus globalen Einstellungen
+  gesamtSollStunden: number // gewichtet: (Aufbau × 0.70) + (Abbau × 0.30)
+  gesamtSollUmsatz: number  // gewichtet
+  materialkosten?: number   // Optional
+  gemeinkosten?: number     // Optional
+  gewinn?: number          // Optional
+  erstelltAm: Date
+  erstelltVon: string
+  quelle?: 'angebot' | 'manuell' // Woher stammen die Soll-Werte?
+  angebotId?: string
+}
+
+// Mitarbeiter-Kalkulation (Detailauswertung pro Mitarbeiter)
+export interface MitarbeiterKalkulation {
+  mitarbeiterId: string
+  mitarbeiterName: string
+  zeitSoll: number      // Anteilig berechnet aus Gesamt-Soll
+  zeitIst: number       // Tatsächliche Stunden aus Zeiterfassung
+  differenzZeit: number // Ist - Soll
+  summeSoll: number     // Zeit-Soll × Stundensatz
+  summeIst: number      // Zeit-Ist × Stundensatz
+  differenzSumme: number
+  abweichungProzent: number
+}
+
+// Nachkalkulation (Teil des Projekts, automatisch berechnet)
+export interface Nachkalkulation {
+  istStundenAufbau: number      // Summe aus Zeiterfassung (typ: 'aufbau')
+  istStundenAbbau: number       // Summe aus Zeiterfassung (typ: 'abbau')
+  istUmsatzAufbau: number       // berechnet aus istStundenAufbau × Stundensatz
+  istUmsatzAbbau: number        // berechnet aus istStundenAbbau × Stundensatz
+  gesamtIstStunden: number      // gewichtet: (Aufbau × 0.70) + (Abbau × 0.30)
+  gesamtIstUmsatz: number       // gewichtet
+  differenzStunden: number      // Ist - Soll
+  differenzUmsatz: number       // Ist - Soll
+  abweichungStundenProzent: number // (Ist / Soll - 1) × 100
+  abweichungUmsatzProzent: number  // (Ist / Soll - 1) × 100
+  erfuellungsgrad: number       // Soll / Ist × 100
+  mitarbeiterAuswertung: MitarbeiterKalkulation[]
+  letzteBerechnung: Date
+  status: 'gruen' | 'gelb' | 'rot' // Basierend auf farbschwellen
 }
 
 // Projekt
@@ -141,6 +214,9 @@ export interface Projekt {
     rolle?: string
     von?: Date
     bis?: Date
+    stundenProTag?: number
+    stundenAufbau?: number  // Admin-Korrektur für Aufbau-Stunden
+    stundenAbbau?: number   // Admin-Korrektur für Abbau-Stunden
   }[]
   
   // Finanzen
@@ -179,6 +255,19 @@ export interface Projekt {
   zuletztGeaendert: Date
   erstelltVon: string
   tags?: string[]
+  
+  // Kalkulation
+  vorkalkulation?: Vorkalkulation
+  nachkalkulation?: Nachkalkulation
+  
+  // Optional: Verlaufsdaten für Charts
+  kalkulationsVerlauf?: Array<{
+    datum: Date
+    istStundenAufbau: number
+    istStundenAbbau: number
+    istUmsatzGesamt: number
+    erfuellungsgrad: number
+  }>
 }
 
 // Kunde
@@ -253,6 +342,9 @@ export interface AngebotPosition {
   verknuepftMitPosition?: string // Verknüpfung zu anderer Position (geändert zu string)
   verknuepfungsTyp?: 'basis' | 'abhaengig' // basis = Hauptposition, abhaengig = hängt von anderer Position ab
   verknuepfungsBeschreibung?: string // z.B. "Miete ab 4 Wochen basierend auf Position 1"
+  preisTyp?: 'fest' | 'einheitspreis' // NEU: 'einheitspreis' = E.P. (wird später im Projekt berechnet)
+  finalerEinzelpreis?: number // NEU: Wird im Projekt gesetzt wenn preisTyp='einheitspreis'
+  finalerGesamtpreis?: number // NEU: Wird im Projekt berechnet wenn preisTyp='einheitspreis'
 }
 
 // Positions-Vorlage für wiederverwendbare Positionen
@@ -838,6 +930,9 @@ export interface CompanySettings {
     headerHeight?: number // in cm
     footerHeight?: number // in cm
   }
+  
+  // Kalkulationsparameter
+  kalkulationsParameter?: KalkulationsParameter
   
   // Metadaten
   aktiv?: boolean

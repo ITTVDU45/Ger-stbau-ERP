@@ -122,20 +122,20 @@ export default function MitarbeiterPage() {
 
       {/* Statistiken */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <Card>
+        <Card className="bg-white border-gray-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Gesamt</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-900">Gesamt</CardTitle>
             <Users className="h-4 w-4 text-gray-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.gesamt}</div>
+            <div className="text-2xl font-bold text-gray-900">{stats.gesamt}</div>
             <p className="text-xs text-gray-600 mt-1">Alle Mitarbeiter</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-white border-green-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Aktiv</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-900">Aktiv</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
@@ -144,9 +144,9 @@ export default function MitarbeiterPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-white border-blue-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Festangestellt</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-900">Festangestellt</CardTitle>
             <Calendar className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
@@ -155,9 +155,9 @@ export default function MitarbeiterPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-white border-purple-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Aushilfen</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-900">Aushilfen</CardTitle>
             <Users className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
@@ -166,9 +166,9 @@ export default function MitarbeiterPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-white border-orange-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Subunternehmer</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-900">Subunternehmer</CardTitle>
             <Users className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
@@ -179,7 +179,7 @@ export default function MitarbeiterPage() {
       </div>
 
       {/* Filter & Suche */}
-      <Card>
+      <Card className="bg-white">
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
