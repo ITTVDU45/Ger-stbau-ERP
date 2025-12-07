@@ -71,38 +71,7 @@ export default function VorkalkulationEditor({
     const mitarbeiterCount = zugewieseneMitarbeiter?.length || 1
     setAnzahlMitarbeiter(mitarbeiterCount)
     
-    // PRIORITÄT 0: Prüfe ob zugewiesene Mitarbeiter Aufbau/Abbau-Stunden haben
-    const mitarbeiterHabenStunden = zugewieseneMitarbeiter?.some(
-      (m: any) => (m.stundenAufbau !== undefined && m.stundenAufbau !== null) || 
-                  (m.stundenAbbau !== undefined && m.stundenAbbau !== null)
-    )
-    
-    if (mitarbeiterHabenStunden) {
-      console.log('✓ Zugewiesene Mitarbeiter haben Aufbau/Abbau-Stunden gesetzt')
-      // Berechne Gesamt-Stunden aus zugewiesenen Mitarbeitern
-      const gesamtAufbau = zugewieseneMitarbeiter?.reduce((sum: number, m: any) => 
-        sum + (m.stundenAufbau || 0), 0) || 0
-      const gesamtAbbau = zugewieseneMitarbeiter?.reduce((sum: number, m: any) => 
-        sum + (m.stundenAbbau || 0), 0) || 0
-      
-      const aufbauProMA = mitarbeiterCount > 0 ? gesamtAufbau / mitarbeiterCount : 0
-      const abbauProMA = mitarbeiterCount > 0 ? gesamtAbbau / mitarbeiterCount : 0
-      
-      setSollStundenAufbauProMA(Math.round(aufbauProMA * 100) / 100)
-      setSollStundenAbbauProMA(Math.round(abbauProMA * 100) / 100)
-      
-      console.log('→ Berechnet aus Mitarbeitern: Aufbau', gesamtAufbau, 'h, Abbau', gesamtAbbau, 'h')
-      console.log('→ Pro MA: Aufbau', aufbauProMA.toFixed(2), 'h, Abbau', abbauProMA.toFixed(2), 'h')
-      
-      // Setze Angebotssumme wenn vorhanden
-      if (angebotssumme && angebotssumme > 0) {
-        setNettoUmsatz(Number(angebotssumme))
-      }
-      
-      return // Beende useEffect hier, um weitere Berechnungen zu überspringen
-    }
-    
-    // PRIORITÄT 1: Wenn Vorkalkulation existiert, lade die Werte
+    // PRIORITÄT 1: Wenn Vorkalkulation existiert, lade die Werte (HÖCHSTE PRIORITÄT)
     if (vorkalkulation) {
       console.log('Lade existierende Vorkalkulation')
       setStundensatz(vorkalkulation.stundensatz || 72)
@@ -122,8 +91,34 @@ export default function VorkalkulationEditor({
         setNettoUmsatz(vorkalkulation.gesamtSollUmsatz)
       }
     } else {
-      // PRIORITÄT 2: Keine Vorkalkulation vorhanden - Berechne automatisch aus Angebot
-      if (angebotssumme && angebotssumme > 0) {
+      // PRIORITÄT 2: Keine Vorkalkulation - Prüfe ob zugewiesene Mitarbeiter Stunden haben
+      const mitarbeiterHabenStunden = zugewieseneMitarbeiter?.some(
+        (m: any) => (m.stundenAufbau !== undefined && m.stundenAufbau !== null) || 
+                    (m.stundenAbbau !== undefined && m.stundenAbbau !== null)
+      )
+      
+      if (mitarbeiterHabenStunden) {
+        console.log('✓ Keine Vorkalkulation - Lade Stunden aus zugewiesenen Mitarbeitern')
+        // Berechne Gesamt-Stunden aus zugewiesenen Mitarbeitern
+        const gesamtAufbau = zugewieseneMitarbeiter?.reduce((sum: number, m: any) => 
+          sum + (m.stundenAufbau || 0), 0) || 0
+        const gesamtAbbau = zugewieseneMitarbeiter?.reduce((sum: number, m: any) => 
+          sum + (m.stundenAbbau || 0), 0) || 0
+        
+        const aufbauProMA = mitarbeiterCount > 0 ? gesamtAufbau / mitarbeiterCount : 0
+        const abbauProMA = mitarbeiterCount > 0 ? gesamtAbbau / mitarbeiterCount : 0
+        
+        setSollStundenAufbauProMA(Math.round(aufbauProMA * 100) / 100)
+        setSollStundenAbbauProMA(Math.round(abbauProMA * 100) / 100)
+        
+        console.log('→ Berechnet aus Mitarbeitern: Aufbau', gesamtAufbau, 'h, Abbau', gesamtAbbau, 'h')
+        
+        // Setze Angebotssumme wenn vorhanden
+        if (angebotssumme && angebotssumme > 0) {
+          setNettoUmsatz(Number(angebotssumme))
+        }
+      } else if (angebotssumme && angebotssumme > 0) {
+        // PRIORITÄT 3: Keine Vorkalkulation, keine Mitarbeiter-Stunden - Berechne aus Angebot
         console.log('✓ Keine Vorkalkulation - Berechne automatisch aus Angebot:', angebotssumme)
         setNettoUmsatz(Number(angebotssumme))
         
@@ -140,7 +135,7 @@ export default function VorkalkulationEditor({
         
         console.log('→ Automatisch berechnet: Aufbau', aufbauStundenProMA.toFixed(2), 'h/MA, Abbau', abbauStundenProMA.toFixed(2), 'h/MA')
       } else {
-        console.log('⚠ Keine Angebotssumme und keine Vorkalkulation vorhanden')
+        console.log('⚠ Keine Vorkalkulation, keine Mitarbeiter-Stunden und keine Angebotssumme vorhanden')
       }
     }
     // Snapshot nach Hydration speichern
