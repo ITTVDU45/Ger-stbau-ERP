@@ -37,7 +37,7 @@ export default function VorkalkulationEditor({
   const initializedRef = useRef(false)
   const saveTimer = useRef<NodeJS.Timeout | null>(null)
   const lastSavedPayload = useRef<string>('') // JSON-stringified snapshot, um Autosave-Loops zu vermeiden
-  const hydratingRef = useRef(false) // true während Props→State Sync
+  const isLoadingRef = useRef(false) // true während wir Daten laden, um Auto-Save zu blockieren
 
   // Berechnete Werte - Gesamt für ganze Kolonne
   const sollStundenAufbauGesamt = sollStundenAufbauProMA * anzahlMitarbeiter
@@ -50,7 +50,7 @@ export default function VorkalkulationEditor({
   const gesamtSollUmsatz = sollUmsatzAufbau + sollUmsatzAbbau
 
   useEffect(() => {
-    hydratingRef.current = true
+    isLoadingRef.current = true
     console.log('=== VorkalkulationEditor - Props ===')
     console.log('projektId:', projektId)
     console.log('angebotId:', angebotId)
@@ -141,7 +141,11 @@ export default function VorkalkulationEditor({
     // Snapshot nach Hydration speichern
     const payload = buildPayload(false)
     lastSavedPayload.current = JSON.stringify(payload)
-    hydratingRef.current = false
+    
+    // Setze isLoadingRef nach State-Updates auf false (mit kleinem Delay für async setState)
+    setTimeout(() => {
+      isLoadingRef.current = false
+    }, 100)
   }, [vorkalkulation, angebotssumme, zugewieseneMitarbeiter])
 
   // Auto-Save bei Änderungen (debounced)
@@ -150,7 +154,11 @@ export default function VorkalkulationEditor({
       initializedRef.current = true
       return
     }
-    if (hydratingRef.current) return
+    // Blockiere Auto-Save während wir Daten laden
+    if (isLoadingRef.current) {
+      console.log('[Auto-Save] Blockiert - Daten werden geladen')
+      return
+    }
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => {
       autoSave()
@@ -167,6 +175,9 @@ export default function VorkalkulationEditor({
       toast.error('Bitte geben Sie einen gültigen Netto-Umsatz, Stundensatz und Mitarbeiter-Anzahl ein')
       return
     }
+
+    // Blockiere Auto-Save während "Lokal berechnen"
+    isLoadingRef.current = true
 
     // Gesamt-Stunden für ganze Kolonne = Netto / Stundensatz
     const gesamtStunden = nettoUmsatz / stundensatz
@@ -208,6 +219,7 @@ export default function VorkalkulationEditor({
       if (data.erfolg) {
         toast.success(`Soll-Stunden berechnet und gespeichert: Pro MA (${anzahlMitarbeiter} Mitarbeiter, 70/30-Verteilung)`)
         await onUpdate() // Lade aktualisierte Daten
+        // Nach onUpdate() bleibt isLoadingRef.current auf true durch den ersten useEffect
       } else {
         toast.error(data.fehler || 'Fehler beim Speichern')
       }
@@ -216,6 +228,11 @@ export default function VorkalkulationEditor({
       toast.error('Fehler beim Speichern der Vorkalkulation')
     } finally {
       setSaving(false)
+      // Setze isLoadingRef auf false nach kurzer Verzögerung, um sicherzustellen,
+      // dass alle State-Updates abgeschlossen sind
+      setTimeout(() => {
+        isLoadingRef.current = false
+      }, 200)
     }
   }
 
