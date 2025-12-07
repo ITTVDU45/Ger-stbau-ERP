@@ -95,38 +95,67 @@ export async function POST(
 
       const vonDatum = new Date(mitarbeiter.von)
       // Wenn kein Bis-Datum: nur der erste Tag, sonst von-bis
-      const bisDatum = mitarbeiter.bis ? new Date(mitarbeiter.bis) : new Date(vonDatum)
+      const bisDatum = mitarbeiter.bis && mitarbeiter.bis !== '' 
+        ? new Date(mitarbeiter.bis) 
+        : new Date(vonDatum)
+      
+      console.log(`[Zeiterfassung] Von: ${vonDatum.toISOString()}, Bis: ${bisDatum.toISOString()}`)
+      console.log(`[Zeiterfassung] mitarbeiter.bis Wert: "${mitarbeiter.bis}"`)
       
       // Berechne Anzahl Arbeitstage
       let arbeitstage = 0
       const checkDate = new Date(vonDatum)
-      while (checkDate <= bisDatum) {
+      checkDate.setHours(0, 0, 0, 0)
+      const bisDateCheck = new Date(bisDatum)
+      bisDateCheck.setHours(23, 59, 59, 999)
+      
+      console.log(`[Zeiterfassung] Check-Schleife: von ${checkDate.toDateString()} bis ${bisDateCheck.toDateString()}`)
+      
+      while (checkDate <= bisDateCheck) {
         const dayOfWeek = checkDate.getDay()
+        console.log(`[Zeiterfassung]   Tag: ${checkDate.toDateString()}, Wochentag: ${dayOfWeek}`)
         if (dayOfWeek !== 0 && dayOfWeek !== 6) {
           arbeitstage++
         }
         checkDate.setDate(checkDate.getDate() + 1)
       }
 
+      console.log(`[Zeiterfassung] Mitarbeiter: ${mitarbeiter.mitarbeiterName}`)
+      console.log(`[Zeiterfassung] Arbeitstage berechnet: ${arbeitstage}`)
+      console.log(`[Zeiterfassung] Aufbau gesamt: ${mitarbeiter.stundenAufbau}h`)
+      console.log(`[Zeiterfassung] Abbau gesamt: ${mitarbeiter.stundenAbbau}h`)
+      
+      // Wenn keine Arbeitstage (weil "Offen" oder Wochenende), nutze 1 Tag als Minimum
+      if (arbeitstage === 0 && (mitarbeiter.stundenAufbau > 0 || mitarbeiter.stundenAbbau > 0)) {
+        arbeitstage = 1
+        console.log(`[Zeiterfassung] ⚠️ Keine Arbeitstage berechnet, setze auf 1 Tag`)
+      }
+      
       // Berechne Stunden pro Tag für Aufbau und Abbau
       const stundenAufbauProTag = arbeitstage > 0 && mitarbeiter.stundenAufbau > 0 
         ? mitarbeiter.stundenAufbau / arbeitstage 
-        : 0
+        : mitarbeiter.stundenAufbau || 0
       const stundenAbbauProTag = arbeitstage > 0 && mitarbeiter.stundenAbbau > 0 
         ? mitarbeiter.stundenAbbau / arbeitstage 
-        : 0
+        : mitarbeiter.stundenAbbau || 0
       
-      console.log(`[Zeiterfassung] Mitarbeiter: ${mitarbeiter.mitarbeiterName}`)
-      console.log(`[Zeiterfassung] Arbeitstage: ${arbeitstage}`)
-      console.log(`[Zeiterfassung] Aufbau gesamt: ${mitarbeiter.stundenAufbau}h, pro Tag: ${stundenAufbauProTag}h`)
-      console.log(`[Zeiterfassung] Abbau gesamt: ${mitarbeiter.stundenAbbau}h, pro Tag: ${stundenAbbauProTag}h`)
+      console.log(`[Zeiterfassung] Aufbau pro Tag: ${stundenAufbauProTag}h`)
+      console.log(`[Zeiterfassung] Abbau pro Tag: ${stundenAbbauProTag}h`)
       
       // Erstelle Zeiterfassungen für jeden Arbeitstag
       const zeiterfassungen: Zeiterfassung[] = []
       const currentDate = new Date(vonDatum)
+      currentDate.setHours(0, 0, 0, 0)
+      
+      const endDate = new Date(bisDatum)
+      endDate.setHours(23, 59, 59, 999)
+      
+      console.log(`[Zeiterfassung] Erstelle Zeiterfassungen von ${currentDate.toDateString()} bis ${endDate.toDateString()}`)
 
-      while (currentDate <= bisDatum) {
+      while (currentDate <= endDate) {
         const dayOfWeek = currentDate.getDay()
+        
+        console.log(`[Zeiterfassung]   Prüfe Tag: ${currentDate.toDateString()}, Wochentag: ${dayOfWeek}`)
         
         // Überspringe Wochenenden (0 = Sonntag, 6 = Samstag)
         if (dayOfWeek !== 0 && dayOfWeek !== 6) {
