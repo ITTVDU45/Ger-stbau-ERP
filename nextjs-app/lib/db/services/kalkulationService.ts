@@ -283,21 +283,13 @@ export class KalkulationService {
         console.log(`[Nachkalkulation] Zeiterfassungs-Stunden: Aufbau ${istStundenAufbau}h, Abbau ${istStundenAbbau}h`)
       }
       
-      // Berechne gewichtete Gesamtstunden
-      const gesamtIstStunden = this.berechneGewichteteStunden(
-        istStundenAufbau, 
-        istStundenAbbau, 
-        parameter.verteilungsfaktor
-      )
+      // Berechne UNGEWICHTETE Gesamtstunden (einfache Summe)
+      const gesamtIstStunden = istStundenAufbau + istStundenAbbau
       
       // Berechne Umsätze
       const istUmsatzAufbau = istStundenAufbau * vorkalkulation.stundensatz
       const istUmsatzAbbau = istStundenAbbau * vorkalkulation.stundensatz
-      const gesamtIstUmsatz = this.berechneGewichteteStunden(
-        istUmsatzAufbau, 
-        istUmsatzAbbau, 
-        parameter.verteilungsfaktor
-      )
+      const gesamtIstUmsatz = istUmsatzAufbau + istUmsatzAbbau
       
       // Berechne Differenzen (Soll - Ist)
       // Positive Differenz = gut (weniger verbraucht als geplant)
@@ -421,18 +413,10 @@ export class KalkulationService {
       const db = await getDatabase()
       const parameter = await this.getKalkulationsParameter()
       
-      // Berechne gewichtete Werte
-      const gesamtSollStunden = this.berechneGewichteteStunden(
-        vorkalkulation.sollStundenAufbau,
-        vorkalkulation.sollStundenAbbau,
-        parameter.verteilungsfaktor
-      )
-      
-      const gesamtSollUmsatz = this.berechneGewichteteStunden(
-        vorkalkulation.sollUmsatzAufbau,
-        vorkalkulation.sollUmsatzAbbau,
-        parameter.verteilungsfaktor
-      )
+      // Berechne UNGEWICHTETE Summen (einfache Addition)
+      // Die Gewichtung (70/30) wird NUR in der Nachkalkulation für die Bewertung verwendet
+      const gesamtSollStunden = vorkalkulation.sollStundenAufbau + vorkalkulation.sollStundenAbbau
+      const gesamtSollUmsatz = vorkalkulation.sollUmsatzAufbau + vorkalkulation.sollUmsatzAbbau
       
       const vollstaendigeVorkalkulation: Vorkalkulation = {
         ...vorkalkulation,
