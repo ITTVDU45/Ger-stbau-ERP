@@ -124,20 +124,20 @@ export default function ProjektKalkulationTab({ projekt, onProjektUpdated }: Pro
 
       {/* Tabs für Vorkalkulation, Nachkalkulation, Mitarbeiter, Verlauf */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 bg-gray-100">
-          <TabsTrigger value="vorkalkulation" className="data-[state=active]:bg-white">
+        <TabsList className="w-full flex flex-wrap gap-2 bg-gray-100">
+          <TabsTrigger value="vorkalkulation" className="data-[state=active]:bg-white flex-shrink-0">
             Vorkalkulation
           </TabsTrigger>
-          <TabsTrigger value="nachkalkulation" className="data-[state=active]:bg-white">
+          <TabsTrigger value="nachkalkulation" className="data-[state=active]:bg-white flex-shrink-0">
             Nachkalkulation
           </TabsTrigger>
-          <TabsTrigger value="einheitspreise" className="data-[state=active]:bg-white">
+          <TabsTrigger value="einheitspreise" className="data-[state=active]:bg-white flex-shrink-0">
             Einheitspreise (E.P.)
           </TabsTrigger>
-          <TabsTrigger value="mitarbeiter" className="data-[state=active]:bg-white">
+          <TabsTrigger value="mitarbeiter" className="data-[state=active]:bg-white flex-shrink-0">
             Mitarbeiter-Abgleich
           </TabsTrigger>
-          <TabsTrigger value="verlauf" className="data-[state=active]:bg-white">
+          <TabsTrigger value="verlauf" className="data-[state=active]:bg-white flex-shrink-0">
             Verlauf & Charts
           </TabsTrigger>
         </TabsList>

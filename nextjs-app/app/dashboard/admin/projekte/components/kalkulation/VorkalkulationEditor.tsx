@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -28,11 +28,16 @@ export default function VorkalkulationEditor({
   onUpdate 
 }: VorkalkulationEditorProps) {
   const [saving, setSaving] = useState(false)
+  const [autoSaving, setAutoSaving] = useState(false)
   const [stundensatz, setStundensatz] = useState(72)
   const [nettoUmsatz, setNettoUmsatz] = useState(0)
   const [anzahlMitarbeiter, setAnzahlMitarbeiter] = useState(1)
   const [sollStundenAufbauProMA, setSollStundenAufbauProMA] = useState(0)
   const [sollStundenAbbauProMA, setSollStundenAbbauProMA] = useState(0)
+  const initializedRef = useRef(false)
+  const saveTimer = useRef<NodeJS.Timeout | null>(null)
+  const lastSavedPayload = useRef<string>('') // JSON-stringified snapshot, um Autosave-Loops zu vermeiden
+  const hydratingRef = useRef(false) // true während Props→State Sync
 
   // Berechnete Werte - Gesamt für ganze Kolonne
   const sollStundenAufbauGesamt = sollStundenAufbauProMA * anzahlMitarbeiter
@@ -45,6 +50,7 @@ export default function VorkalkulationEditor({
   const gesamtSollUmsatz = sollUmsatzAufbau + sollUmsatzAbbau
 
   useEffect(() => {
+    hydratingRef.current = true
     console.log('=== VorkalkulationEditor - Props ===')
     console.log('projektId:', projektId)
     console.log('angebotId:', angebotId)
@@ -137,10 +143,31 @@ export default function VorkalkulationEditor({
         console.log('⚠ Keine Angebotssumme und keine Vorkalkulation vorhanden')
       }
     }
+    // Snapshot nach Hydration speichern
+    const payload = buildPayload(false)
+    lastSavedPayload.current = JSON.stringify(payload)
+    hydratingRef.current = false
   }, [vorkalkulation, angebotssumme, zugewieseneMitarbeiter])
 
+  // Auto-Save bei Änderungen (debounced)
+  useEffect(() => {
+    if (!initializedRef.current) {
+      initializedRef.current = true
+      return
+    }
+    if (hydratingRef.current) return
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => {
+      autoSave()
+    }, 800)
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sollStundenAufbauProMA, sollStundenAbbauProMA, stundensatz, nettoUmsatz, anzahlMitarbeiter])
+
   // Automatische Berechnung aus Netto-Umsatz
-  const berechneAusNetto = () => {
+  const berechneAusNetto = async () => {
     if (nettoUmsatz <= 0 || stundensatz <= 0 || anzahlMitarbeiter <= 0) {
       toast.error('Bitte geben Sie einen gültigen Netto-Umsatz, Stundensatz und Mitarbeiter-Anzahl ein')
       return
@@ -158,10 +185,43 @@ export default function VorkalkulationEditor({
     const abbauStundenProMA = abbauStundenKolonne / anzahlMitarbeiter
     
     // Runde auf 2 Dezimalstellen
-    setSollStundenAufbauProMA(Math.round(aufbauStundenProMA * 100) / 100)
-    setSollStundenAbbauProMA(Math.round(abbauStundenProMA * 100) / 100)
+    const aufbauGerundet = Math.round(aufbauStundenProMA * 100) / 100
+    const abbauGerundet = Math.round(abbauStundenProMA * 100) / 100
     
-    toast.success(`Soll-Stunden berechnet: Pro MA (${anzahlMitarbeiter} Mitarbeiter, 70/30-Verteilung)`)
+    setSollStundenAufbauProMA(aufbauGerundet)
+    setSollStundenAbbauProMA(abbauGerundet)
+    
+    // Sofort speichern nach Berechnung
+    setSaving(true)
+    try {
+      const aufbauGesamt = aufbauGerundet * anzahlMitarbeiter
+      const abbauGesamt = abbauGerundet * anzahlMitarbeiter
+      
+      const response = await fetch(`/api/kalkulation/${projektId}/vorkalkulation`, {
+        method: vorkalkulation ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sollStundenAufbau: aufbauGesamt,
+          sollStundenAbbau: abbauGesamt,
+          stundensatz,
+          erstelltVon: 'lokal-berechnen'
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.erfolg) {
+        toast.success(`Soll-Stunden berechnet und gespeichert: Pro MA (${anzahlMitarbeiter} Mitarbeiter, 70/30-Verteilung)`)
+        await onUpdate() // Lade aktualisierte Daten
+      } else {
+        toast.error(data.fehler || 'Fehler beim Speichern')
+      }
+    } catch (error) {
+      console.error('Fehler beim Speichern:', error)
+      toast.error('Fehler beim Speichern der Vorkalkulation')
+    } finally {
+      setSaving(false)
+    }
   }
 
   // Automatische Berechnung über API (nutzt Angebot + zugewiesene Mitarbeiter)
@@ -225,6 +285,37 @@ export default function VorkalkulationEditor({
       setSaving(false)
     }
   }
+
+  const autoSave = async () => {
+    if (sollStundenAufbauProMA <= 0 || sollStundenAbbauProMA <= 0 || stundensatz <= 0) return
+    if (saving || autoSaving) return
+    const payload = buildPayload(true)
+    const payloadJson = JSON.stringify(payload)
+    // Wenn unverändert, kein erneuter Save (vermeidet Loops)
+    if (payloadJson === lastSavedPayload.current) return
+
+    setAutoSaving(true)
+    try {
+      await fetch(`/api/kalkulation/${projektId}/vorkalkulation`, {
+        method: vorkalkulation ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payloadJson
+      })
+      lastSavedPayload.current = payloadJson
+      await Promise.resolve(onUpdate())
+    } catch (error) {
+      console.error('Auto-Save Vorkalkulation fehlgeschlagen:', error)
+    } finally {
+      setAutoSaving(false)
+    }
+  }
+
+  const buildPayload = (forSave: boolean) => ({
+    sollStundenAufbau: sollStundenAufbauGesamt,
+    sollStundenAbbau: sollStundenAbbauGesamt,
+    stundensatz,
+    erstelltVon: forSave ? 'auto' : 'hydrate'
+  })
 
   return (
     <Card className="border-gray-200 bg-white">

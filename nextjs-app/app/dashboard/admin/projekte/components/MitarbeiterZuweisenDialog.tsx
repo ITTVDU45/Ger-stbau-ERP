@@ -34,9 +34,10 @@ export default function MitarbeiterZuweisenDialog({ projekt, onSuccess, children
   
   const [formData, setFormData] = useState({
     rolle: 'monteur',
-    von: new Date().toISOString().split('T')[0],
-    bis: '',
-    stundenProTag: 8,
+    aufbauVon: new Date().toISOString().split('T')[0],
+    aufbauBis: '',
+    abbauVon: '',
+    abbauBis: '',
     stundenAufbau: 0,
     stundenAbbau: 0
   })
@@ -52,11 +53,9 @@ export default function MitarbeiterZuweisenDialog({ projekt, onSuccess, children
       const response = await fetch('/api/mitarbeiter')
       if (response.ok) {
         const data = await response.json()
-        // Filter nur aktive Mitarbeiter (mehrfache Zuweisungen sind erlaubt für verschiedene Zeiträume)
-        const aktiveMitarbeiter = (data.mitarbeiter || []).filter((m: Mitarbeiter) => 
-          m.aktiv === true
-        )
-        setMitarbeiterListe(aktiveMitarbeiter)
+        // Zeige alle, außer explizit deaktivierte (aktiv === false)
+        const verfuegbare = (data.mitarbeiter || []).filter((m: Mitarbeiter) => m.aktiv !== false)
+        setMitarbeiterListe(verfuegbare)
       } else {
         toast.error('Fehler beim Laden der Mitarbeiter')
       }
@@ -89,6 +88,16 @@ export default function MitarbeiterZuweisenDialog({ projekt, onSuccess, children
     try {
       setLoading(true)
       
+      // Gesamt-Zeitraum ableiten (für Anzeige in Übersicht)
+      const overallVon = formData.aufbauVon || formData.abbauVon || new Date().toISOString().split('T')[0]
+      // Bis = spätestes angegebenes Datum (Aufbau oder Abbau), fallback auf Von
+      const overallBis =
+        formData.abbauBis ||
+        formData.aufbauBis ||
+        formData.abbauVon ||
+        formData.aufbauVon ||
+        ''
+
       // Neue Mitarbeiter-Zuweisungen erstellen
       const neueMitarbeiter = Array.from(selectedMitarbeiter).map(id => {
         const mitarbeiter = mitarbeiterListe.find(m => m._id === id)
@@ -96,9 +105,12 @@ export default function MitarbeiterZuweisenDialog({ projekt, onSuccess, children
           mitarbeiterId: id,
           mitarbeiterName: mitarbeiter ? `${mitarbeiter.vorname} ${mitarbeiter.nachname}` : 'Unbekannt',
           rolle: formData.rolle,
-          von: formData.von,
-          bis: formData.bis || undefined,
-          stundenProTag: formData.stundenProTag,
+          von: overallVon,
+          bis: overallBis || undefined,
+          aufbauVon: formData.aufbauVon,
+          aufbauBis: formData.aufbauBis || undefined,
+          abbauVon: formData.abbauVon || undefined,
+          abbauBis: formData.abbauBis || undefined,
           stundenAufbau: formData.stundenAufbau,
           stundenAbbau: formData.stundenAbbau
         }
@@ -126,9 +138,10 @@ export default function MitarbeiterZuweisenDialog({ projekt, onSuccess, children
       setSelectedMitarbeiter(new Set())
       setFormData({
         rolle: 'monteur',
-        von: new Date().toISOString().split('T')[0],
-        bis: '',
-        stundenProTag: 8,
+        aufbauVon: new Date().toISOString().split('T')[0],
+        aufbauBis: '',
+        abbauVon: '',
+        abbauBis: '',
         stundenAufbau: 0,
         stundenAbbau: 0
       })
@@ -215,47 +228,32 @@ export default function MitarbeiterZuweisenDialog({ projekt, onSuccess, children
             </Select>
           </div>
 
-          {/* Zeitraum */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-gray-900 font-medium">Von *</Label>
-              <Input
-                type="date"
-                value={formData.von}
-                onChange={(e) => handleFormChange('von', e.target.value)}
-                className="bg-white border-gray-300 text-gray-900"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-gray-900 font-medium">Bis (optional)</Label>
-              <Input
-                type="date"
-                value={formData.bis}
-                onChange={(e) => handleFormChange('bis', e.target.value)}
-                className="bg-white border-gray-300 text-gray-900"
-              />
-            </div>
-          </div>
-
-          {/* Stunden pro Tag */}
-          <div className="space-y-2">
-            <Label className="text-gray-900 font-medium">Stunden pro Tag</Label>
-            <Input
-              type="number"
-              min="1"
-              max="24"
-              value={formData.stundenProTag}
-              onChange={(e) => handleFormChange('stundenProTag', parseInt(e.target.value) || 8)}
-              className="bg-white border-gray-300 text-gray-900"
-            />
-          </div>
-
-          {/* Aufbau/Abbau Stunden */}
+          {/* Aufbau/Abbau Planung */}
           <div className="border-t border-gray-200 pt-4">
             <Label className="text-gray-900 font-semibold mb-3 block">
               Aufbau/Abbau Planung (optional)
             </Label>
             <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-gray-700 font-medium">Aufbau: Von *</Label>
+                <Input
+                  type="date"
+                  value={formData.aufbauVon}
+                  onChange={(e) => handleFormChange('aufbauVon', e.target.value)}
+                  className="bg-white border-gray-300 text-gray-900"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-700 font-medium">Aufbau: Bis (optional)</Label>
+                <Input
+                  type="date"
+                  value={formData.aufbauBis}
+                  onChange={(e) => handleFormChange('aufbauBis', e.target.value)}
+                  className="bg-white border-gray-300 text-gray-900"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mt-4">
               <div className="space-y-2">
                 <Label className="text-gray-700 font-medium flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-blue-500"></div>
@@ -288,6 +286,26 @@ export default function MitarbeiterZuweisenDialog({ projekt, onSuccess, children
                   className="bg-white border-gray-300 text-gray-900"
                 />
                 <p className="text-xs text-gray-500">Geplante Abbau-Stunden</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div className="space-y-2">
+                <Label className="text-gray-700 font-medium">Abbau: Von (optional)</Label>
+                <Input
+                  type="date"
+                  value={formData.abbauVon}
+                  onChange={(e) => handleFormChange('abbauVon', e.target.value)}
+                  className="bg-white border-gray-300 text-gray-900"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-700 font-medium">Abbau: Bis (optional)</Label>
+                <Input
+                  type="date"
+                  value={formData.abbauBis}
+                  onChange={(e) => handleFormChange('abbauBis', e.target.value)}
+                  className="bg-white border-gray-300 text-gray-900"
+                />
               </div>
             </div>
           </div>

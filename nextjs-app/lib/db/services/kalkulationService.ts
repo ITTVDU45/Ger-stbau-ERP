@@ -165,53 +165,68 @@ export class KalkulationService {
     projektId: string, 
     vorkalkulation: Vorkalkulation, 
     zeiterfassungen: Zeiterfassung[],
-    parameter: KalkulationsParameter
+    parameter: KalkulationsParameter,
+    zugewieseneMitarbeiter: { mitarbeiterId: string, mitarbeiterName: string }[]
   ): Promise<MitarbeiterKalkulation[]> {
     try {
-      // Gruppiere Zeiterfassungen nach Mitarbeiter
+      // Basis: zugewiesene Mitarbeiter mit 0h hinzufügen (damit alle angezeigt werden)
       const mitarbeiterMap = new Map<string, { name: string, stunden: number }>()
+      ;(zugewieseneMitarbeiter || []).forEach(m => {
+        if (m.mitarbeiterId) {
+          mitarbeiterMap.set(m.mitarbeiterId, { name: m.mitarbeiterName, stunden: 0 })
+        }
+      })
       
+      // Gruppiere Zeiterfassungen nach Mitarbeiter und addiere Stunden
       zeiterfassungen.forEach(z => {
+        if (!z.mitarbeiterId) return
         const existing = mitarbeiterMap.get(z.mitarbeiterId) || { name: z.mitarbeiterName, stunden: 0 }
         existing.stunden += z.stunden
         mitarbeiterMap.set(z.mitarbeiterId, existing)
       })
       
-      // Berechne Soll-Stunden pro Mitarbeiter (gleichmäßig verteilt)
-      const anzahlMitarbeiter = mitarbeiterMap.size
-      const sollStundenProMitarbeiter = anzahlMitarbeiter > 0 
-        ? vorkalkulation.gesamtSollStunden / anzahlMitarbeiter 
+      // Anzahl geplanter Mitarbeiter: nutze Zuweisungen, sonst fallback auf Zeiterfassung
+      const geplanteMitarbeiter = (zugewieseneMitarbeiter?.length || 0) > 0
+        ? zugewieseneMitarbeiter.length
+        : (mitarbeiterMap.size || 1)
+
+      // Berechne Soll-Stunden pro Mitarbeiter (un-gewichtete Summe / geplante MA)
+      const gesamtSollUngewichtet = (vorkalkulation.sollStundenAufbau || 0) + (vorkalkulation.sollStundenAbbau || 0)
+      const sollStundenProMitarbeiter = geplanteMitarbeiter > 0 
+        ? gesamtSollUngewichtet / geplanteMitarbeiter 
         : 0
+      // auf eine Nachkommastelle runden
+      const round1 = (v: number) => Math.round(v * 10) / 10
       
       // Erstelle Kalkulation für jeden Mitarbeiter
       const ergebnis: MitarbeiterKalkulation[] = []
       
       mitarbeiterMap.forEach((data, mitarbeiterId) => {
-        const zeitSoll = sollStundenProMitarbeiter
-        const zeitIst = data.stunden
+        const zeitSoll = round1(sollStundenProMitarbeiter)
+        const zeitIst = round1(data.stunden)
         // Differenz: Soll - Ist (positiv = gut, negativ = schlecht)
-        const differenzZeit = zeitSoll - zeitIst
+        const differenzZeit = round1(zeitSoll - zeitIst)
         
-        const summeSoll = zeitSoll * vorkalkulation.stundensatz
-        const summeIst = zeitIst * vorkalkulation.stundensatz
+        const summeSoll = round1(zeitSoll * vorkalkulation.stundensatz)
+        const summeIst = round1(zeitIst * vorkalkulation.stundensatz)
         // Differenz: Soll - Ist (positiv = gut, negativ = schlecht)
-        const differenzSumme = summeSoll - summeIst
+        const differenzSumme = round1(summeSoll - summeIst)
         
         // Abweichung in Prozent (negativ = gut, positiv = schlecht)
         const abweichungProzent = zeitSoll > 0 
-          ? ((zeitIst / zeitSoll - 1) * 100) 
+          ? round1(((zeitIst / zeitSoll - 1) * 100)) 
           : 0
         
         ergebnis.push({
           mitarbeiterId,
           mitarbeiterName: data.name,
-          zeitSoll: this.rundeWert(zeitSoll, parameter.rundungsregel),
-          zeitIst: this.rundeWert(zeitIst, parameter.rundungsregel),
-          differenzZeit: this.rundeWert(differenzZeit, parameter.rundungsregel),
-          summeSoll: this.rundeWert(summeSoll, parameter.rundungsregel),
-          summeIst: this.rundeWert(summeIst, parameter.rundungsregel),
-          differenzSumme: this.rundeWert(differenzSumme, parameter.rundungsregel),
-          abweichungProzent: this.rundeWert(abweichungProzent, parameter.rundungsregel)
+          zeitSoll,
+          zeitIst,
+          differenzZeit,
+          summeSoll,
+          summeIst,
+          differenzSumme,
+          abweichungProzent
         })
       })
       
@@ -316,7 +331,8 @@ export class KalkulationService {
         projektId, 
         vorkalkulation, 
         alle,
-        parameter
+        parameter,
+        zugewieseneMitarbeiter
       )
       
       // Erstelle Nachkalkulation

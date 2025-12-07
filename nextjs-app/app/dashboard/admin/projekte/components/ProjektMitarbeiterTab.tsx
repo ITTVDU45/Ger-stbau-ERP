@@ -68,10 +68,31 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
   }
 
   // Berechne erfasste Stunden pro Mitarbeiter für einen spezifischen Zeitraum
-  const getErfassteStunden = (mitarbeiterId: string, von?: Date, bis?: Date) => {
-    const vonDatum = von ? new Date(von) : null
-    // Bei "Offen" (kein Bis): zähle nur den ersten Tag
-    const bisDatum = bis ? new Date(bis) : (vonDatum ? new Date(vonDatum) : null)
+  const getErfassteStunden = (mitarbeiterId: string, von?: Date, bis?: Date, mitarbeiterObj?: any) => {
+    const normalizeDate = (value: any): Date | null => {
+      if (!value) return null
+      const d = new Date(value)
+      return isNaN(d.getTime()) ? null : d
+    }
+
+    // Effektiven Zeitraum bestimmen: Minimum aller Von-Daten, Maximum aller Bis-Daten
+    const kandidatenVon = [
+      normalizeDate(von),
+      normalizeDate(mitarbeiterObj?.aufbauVon),
+      normalizeDate(mitarbeiterObj?.abbauVon),
+    ].filter((d): d is Date => !!d)
+
+    const kandidatenBis = [
+      normalizeDate(bis),
+      normalizeDate(mitarbeiterObj?.aufbauBis),
+      normalizeDate(mitarbeiterObj?.abbauBis),
+      normalizeDate(mitarbeiterObj?.abbauVon), // falls AbbauBis fehlt
+    ].filter((d): d is Date => !!d)
+
+    const vonDatum = kandidatenVon.length > 0 ? new Date(Math.min(...kandidatenVon.map(d => d.getTime()))) : null
+    const bisDatum = kandidatenBis.length > 0
+      ? new Date(Math.max(...kandidatenBis.map(d => d.getTime())))
+      : (vonDatum ? new Date(vonDatum) : null)
     
     // Filtere Zeiterfassungen für diesen Mitarbeiter im angegebenen Zeitraum
     const mitarbeiterZeiten = zeiterfassungen.filter(z => {
@@ -119,7 +140,7 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
     setEditingIndex(index)
     
     // Berechne aktuelle Stunden für Aufbau/Abbau aus Zeiterfassungen
-    const stundenInfo = getErfassteStunden(mitarbeiter.mitarbeiterId, mitarbeiter.von, mitarbeiter.bis)
+    const stundenInfo = getErfassteStunden(mitarbeiter.mitarbeiterId, mitarbeiter.von, mitarbeiter.bis, mitarbeiter)
     
     setEditFormData({
       rolle: mitarbeiter.rolle || 'monteur',
@@ -444,7 +465,7 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
               </TableHeader>
               <TableBody>
                 {projekt.zugewieseneMitarbeiter.map((mitarbeiter, index) => {
-                  const stundenInfo = getErfassteStunden(mitarbeiter.mitarbeiterId, mitarbeiter.von, mitarbeiter.bis)
+                  const stundenInfo = getErfassteStunden(mitarbeiter.mitarbeiterId, mitarbeiter.von, mitarbeiter.bis, mitarbeiter)
                   
                   // Verwende manuell gesetzte Werte aus der Mitarbeiter-Zuweisung, falls vorhanden
                   const aufbauStunden = (mitarbeiter as any).stundenAufbau !== undefined && (mitarbeiter as any).stundenAufbau !== null

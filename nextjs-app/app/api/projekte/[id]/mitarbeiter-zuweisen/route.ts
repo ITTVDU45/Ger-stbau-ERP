@@ -50,6 +50,11 @@ export async function POST(
           ((existierendeZuweisung as any).stundenAufbau || 0) + (neuerMitarbeiter.stundenAufbau || 0)
         existierendeZuweisung.stundenAbbau = 
           ((existierendeZuweisung as any).stundenAbbau || 0) + (neuerMitarbeiter.stundenAbbau || 0)
+        // Neue Zeiträume mergen (frühester Von, spätester Bis)
+        existierendeZuweisung.aufbauVon = existierendeZuweisung.aufbauVon || neuerMitarbeiter.aufbauVon
+        existierendeZuweisung.aufbauBis = neuerMitarbeiter.aufbauBis || existierendeZuweisung.aufbauBis
+        existierendeZuweisung.abbauVon = existierendeZuweisung.abbauVon || neuerMitarbeiter.abbauVon
+        existierendeZuweisung.abbauBis = neuerMitarbeiter.abbauBis || existierendeZuweisung.abbauBis
         
         // Aktualisiere Zeitraum falls erforderlich (erweitere auf frühestes Von und spätestes Bis)
         if (neuerMitarbeiter.von) {
@@ -91,201 +96,108 @@ export async function POST(
 
     // Verarbeite alle neuen Mitarbeiter-Zuweisungen
     for (const mitarbeiter of body.neueMitarbeiter) {
-      if (!mitarbeiter.von) continue
-
-      // Parse Datumswerte sauber
-      const vonDatum = new Date(mitarbeiter.von + 'T00:00:00')
-      const bisDatum = mitarbeiter.bis && mitarbeiter.bis !== '' 
-        ? new Date(mitarbeiter.bis + 'T00:00:00')
-        : new Date(vonDatum)
-      
       console.log(`[Zeiterfassung] Mitarbeiter: ${mitarbeiter.mitarbeiterName}`)
-      console.log(`[Zeiterfassung] Von: ${vonDatum.toDateString()}, Bis: ${bisDatum.toDateString()}`)
-      console.log(`[Zeiterfassung] mitarbeiter.bis Wert: "${mitarbeiter.bis}"`)
       console.log(`[Zeiterfassung] Aufbau gesamt: ${mitarbeiter.stundenAufbau}h, Abbau gesamt: ${mitarbeiter.stundenAbbau}h`)
-      
-      // Berechne Anzahl Arbeitstage
-      let arbeitstage = 0
-      const checkDate = new Date(vonDatum.getTime())
-      const endDate = new Date(bisDatum.getTime())
-      
-      console.log(`[Zeiterfassung] Berechne Arbeitstage...`)
-      
-      while (checkDate <= endDate) {
-        const dayOfWeek = checkDate.getDay()
-        console.log(`[Zeiterfassung]   ${checkDate.toDateString()} = Wochentag ${dayOfWeek}`)
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-          arbeitstage++
-          console.log(`[Zeiterfassung]     ✓ Arbeitstag #${arbeitstage}`)
+
+      // Hilfsfunktion zum Erzeugen von Zeiterfassungen pro Zeitraum und Typ
+      const createZeiterfassungen = async (
+        vonStr: string | undefined,
+        bisStr: string | undefined,
+        gesamtStunden: number,
+        taetigkeitstyp: 'aufbau' | 'abbau'
+      ) => {
+        if (!vonStr || gesamtStunden <= 0) return 0
+
+        const vonDatum = new Date(vonStr + 'T00:00:00')
+        const bisDatum = bisStr && bisStr !== ''
+          ? new Date(bisStr + 'T00:00:00')
+          : new Date(vonDatum)
+
+        console.log(`[Zeiterfassung] ${taetigkeitstyp.toUpperCase()} Von: ${vonDatum.toDateString()}, Bis: ${bisDatum.toDateString()}`)
+
+        // Arbeitstage zählen (Mo-Fr)
+        let arbeitstage = 0
+        const checkDate = new Date(vonDatum.getTime())
+        const endDate = new Date(bisDatum.getTime())
+        while (checkDate <= endDate) {
+          const dayOfWeek = checkDate.getDay()
+          if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            arbeitstage++
+          }
+          checkDate.setDate(checkDate.getDate() + 1)
         }
-        checkDate.setDate(checkDate.getDate() + 1)
-      }
-      
-      console.log(`[Zeiterfassung] ✓ Arbeitstage berechnet: ${arbeitstage}`)
-      
-      // Wenn keine Arbeitstage (weil "Offen" oder Wochenende), nutze 1 Tag als Minimum
-      if (arbeitstage === 0 && (mitarbeiter.stundenAufbau > 0 || mitarbeiter.stundenAbbau > 0)) {
-        arbeitstage = 1
-        console.log(`[Zeiterfassung] ⚠️ Keine Arbeitstage im Zeitraum, setze auf 1 Tag als Minimum`)
-      }
-      
-      // Berechne Stunden pro Tag für Aufbau und Abbau
-      const stundenAufbauProTag = arbeitstage > 0 && mitarbeiter.stundenAufbau > 0 
-        ? mitarbeiter.stundenAufbau / arbeitstage 
-        : mitarbeiter.stundenAufbau || 0
-      const stundenAbbauProTag = arbeitstage > 0 && mitarbeiter.stundenAbbau > 0 
-        ? mitarbeiter.stundenAbbau / arbeitstage 
-        : mitarbeiter.stundenAbbau || 0
-      
-      console.log(`[Zeiterfassung] Aufbau pro Tag: ${stundenAufbauProTag}h`)
-      console.log(`[Zeiterfassung] Abbau pro Tag: ${stundenAbbauProTag}h`)
-      
-      // Erstelle Zeiterfassungen für jeden Arbeitstag
-      const zeiterfassungen: Zeiterfassung[] = []
-      const currentDate = new Date(vonDatum)
-      currentDate.setHours(0, 0, 0, 0)
-      
-      const endDateForCreation = new Date(bisDatum)
-      endDateForCreation.setHours(23, 59, 59, 999)
-      
-      console.log(`[Zeiterfassung] Erstelle Zeiterfassungen von ${currentDate.toDateString()} bis ${endDateForCreation.toDateString()}`)
-
-      while (currentDate <= endDateForCreation) {
-        const dayOfWeek = currentDate.getDay()
-        
-        console.log(`[Zeiterfassung]   Prüfe Tag: ${currentDate.toDateString()}, Wochentag: ${dayOfWeek}`)
-        
-        // Überspringe Wochenenden (0 = Sonntag, 6 = Samstag)
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-          const datumString = currentDate.toISOString().split('T')[0]
-          
-          // Erstelle separate Einträge für Aufbau und Abbau, falls beide vorhanden
-          if (stundenAufbauProTag > 0) {
-            const existiert = await zeiterfassungCollection.findOne({
-              mitarbeiterId: mitarbeiter.mitarbeiterId,
-              projektId: projektId,
-              taetigkeitstyp: 'aufbau',
-              datum: { 
-                $gte: new Date(datumString + 'T00:00:00'),
-                $lt: new Date(datumString + 'T23:59:59')
-              }
-            })
-            
-            if (!existiert) {
-              const zeiterfassung = {
-                mitarbeiterId: mitarbeiter.mitarbeiterId,
-                mitarbeiterName: mitarbeiter.mitarbeiterName,
-                projektId: projektId,
-                projektName: projekt.projektname,
-                datum: new Date(currentDate),
-                stunden: Math.round(stundenAufbauProTag * 10) / 10,
-                von: '08:00',
-                bis: undefined,
-                pause: stundenAufbauProTag >= 6 ? 60 : undefined,
-                taetigkeitstyp: 'aufbau',
-                status: 'offen',
-                beschreibung: `Aufbau - ${mitarbeiter.rolle || 'Mitarbeiter'}`,
-                erstelltAm: new Date(),
-                zuletztGeaendert: new Date()
-              } as Zeiterfassung
-              
-              console.log(`[Zeiterfassung]     → Aufbau-Eintrag: ${datumString}, ${zeiterfassung.stunden}h, mitarbeiterId: ${zeiterfassung.mitarbeiterId}, projektId: ${zeiterfassung.projektId}`)
-              zeiterfassungen.push(zeiterfassung)
-            }
-          }
-
-          if (stundenAbbauProTag > 0) {
-            const existiert = await zeiterfassungCollection.findOne({
-              mitarbeiterId: mitarbeiter.mitarbeiterId,
-              projektId: projektId,
-              taetigkeitstyp: 'abbau',
-              datum: { 
-                $gte: new Date(datumString + 'T00:00:00'),
-                $lt: new Date(datumString + 'T23:59:59')
-              }
-            })
-            
-            if (!existiert) {
-              const zeiterfassung = {
-                mitarbeiterId: mitarbeiter.mitarbeiterId,
-                mitarbeiterName: mitarbeiter.mitarbeiterName,
-                projektId: projektId,
-                projektName: projekt.projektname,
-                datum: new Date(currentDate),
-                stunden: Math.round(stundenAbbauProTag * 10) / 10,
-                von: '08:00',
-                bis: undefined,
-                pause: stundenAbbauProTag >= 6 ? 60 : undefined,
-                taetigkeitstyp: 'abbau',
-                status: 'offen',
-                beschreibung: `Abbau - ${mitarbeiter.rolle || 'Mitarbeiter'}`,
-                erstelltAm: new Date(),
-                zuletztGeaendert: new Date()
-              } as Zeiterfassung
-              
-              console.log(`[Zeiterfassung]     → Abbau-Eintrag: ${datumString}, ${zeiterfassung.stunden}h, mitarbeiterId: ${zeiterfassung.mitarbeiterId}, projektId: ${zeiterfassung.projektId}`)
-              zeiterfassungen.push(zeiterfassung)
-            }
-          }
-
-          // Falls weder Aufbau noch Abbau-Stunden angegeben, erstelle Eintrag mit stundenProTag
-          if (stundenAufbauProTag === 0 && stundenAbbauProTag === 0 && mitarbeiter.stundenProTag) {
-            const existiert = await zeiterfassungCollection.findOne({
-              mitarbeiterId: mitarbeiter.mitarbeiterId,
-              projektId: projektId,
-              datum: { 
-                $gte: new Date(datumString + 'T00:00:00'),
-                $lt: new Date(datumString + 'T23:59:59')
-              }
-            })
-            
-            if (!existiert) {
-              const zeiterfassung = {
-                mitarbeiterId: mitarbeiter.mitarbeiterId,
-                mitarbeiterName: mitarbeiter.mitarbeiterName,
-                projektId: projektId,
-                projektName: projekt.projektname,
-                datum: new Date(currentDate),
-                stunden: mitarbeiter.stundenProTag,
-                von: '08:00',
-                bis: mitarbeiter.stundenProTag === 8 ? '17:00' : undefined,
-                pause: mitarbeiter.stundenProTag >= 6 ? 60 : undefined,
-                taetigkeitstyp: 'aufbau',
-                status: 'offen',
-                beschreibung: `${mitarbeiter.rolle || 'Mitarbeiter'}`,
-                erstelltAm: new Date(),
-                zuletztGeaendert: new Date()
-              } as Zeiterfassung
-              
-              console.log(`[Zeiterfassung]     → Standard-Eintrag: ${datumString}, ${zeiterfassung.stunden}h, mitarbeiterId: ${zeiterfassung.mitarbeiterId}, projektId: ${zeiterfassung.projektId}`)
-              zeiterfassungen.push(zeiterfassung)
-            }
-          }
+        if (arbeitstage === 0) {
+          arbeitstage = 1 // Minimal 1 Tag, falls Wochenende gewählt
         }
 
-        // Nächster Tag
-        currentDate.setDate(currentDate.getDate() + 1)
+        const stundenProTag = gesamtStunden / arbeitstage
+        console.log(`[Zeiterfassung] ${taetigkeitstyp.toUpperCase()} Arbeitstage: ${arbeitstage}, Stunden/Tag: ${stundenProTag}`)
+
+        const zeiterfassungen: Zeiterfassung[] = []
+        const currentDate = new Date(vonDatum)
+        currentDate.setHours(0, 0, 0, 0)
+        const endDateForCreation = new Date(bisDatum)
+        endDateForCreation.setHours(23, 59, 59, 999)
+
+        while (currentDate <= endDateForCreation) {
+          const dayOfWeek = currentDate.getDay()
+          if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            const datumString = currentDate.toISOString().split('T')[0]
+            const existiert = await zeiterfassungCollection.findOne({
+              mitarbeiterId: mitarbeiter.mitarbeiterId,
+              projektId: projektId,
+              taetigkeitstyp,
+              datum: { 
+                $gte: new Date(datumString + 'T00:00:00'),
+                $lt: new Date(datumString + 'T23:59:59')
+              }
+            })
+            if (!existiert) {
+              const zeiterfassung = {
+                mitarbeiterId: mitarbeiter.mitarbeiterId,
+                mitarbeiterName: mitarbeiter.mitarbeiterName,
+                projektId: projektId,
+                projektName: projekt.projektname,
+                datum: new Date(currentDate),
+                stunden: Math.round(stundenProTag * 10) / 10,
+                von: '08:00',
+                bis: undefined,
+                pause: stundenProTag >= 6 ? 60 : undefined,
+                taetigkeitstyp,
+                status: 'offen',
+                beschreibung: `${taetigkeitstyp === 'aufbau' ? 'Aufbau' : 'Abbau'} - ${mitarbeiter.rolle || 'Mitarbeiter'}`,
+                erstelltAm: new Date(),
+                zuletztGeaendert: new Date()
+              } as Zeiterfassung
+              zeiterfassungen.push(zeiterfassung)
+              console.log(`[Zeiterfassung] → ${taetigkeitstyp} Eintrag ${datumString}: ${zeiterfassung.stunden}h`)
+            }
+          }
+          currentDate.setDate(currentDate.getDate() + 1)
+        }
+
+        if (zeiterfassungen.length > 0) {
+          const result = await zeiterfassungCollection.insertMany(zeiterfassungen as any[])
+          erstellteZeiterfassungen += zeiterfassungen.length
+          console.log(`[Zeiterfassung] ✓ ${result.insertedCount} ${taetigkeitstyp}-Zeiterfassungen gespeichert`)
+        }
       }
 
-      // Zeiterfassungen in DB speichern
-      if (zeiterfassungen.length > 0) {
-        console.log(`[Zeiterfassung] Speichere ${zeiterfassungen.length} Zeiterfassungen für ${mitarbeiter.mitarbeiterName}`)
-        console.log(`[Zeiterfassung] Beispiel Zeiterfassung:`, JSON.stringify({
-          mitarbeiterId: zeiterfassungen[0].mitarbeiterId,
-          mitarbeiterName: zeiterfassungen[0].mitarbeiterName,
-          projektId: zeiterfassungen[0].projektId,
-          datum: zeiterfassungen[0].datum,
-          stunden: zeiterfassungen[0].stunden,
-          taetigkeitstyp: zeiterfassungen[0].taetigkeitstyp
-        }, null, 2))
-        
-        const result = await zeiterfassungCollection.insertMany(zeiterfassungen as any[])
-        console.log(`[Zeiterfassung] ✓ ${result.insertedCount} Zeiterfassungen erfolgreich in DB gespeichert`)
-        console.log(`[Zeiterfassung] IDs: ${Object.values(result.insertedIds).map(id => id.toString()).join(', ')}`)
-        erstellteZeiterfassungen += zeiterfassungen.length
-      } else {
-        console.log(`[Zeiterfassung] ⚠️ Keine Zeiterfassungen zu erstellen für ${mitarbeiter.mitarbeiterName}`)
-      }
+      // Aufbau-Zeitraum
+      await createZeiterfassungen(
+        mitarbeiter.aufbauVon || mitarbeiter.von,
+        mitarbeiter.aufbauBis || mitarbeiter.bis,
+        mitarbeiter.stundenAufbau || 0,
+        'aufbau'
+      )
+
+      // Abbau-Zeitraum
+      await createZeiterfassungen(
+        mitarbeiter.abbauVon || mitarbeiter.von,
+        mitarbeiter.abbauBis || mitarbeiter.bis,
+        mitarbeiter.stundenAbbau || 0,
+        'abbau'
+      )
     }
     
     console.log(`[Zeiterfassung] Gesamt erstellt: ${erstellteZeiterfassungen} Zeiterfassungen`)

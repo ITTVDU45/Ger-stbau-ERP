@@ -214,7 +214,11 @@ export interface Projekt {
     rolle?: string
     von?: Date
     bis?: Date
-    stundenProTag?: number
+    // Neue getrennte Zeiträume und Stunden
+    aufbauVon?: Date
+    aufbauBis?: Date
+    abbauVon?: Date
+    abbauBis?: Date
     stundenAufbau?: number  // Admin-Korrektur für Aufbau-Stunden
     stundenAbbau?: number   // Admin-Korrektur für Abbau-Stunden
   }[]

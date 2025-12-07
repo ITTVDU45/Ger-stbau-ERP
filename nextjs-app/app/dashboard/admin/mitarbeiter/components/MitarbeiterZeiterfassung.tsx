@@ -470,7 +470,8 @@ export default function MitarbeiterZeiterfassung({ mitarbeiterId, mitarbeiterNam
                 <TableHeader>
                   <TableRow className="border-gray-200 hover:bg-gray-50">
                     <TableHead className="text-gray-900 font-semibold">Datum</TableHead>
-                    <TableHead className="text-gray-900 font-semibold">Projekt</TableHead>
+                  <TableHead className="text-gray-900 font-semibold">Projekt</TableHead>
+                  <TableHead className="text-gray-900 font-semibold">Typ</TableHead>
                     <TableHead className="text-gray-900 font-semibold">Stunden</TableHead>
                     <TableHead className="text-gray-900 font-semibold">Pause</TableHead>
                     <TableHead className="text-gray-900 font-semibold">Von - Bis</TableHead>
@@ -486,6 +487,14 @@ export default function MitarbeiterZeiterfassung({ mitarbeiterId, mitarbeiterNam
                       </TableCell>
                       <TableCell className="text-gray-700">
                         {zeit.projektName || '-'}
+                      </TableCell>
+                      <TableCell className="text-gray-700">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${zeit.taetigkeitstyp === 'abbau' ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                          <span className="text-sm">
+                            {zeit.taetigkeitstyp === 'abbau' ? 'Abbau' : 'Aufbau'}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell className="font-semibold text-gray-900">
                         {zeit.stunden} Std.
@@ -534,6 +543,7 @@ export default function MitarbeiterZeiterfassung({ mitarbeiterId, mitarbeiterNam
                   <TableRow className="border-gray-200 hover:bg-gray-50">
                     <TableHead className="text-gray-900 font-semibold">Datum</TableHead>
                     <TableHead className="text-gray-900 font-semibold text-right">Stunden</TableHead>
+                    <TableHead className="text-gray-900 font-semibold">Typ</TableHead>
                     <TableHead className="text-gray-900 font-semibold">Von - Bis</TableHead>
                     <TableHead className="text-gray-900 font-semibold">Pause</TableHead>
                     <TableHead className="text-gray-900 font-semibold">Status</TableHead>
@@ -551,6 +561,14 @@ export default function MitarbeiterZeiterfassung({ mitarbeiterId, mitarbeiterNam
                         </TableCell>
                         <TableCell className="font-bold text-gray-900 text-right">
                           {eintrag.stunden} Std.
+                        </TableCell>
+                        <TableCell className="text-gray-700">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${eintrag.taetigkeitstyp === 'abbau' ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                            <span className="text-sm">
+                              {eintrag.taetigkeitstyp === 'abbau' ? 'Abbau' : 'Aufbau'}
+                            </span>
+                          </div>
                         </TableCell>
                         <TableCell className="text-gray-700">
                           {eintrag.von && eintrag.bis ? `${eintrag.von} - ${eintrag.bis}` : '-'}
