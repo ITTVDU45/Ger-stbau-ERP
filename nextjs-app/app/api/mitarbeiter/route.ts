@@ -26,6 +26,31 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Hilfsfunktion: Nächste Personalnummer generieren
+async function generierePersonalnummer(mitarbeiterCollection: any): Promise<string> {
+  // Alle Mitarbeiter mit Personalnummern im Format M-XXX holen
+  const alleMitarbeiter = await mitarbeiterCollection
+    .find({ personalnummer: { $regex: /^M-\d+$/ } })
+    .sort({ personalnummer: -1 })
+    .limit(1)
+    .toArray()
+  
+  if (alleMitarbeiter.length === 0) {
+    return 'M-001'
+  }
+  
+  // Höchste Nummer extrahieren und um 1 erhöhen
+  const hoechsteNummer = alleMitarbeiter[0].personalnummer
+  const match = hoechsteNummer.match(/^M-(\d+)$/)
+  
+  if (match) {
+    const naechsteNummer = parseInt(match[1], 10) + 1
+    return `M-${String(naechsteNummer).padStart(3, '0')}`
+  }
+  
+  return 'M-001'
+}
+
 // POST - Neuen Mitarbeiter anlegen
 export async function POST(request: NextRequest) {
   try {
@@ -51,8 +76,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Automatische Generierung der Personalnummer, falls nicht vorhanden
+    let personalnummer = body.personalnummer
+    if (!personalnummer || personalnummer.trim() === '') {
+      personalnummer = await generierePersonalnummer(mitarbeiterCollection)
+    }
+
     const neuerMitarbeiter: Mitarbeiter = {
       ...body,
+      personalnummer,
       erstelltAm: new Date(),
       zuletztGeaendert: new Date(),
       dokumente: body.dokumente || []

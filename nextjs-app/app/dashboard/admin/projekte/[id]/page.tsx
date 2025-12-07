@@ -207,23 +207,23 @@ export default function ProjektDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-8 bg-gray-100">
-              <TabsTrigger value="uebersicht" className="data-[state=active]:bg-white">Übersicht</TabsTrigger>
-              <TabsTrigger value="kunde" className="data-[state=active]:bg-white">Kunde</TabsTrigger>
-              <TabsTrigger value="kalkulation" className="data-[state=active]:bg-white">Kalkulation</TabsTrigger>
-              <TabsTrigger value="anfragen" className="data-[state=active]:bg-white">
+            <TabsList className="inline-flex w-full h-auto flex-wrap bg-gray-100 p-1 gap-1">
+              <TabsTrigger value="uebersicht" className="data-[state=active]:bg-white flex-shrink-0">Übersicht</TabsTrigger>
+              <TabsTrigger value="kunde" className="data-[state=active]:bg-white flex-shrink-0">Kunde</TabsTrigger>
+              <TabsTrigger value="kalkulation" className="data-[state=active]:bg-white flex-shrink-0">Kalkulation</TabsTrigger>
+              <TabsTrigger value="anfragen" className="data-[state=active]:bg-white flex-shrink-0">
                 Anfragen ({anfragenCount})
               </TabsTrigger>
-              <TabsTrigger value="angebote" className="data-[state=active]:bg-white">
+              <TabsTrigger value="angebote" className="data-[state=active]:bg-white flex-shrink-0">
                 Angebote
               </TabsTrigger>
-              <TabsTrigger value="rechnungen" className="data-[state=active]:bg-white">
+              <TabsTrigger value="rechnungen" className="data-[state=active]:bg-white flex-shrink-0">
                 Rechnungen
               </TabsTrigger>
-              <TabsTrigger value="mitarbeiter" className="data-[state=active]:bg-white">
+              <TabsTrigger value="mitarbeiter" className="data-[state=active]:bg-white flex-shrink-0">
                 Mitarbeiter ({projekt.zugewieseneMitarbeiter?.length || 0})
               </TabsTrigger>
-              <TabsTrigger value="dokumente" className="data-[state=active]:bg-white">
+              <TabsTrigger value="dokumente" className="data-[state=active]:bg-white flex-shrink-0">
                 Dokumente ({projekt.dokumente?.length || 0})
               </TabsTrigger>
             </TabsList>

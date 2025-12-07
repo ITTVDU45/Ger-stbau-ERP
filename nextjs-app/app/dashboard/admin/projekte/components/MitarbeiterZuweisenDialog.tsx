@@ -36,7 +36,9 @@ export default function MitarbeiterZuweisenDialog({ projekt, onSuccess, children
     rolle: 'monteur',
     von: new Date().toISOString().split('T')[0],
     bis: '',
-    stundenProTag: 8
+    stundenProTag: 8,
+    stundenAufbau: 0,
+    stundenAbbau: 0
   })
 
   useEffect(() => {
@@ -96,7 +98,9 @@ export default function MitarbeiterZuweisenDialog({ projekt, onSuccess, children
           rolle: formData.rolle,
           von: formData.von,
           bis: formData.bis || undefined,
-          stundenProTag: formData.stundenProTag
+          stundenProTag: formData.stundenProTag,
+          stundenAufbau: formData.stundenAufbau,
+          stundenAbbau: formData.stundenAbbau
         }
       })
 
@@ -124,7 +128,9 @@ export default function MitarbeiterZuweisenDialog({ projekt, onSuccess, children
         rolle: 'monteur',
         von: new Date().toISOString().split('T')[0],
         bis: '',
-        stundenProTag: 8
+        stundenProTag: 8,
+        stundenAufbau: 0,
+        stundenAbbau: 0
       })
       onSuccess()
     } catch (error) {
@@ -242,6 +248,48 @@ export default function MitarbeiterZuweisenDialog({ projekt, onSuccess, children
               onChange={(e) => handleFormChange('stundenProTag', parseInt(e.target.value) || 8)}
               className="bg-white border-gray-300 text-gray-900"
             />
+          </div>
+
+          {/* Aufbau/Abbau Stunden */}
+          <div className="border-t border-gray-200 pt-4">
+            <Label className="text-gray-900 font-semibold mb-3 block">
+              Aufbau/Abbau Planung (optional)
+            </Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-gray-700 font-medium flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                  Stunden Aufbau
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={formData.stundenAufbau}
+                  onChange={(e) => handleFormChange('stundenAufbau', parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  className="bg-white border-gray-300 text-gray-900"
+                />
+                <p className="text-xs text-gray-500">Geplante Aufbau-Stunden</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-gray-700 font-medium flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  Stunden Abbau
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={formData.stundenAbbau}
+                  onChange={(e) => handleFormChange('stundenAbbau', parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  className="bg-white border-gray-300 text-gray-900"
+                />
+                <p className="text-xs text-gray-500">Geplante Abbau-Stunden</p>
+              </div>
+            </div>
           </div>
         </div>
 

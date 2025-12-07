@@ -52,8 +52,30 @@ export default function MitarbeiterDialog({ open, mitarbeiter, onClose }: Mitarb
   
   const [neueQualifikation, setNeueQualifikation] = useState('')
   const [saving, setSaving] = useState(false)
+  const [loadingPersonalnummer, setLoadingPersonalnummer] = useState(false)
 
+  // Nächste Personalnummer laden, wenn neuer Mitarbeiter erstellt wird
   useEffect(() => {
+    const ladeNaechstePersonalnummer = async () => {
+      if (!mitarbeiter && open) {
+        setLoadingPersonalnummer(true)
+        try {
+          const response = await fetch('/api/mitarbeiter/naechste-personalnummer')
+          const data = await response.json()
+          if (data.erfolg) {
+            setFormData(prev => ({
+              ...prev,
+              personalnummer: data.personalnummer
+            }))
+          }
+        } catch (error) {
+          console.error('Fehler beim Laden der nächsten Personalnummer:', error)
+        } finally {
+          setLoadingPersonalnummer(false)
+        }
+      }
+    }
+
     if (mitarbeiter) {
       setFormData(mitarbeiter)
     } else {
@@ -73,6 +95,7 @@ export default function MitarbeiterDialog({ open, mitarbeiter, onClose }: Mitarb
         notizen: '',
         dokumente: []
       })
+      ladeNaechstePersonalnummer()
     }
   }, [mitarbeiter, open])
 
@@ -148,18 +171,19 @@ export default function MitarbeiterDialog({ open, mitarbeiter, onClose }: Mitarb
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="allgemein">Allgemein</TabsTrigger>
             <TabsTrigger value="adresse">Adresse & Kontakt</TabsTrigger>
-            <TabsTrigger value="arbeitszeit">Arbeitszeit & Qualifikationen</TabsTrigger>
+            <TabsTrigger value="arbeitszeit">Arbeitszeit & Quali.</TabsTrigger>
           </TabsList>
 
           <TabsContent value="allgemein" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="personalnummer">Personalnummer</Label>
+                <Label htmlFor="personalnummer">Personalnummer (automatisch)</Label>
                 <Input
                   id="personalnummer"
-                  value={formData.personalnummer || ''}
-                  onChange={(e) => handleChange('personalnummer', e.target.value)}
+                  value={loadingPersonalnummer ? 'Wird generiert...' : (formData.personalnummer || '')}
+                  disabled
                   placeholder="z.B. M-001"
+                  className="bg-gray-100 text-gray-700"
                 />
               </div>
               <div className="space-y-2">

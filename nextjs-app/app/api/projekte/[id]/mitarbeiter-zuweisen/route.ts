@@ -34,8 +34,46 @@ export async function POST(
       )
     }
 
-    // Bestehende Mitarbeiter mit neuen kombinieren
-    const alleMitarbeiter = [...(projekt.zugewieseneMitarbeiter || []), ...body.neueMitarbeiter]
+    // Bestehende Mitarbeiter mit neuen kombinieren - aber Duplikate zusammenführen
+    const existierendeMitarbeiter = projekt.zugewieseneMitarbeiter || []
+    const alleMitarbeiter = [...existierendeMitarbeiter]
+    
+    // Für jeden neuen Mitarbeiter prüfen, ob er bereits zugewiesen ist
+    for (const neuerMitarbeiter of body.neueMitarbeiter) {
+      const existierendeZuweisung = alleMitarbeiter.find(
+        m => m.mitarbeiterId === neuerMitarbeiter.mitarbeiterId
+      )
+      
+      if (existierendeZuweisung) {
+        // Mitarbeiter existiert bereits - addiere Aufbau/Abbau-Stunden
+        existierendeZuweisung.stundenAufbau = 
+          ((existierendeZuweisung as any).stundenAufbau || 0) + (neuerMitarbeiter.stundenAufbau || 0)
+        existierendeZuweisung.stundenAbbau = 
+          ((existierendeZuweisung as any).stundenAbbau || 0) + (neuerMitarbeiter.stundenAbbau || 0)
+        
+        // Aktualisiere Zeitraum falls erforderlich (erweitere auf frühestes Von und spätestes Bis)
+        if (neuerMitarbeiter.von) {
+          const neuesVon = new Date(neuerMitarbeiter.von)
+          const bestehendesVon = existierendeZuweisung.von ? new Date(existierendeZuweisung.von) : new Date()
+          if (neuesVon < bestehendesVon) {
+            existierendeZuweisung.von = neuesVon
+          }
+        }
+        
+        if (neuerMitarbeiter.bis) {
+          const neuesBis = new Date(neuerMitarbeiter.bis)
+          const bestehendesBis = existierendeZuweisung.bis ? new Date(existierendeZuweisung.bis) : undefined
+          if (!bestehendesBis || neuesBis > bestehendesBis) {
+            existierendeZuweisung.bis = neuesBis
+          }
+        }
+        
+        console.log(`✓ Mitarbeiter ${neuerMitarbeiter.mitarbeiterName} bereits zugewiesen - Stunden addiert`)
+      } else {
+        // Neuer Mitarbeiter - hinzufügen
+        alleMitarbeiter.push(neuerMitarbeiter)
+      }
+    }
 
     // Projekt aktualisieren
     await projekteCollection.updateOne(
@@ -48,15 +86,40 @@ export async function POST(
       }
     )
 
-    // Für jeden neuen Mitarbeiter Zeiterfassungen erstellen
+    // Für jeden Mitarbeiter (neu oder aktualisiert) Zeiterfassungen erstellen
     let erstellteZeiterfassungen = 0
 
+    // Verarbeite alle neuen Mitarbeiter-Zuweisungen
     for (const mitarbeiter of body.neueMitarbeiter) {
-      if (!mitarbeiter.von || !mitarbeiter.stundenProTag) continue
+      if (!mitarbeiter.von) continue
 
       const vonDatum = new Date(mitarbeiter.von)
       // Wenn kein Bis-Datum: nur der erste Tag, sonst von-bis
       const bisDatum = mitarbeiter.bis ? new Date(mitarbeiter.bis) : new Date(vonDatum)
+      
+      // Berechne Anzahl Arbeitstage
+      let arbeitstage = 0
+      const checkDate = new Date(vonDatum)
+      while (checkDate <= bisDatum) {
+        const dayOfWeek = checkDate.getDay()
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+          arbeitstage++
+        }
+        checkDate.setDate(checkDate.getDate() + 1)
+      }
+
+      // Berechne Stunden pro Tag für Aufbau und Abbau
+      const stundenAufbauProTag = arbeitstage > 0 && mitarbeiter.stundenAufbau > 0 
+        ? mitarbeiter.stundenAufbau / arbeitstage 
+        : 0
+      const stundenAbbauProTag = arbeitstage > 0 && mitarbeiter.stundenAbbau > 0 
+        ? mitarbeiter.stundenAbbau / arbeitstage 
+        : 0
+      
+      console.log(`[Zeiterfassung] Mitarbeiter: ${mitarbeiter.mitarbeiterName}`)
+      console.log(`[Zeiterfassung] Arbeitstage: ${arbeitstage}`)
+      console.log(`[Zeiterfassung] Aufbau gesamt: ${mitarbeiter.stundenAufbau}h, pro Tag: ${stundenAufbauProTag}h`)
+      console.log(`[Zeiterfassung] Abbau gesamt: ${mitarbeiter.stundenAbbau}h, pro Tag: ${stundenAbbauProTag}h`)
       
       // Erstelle Zeiterfassungen für jeden Arbeitstag
       const zeiterfassungen: Zeiterfassung[] = []
@@ -69,33 +132,98 @@ export async function POST(
         if (dayOfWeek !== 0 && dayOfWeek !== 6) {
           const datumString = currentDate.toISOString().split('T')[0]
           
-          // Prüfe ob für diesen Tag bereits eine Zeiterfassung existiert
-          const existiert = await zeiterfassungCollection.findOne({
-            mitarbeiterId: mitarbeiter.mitarbeiterId,
-            projektId: projektId,
-            datum: { 
-              $gte: new Date(datumString + 'T00:00:00'),
-              $lt: new Date(datumString + 'T23:59:59')
-            }
-          })
-          
-          // Nur erstellen, wenn noch keine Zeiterfassung für diesen Tag existiert
-          if (!existiert) {
-            zeiterfassungen.push({
+          // Erstelle separate Einträge für Aufbau und Abbau, falls beide vorhanden
+          if (stundenAufbauProTag > 0) {
+            const existiert = await zeiterfassungCollection.findOne({
               mitarbeiterId: mitarbeiter.mitarbeiterId,
-              mitarbeiterName: mitarbeiter.mitarbeiterName,
               projektId: projektId,
-              projektName: projekt.projektname,
-              datum: new Date(currentDate),
-              stunden: mitarbeiter.stundenProTag,
-              von: '08:00',
-              bis: mitarbeiter.stundenProTag === 8 ? '17:00' : undefined,
-              pause: mitarbeiter.stundenProTag >= 6 ? 60 : undefined,
-              status: 'offen',
-              beschreibung: `Automatisch erstellt für ${mitarbeiter.rolle || 'Mitarbeiter'}`,
-              erstelltAm: new Date(),
-              zuletztGeaendert: new Date()
-            } as Zeiterfassung)
+              taetigkeitstyp: 'aufbau',
+              datum: { 
+                $gte: new Date(datumString + 'T00:00:00'),
+                $lt: new Date(datumString + 'T23:59:59')
+              }
+            })
+            
+            if (!existiert) {
+              zeiterfassungen.push({
+                mitarbeiterId: mitarbeiter.mitarbeiterId,
+                mitarbeiterName: mitarbeiter.mitarbeiterName,
+                projektId: projektId,
+                projektName: projekt.projektname,
+                datum: new Date(currentDate),
+                stunden: Math.round(stundenAufbauProTag * 10) / 10,
+                von: '08:00',
+                bis: undefined,
+                pause: stundenAufbauProTag >= 6 ? 60 : undefined,
+                taetigkeitstyp: 'aufbau',
+                status: 'offen',
+                beschreibung: `Aufbau - ${mitarbeiter.rolle || 'Mitarbeiter'}`,
+                erstelltAm: new Date(),
+                zuletztGeaendert: new Date()
+              } as Zeiterfassung)
+            }
+          }
+
+          if (stundenAbbauProTag > 0) {
+            const existiert = await zeiterfassungCollection.findOne({
+              mitarbeiterId: mitarbeiter.mitarbeiterId,
+              projektId: projektId,
+              taetigkeitstyp: 'abbau',
+              datum: { 
+                $gte: new Date(datumString + 'T00:00:00'),
+                $lt: new Date(datumString + 'T23:59:59')
+              }
+            })
+            
+            if (!existiert) {
+              zeiterfassungen.push({
+                mitarbeiterId: mitarbeiter.mitarbeiterId,
+                mitarbeiterName: mitarbeiter.mitarbeiterName,
+                projektId: projektId,
+                projektName: projekt.projektname,
+                datum: new Date(currentDate),
+                stunden: Math.round(stundenAbbauProTag * 10) / 10,
+                von: '08:00',
+                bis: undefined,
+                pause: stundenAbbauProTag >= 6 ? 60 : undefined,
+                taetigkeitstyp: 'abbau',
+                status: 'offen',
+                beschreibung: `Abbau - ${mitarbeiter.rolle || 'Mitarbeiter'}`,
+                erstelltAm: new Date(),
+                zuletztGeaendert: new Date()
+              } as Zeiterfassung)
+            }
+          }
+
+          // Falls weder Aufbau noch Abbau-Stunden angegeben, erstelle Eintrag mit stundenProTag
+          if (stundenAufbauProTag === 0 && stundenAbbauProTag === 0 && mitarbeiter.stundenProTag) {
+            const existiert = await zeiterfassungCollection.findOne({
+              mitarbeiterId: mitarbeiter.mitarbeiterId,
+              projektId: projektId,
+              datum: { 
+                $gte: new Date(datumString + 'T00:00:00'),
+                $lt: new Date(datumString + 'T23:59:59')
+              }
+            })
+            
+            if (!existiert) {
+              zeiterfassungen.push({
+                mitarbeiterId: mitarbeiter.mitarbeiterId,
+                mitarbeiterName: mitarbeiter.mitarbeiterName,
+                projektId: projektId,
+                projektName: projekt.projektname,
+                datum: new Date(currentDate),
+                stunden: mitarbeiter.stundenProTag,
+                von: '08:00',
+                bis: mitarbeiter.stundenProTag === 8 ? '17:00' : undefined,
+                pause: mitarbeiter.stundenProTag >= 6 ? 60 : undefined,
+                taetigkeitstyp: 'aufbau',
+                status: 'offen',
+                beschreibung: `${mitarbeiter.rolle || 'Mitarbeiter'}`,
+                erstelltAm: new Date(),
+                zuletztGeaendert: new Date()
+              } as Zeiterfassung)
+            }
           }
         }
 
@@ -105,10 +233,16 @@ export async function POST(
 
       // Zeiterfassungen in DB speichern
       if (zeiterfassungen.length > 0) {
+        console.log(`[Zeiterfassung] Speichere ${zeiterfassungen.length} Zeiterfassungen für ${mitarbeiter.mitarbeiterName}`)
         await zeiterfassungCollection.insertMany(zeiterfassungen as any[])
         erstellteZeiterfassungen += zeiterfassungen.length
+        console.log(`[Zeiterfassung] ✓ Erfolgreich gespeichert`)
+      } else {
+        console.log(`[Zeiterfassung] ⚠️ Keine Zeiterfassungen zu erstellen für ${mitarbeiter.mitarbeiterName}`)
       }
     }
+    
+    console.log(`[Zeiterfassung] Gesamt erstellt: ${erstellteZeiterfassungen} Zeiterfassungen`)
 
     // Automatische Neuberechnung der Vorkalkulation basierend auf neuer Mitarbeiteranzahl
     try {
