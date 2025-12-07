@@ -93,42 +93,40 @@ export async function POST(
     for (const mitarbeiter of body.neueMitarbeiter) {
       if (!mitarbeiter.von) continue
 
-      const vonDatum = new Date(mitarbeiter.von)
-      // Wenn kein Bis-Datum: nur der erste Tag, sonst von-bis
+      // Parse Datumswerte sauber
+      const vonDatum = new Date(mitarbeiter.von + 'T00:00:00')
       const bisDatum = mitarbeiter.bis && mitarbeiter.bis !== '' 
-        ? new Date(mitarbeiter.bis) 
+        ? new Date(mitarbeiter.bis + 'T00:00:00')
         : new Date(vonDatum)
       
-      console.log(`[Zeiterfassung] Von: ${vonDatum.toISOString()}, Bis: ${bisDatum.toISOString()}`)
+      console.log(`[Zeiterfassung] Mitarbeiter: ${mitarbeiter.mitarbeiterName}`)
+      console.log(`[Zeiterfassung] Von: ${vonDatum.toDateString()}, Bis: ${bisDatum.toDateString()}`)
       console.log(`[Zeiterfassung] mitarbeiter.bis Wert: "${mitarbeiter.bis}"`)
+      console.log(`[Zeiterfassung] Aufbau gesamt: ${mitarbeiter.stundenAufbau}h, Abbau gesamt: ${mitarbeiter.stundenAbbau}h`)
       
       // Berechne Anzahl Arbeitstage
       let arbeitstage = 0
-      const checkDate = new Date(vonDatum)
-      checkDate.setHours(0, 0, 0, 0)
-      const bisDateCheck = new Date(bisDatum)
-      bisDateCheck.setHours(23, 59, 59, 999)
+      const checkDate = new Date(vonDatum.getTime())
+      const endDate = new Date(bisDatum.getTime())
       
-      console.log(`[Zeiterfassung] Check-Schleife: von ${checkDate.toDateString()} bis ${bisDateCheck.toDateString()}`)
+      console.log(`[Zeiterfassung] Berechne Arbeitstage...`)
       
-      while (checkDate <= bisDateCheck) {
+      while (checkDate <= endDate) {
         const dayOfWeek = checkDate.getDay()
-        console.log(`[Zeiterfassung]   Tag: ${checkDate.toDateString()}, Wochentag: ${dayOfWeek}`)
+        console.log(`[Zeiterfassung]   ${checkDate.toDateString()} = Wochentag ${dayOfWeek}`)
         if (dayOfWeek !== 0 && dayOfWeek !== 6) {
           arbeitstage++
+          console.log(`[Zeiterfassung]     ✓ Arbeitstag #${arbeitstage}`)
         }
         checkDate.setDate(checkDate.getDate() + 1)
       }
-
-      console.log(`[Zeiterfassung] Mitarbeiter: ${mitarbeiter.mitarbeiterName}`)
-      console.log(`[Zeiterfassung] Arbeitstage berechnet: ${arbeitstage}`)
-      console.log(`[Zeiterfassung] Aufbau gesamt: ${mitarbeiter.stundenAufbau}h`)
-      console.log(`[Zeiterfassung] Abbau gesamt: ${mitarbeiter.stundenAbbau}h`)
+      
+      console.log(`[Zeiterfassung] ✓ Arbeitstage berechnet: ${arbeitstage}`)
       
       // Wenn keine Arbeitstage (weil "Offen" oder Wochenende), nutze 1 Tag als Minimum
       if (arbeitstage === 0 && (mitarbeiter.stundenAufbau > 0 || mitarbeiter.stundenAbbau > 0)) {
         arbeitstage = 1
-        console.log(`[Zeiterfassung] ⚠️ Keine Arbeitstage berechnet, setze auf 1 Tag`)
+        console.log(`[Zeiterfassung] ⚠️ Keine Arbeitstage im Zeitraum, setze auf 1 Tag als Minimum`)
       }
       
       // Berechne Stunden pro Tag für Aufbau und Abbau
@@ -174,7 +172,7 @@ export async function POST(
             })
             
             if (!existiert) {
-              zeiterfassungen.push({
+              const zeiterfassung = {
                 mitarbeiterId: mitarbeiter.mitarbeiterId,
                 mitarbeiterName: mitarbeiter.mitarbeiterName,
                 projektId: projektId,
@@ -189,7 +187,10 @@ export async function POST(
                 beschreibung: `Aufbau - ${mitarbeiter.rolle || 'Mitarbeiter'}`,
                 erstelltAm: new Date(),
                 zuletztGeaendert: new Date()
-              } as Zeiterfassung)
+              } as Zeiterfassung
+              
+              console.log(`[Zeiterfassung]     → Aufbau-Eintrag: ${datumString}, ${zeiterfassung.stunden}h, mitarbeiterId: ${zeiterfassung.mitarbeiterId}, projektId: ${zeiterfassung.projektId}`)
+              zeiterfassungen.push(zeiterfassung)
             }
           }
 
@@ -205,7 +206,7 @@ export async function POST(
             })
             
             if (!existiert) {
-              zeiterfassungen.push({
+              const zeiterfassung = {
                 mitarbeiterId: mitarbeiter.mitarbeiterId,
                 mitarbeiterName: mitarbeiter.mitarbeiterName,
                 projektId: projektId,
@@ -220,7 +221,10 @@ export async function POST(
                 beschreibung: `Abbau - ${mitarbeiter.rolle || 'Mitarbeiter'}`,
                 erstelltAm: new Date(),
                 zuletztGeaendert: new Date()
-              } as Zeiterfassung)
+              } as Zeiterfassung
+              
+              console.log(`[Zeiterfassung]     → Abbau-Eintrag: ${datumString}, ${zeiterfassung.stunden}h, mitarbeiterId: ${zeiterfassung.mitarbeiterId}, projektId: ${zeiterfassung.projektId}`)
+              zeiterfassungen.push(zeiterfassung)
             }
           }
 
@@ -236,7 +240,7 @@ export async function POST(
             })
             
             if (!existiert) {
-              zeiterfassungen.push({
+              const zeiterfassung = {
                 mitarbeiterId: mitarbeiter.mitarbeiterId,
                 mitarbeiterName: mitarbeiter.mitarbeiterName,
                 projektId: projektId,
@@ -251,7 +255,10 @@ export async function POST(
                 beschreibung: `${mitarbeiter.rolle || 'Mitarbeiter'}`,
                 erstelltAm: new Date(),
                 zuletztGeaendert: new Date()
-              } as Zeiterfassung)
+              } as Zeiterfassung
+              
+              console.log(`[Zeiterfassung]     → Standard-Eintrag: ${datumString}, ${zeiterfassung.stunden}h, mitarbeiterId: ${zeiterfassung.mitarbeiterId}, projektId: ${zeiterfassung.projektId}`)
+              zeiterfassungen.push(zeiterfassung)
             }
           }
         }
@@ -263,9 +270,19 @@ export async function POST(
       // Zeiterfassungen in DB speichern
       if (zeiterfassungen.length > 0) {
         console.log(`[Zeiterfassung] Speichere ${zeiterfassungen.length} Zeiterfassungen für ${mitarbeiter.mitarbeiterName}`)
-        await zeiterfassungCollection.insertMany(zeiterfassungen as any[])
+        console.log(`[Zeiterfassung] Beispiel Zeiterfassung:`, JSON.stringify({
+          mitarbeiterId: zeiterfassungen[0].mitarbeiterId,
+          mitarbeiterName: zeiterfassungen[0].mitarbeiterName,
+          projektId: zeiterfassungen[0].projektId,
+          datum: zeiterfassungen[0].datum,
+          stunden: zeiterfassungen[0].stunden,
+          taetigkeitstyp: zeiterfassungen[0].taetigkeitstyp
+        }, null, 2))
+        
+        const result = await zeiterfassungCollection.insertMany(zeiterfassungen as any[])
+        console.log(`[Zeiterfassung] ✓ ${result.insertedCount} Zeiterfassungen erfolgreich in DB gespeichert`)
+        console.log(`[Zeiterfassung] IDs: ${Object.values(result.insertedIds).map(id => id.toString()).join(', ')}`)
         erstellteZeiterfassungen += zeiterfassungen.length
-        console.log(`[Zeiterfassung] ✓ Erfolgreich gespeichert`)
       } else {
         console.log(`[Zeiterfassung] ⚠️ Keine Zeiterfassungen zu erstellen für ${mitarbeiter.mitarbeiterName}`)
       }

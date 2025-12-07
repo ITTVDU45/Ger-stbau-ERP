@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
     const mitarbeiterId = searchParams.get('mitarbeiterId')
     const projektId = searchParams.get('projektId')
     
+    console.log(`[GET Zeiterfassung] Filter: mitarbeiterId=${mitarbeiterId}, projektId=${projektId}`)
+    
     const db = await getDatabase()
     const zeiterfassungCollection = db.collection<Zeiterfassung>('zeiterfassung')
     
@@ -22,10 +24,17 @@ export async function GET(request: NextRequest) {
       filter.projektId = projektId
     }
     
+    console.log(`[GET Zeiterfassung] MongoDB Filter:`, JSON.stringify(filter))
+    
     const zeiterfassungen = await zeiterfassungCollection
       .find(filter)
       .sort({ datum: -1 })
       .toArray()
+    
+    console.log(`[GET Zeiterfassung] Gefunden: ${zeiterfassungen.length} Zeiterfassungen`)
+    if (zeiterfassungen.length > 0) {
+      console.log(`[GET Zeiterfassung] Erste Zeiterfassung: mitarbeiterId=${zeiterfassungen[0].mitarbeiterId}, projektId=${zeiterfassungen[0].projektId}, datum=${zeiterfassungen[0].datum}`)
+    }
     
     return NextResponse.json({ erfolg: true, zeiterfassungen })
   } catch (error) {
