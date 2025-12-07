@@ -145,12 +145,12 @@ export async function POST(
       const currentDate = new Date(vonDatum)
       currentDate.setHours(0, 0, 0, 0)
       
-      const endDate = new Date(bisDatum)
-      endDate.setHours(23, 59, 59, 999)
+      const endDateForCreation = new Date(bisDatum)
+      endDateForCreation.setHours(23, 59, 59, 999)
       
-      console.log(`[Zeiterfassung] Erstelle Zeiterfassungen von ${currentDate.toDateString()} bis ${endDate.toDateString()}`)
+      console.log(`[Zeiterfassung] Erstelle Zeiterfassungen von ${currentDate.toDateString()} bis ${endDateForCreation.toDateString()}`)
 
-      while (currentDate <= endDate) {
+      while (currentDate <= endDateForCreation) {
         const dayOfWeek = currentDate.getDay()
         
         console.log(`[Zeiterfassung]   Prüfe Tag: ${currentDate.toDateString()}, Wochentag: ${dayOfWeek}`)
