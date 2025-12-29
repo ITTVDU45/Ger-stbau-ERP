@@ -78,9 +78,9 @@ export default function LoginPage() {
   }
   
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#ffffff' }}>
       <div className="w-full max-w-md px-6">
-        <Card className="w-full p-8 shadow-xl border border-gray-200">
+        <Card className="w-full p-8 shadow-xl border border-gray-200" style={{ backgroundColor: '#ffffff', color: '#111827' }}>
           {/* Logo & Header */}
           <div className="text-center mb-8">
             {loadingSettings ? (

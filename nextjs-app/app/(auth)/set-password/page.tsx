@@ -123,7 +123,7 @@ function SetPasswordContent() {
   
   if (verifying) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#ffffff' }}>
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     )
@@ -134,9 +134,9 @@ function SetPasswordContent() {
   }
   
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#ffffff' }}>
       <div className="w-full max-w-md px-6">
-        <Card className="w-full p-8 shadow-xl border border-gray-200">
+        <Card className="w-full p-8 shadow-xl border border-gray-200" style={{ backgroundColor: '#ffffff', color: '#111827' }}>
           {/* Logo & Header */}
           <div className="text-center mb-8">
             {loadingSettings ? (
@@ -266,7 +266,7 @@ function SetPasswordContent() {
 export default function SetPasswordPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#ffffff' }}>
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     }>
