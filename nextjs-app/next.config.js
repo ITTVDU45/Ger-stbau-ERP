@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  experimental: { appDir: true },
   typescript: {
     // ⚠️ Dangerously allow production builds to successfully complete even if
     // your project has type errors.
@@ -31,7 +30,9 @@ const nextConfig = {
         pathname: '/**',
       }
     ],
-  }
+  },
+  // Vercel-spezifische Optimierungen
+  outputFileTracingRoot: require('path').join(__dirname, '../')
 }
 
 module.exports = nextConfig
