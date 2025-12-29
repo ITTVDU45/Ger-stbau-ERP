@@ -30,6 +30,7 @@ yarn-error.log*
 # IDE
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
 *~
@@ -100,4 +101,8 @@ nextjs-app/.env.example
 nextjs-app/components.json
 nextjs-app/cookies.txt
 cookies.txt
+
+# Demo/Test data
+nextjs-app/app/dashboard/data.json
+**/data.json
 
