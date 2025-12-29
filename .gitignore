@@ -60,6 +60,28 @@ pnpm-lock.yaml
 docs/
 documentation/
 
+# Spezifische Dokumentationsdateien
+KALKULATION_MODUL_DOKUMENTATION.md
+FIX_ANGEBOT_KALKULATION.md
+EINHEITSPREISE_EP_FEATURE.md
+KALKULATION_AUTO_BERECHNUNG.md
+KALKULATION_IMPLEMENTATION_STATUS.md
+nextjs-app/KALKULATION_MODUL_DOKUMENTATION.md
+nextjs-app/FIX_ANGEBOT_KALKULATION.md
+nextjs-app/EINHEITSPREISE_EP_FEATURE.md
+nextjs-app/KALKULATION_AUTO_BERECHNUNG.md
+nextjs-app/KALKULATION_IMPLEMENTATION_STATUS.md
+
+# Logo-Dateien
+*.png
+*.jpg
+*.jpeg
+*.svg
+!nextjs-app/public/**/*.png
+!nextjs-app/public/**/*.jpg
+!nextjs-app/public/**/*.jpeg
+!nextjs-app/public/**/*.svg
+
 # Data/Config files (keep essential configs)
 *.json
 !package.json
