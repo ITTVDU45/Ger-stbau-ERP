@@ -31,7 +31,7 @@ export async function GET(
 
     // Generate PDF
     const stream = await renderToStream(
-      <AngebotPDFDocument angebot={angebot} settings={settings || undefined} />
+      AngebotPDFDocument({ angebot, settings: settings || undefined })
     )
 
     // Convert Web Stream to Node.js Readable Stream

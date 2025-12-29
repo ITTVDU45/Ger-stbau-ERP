@@ -1184,6 +1184,112 @@ export interface BenachrichtigungsVorlagen {
   zuletztGeaendert: Date
 }
 
+// ============================================================================
+// FINANZEN-MODUL TYPEN
+// ============================================================================
+
+export interface FinanzenKategorie {
+  _id?: string
+  name: string
+  typ: 'einnahme' | 'ausgabe'
+  farbe?: string
+  icon?: string
+  beschreibung?: string
+  budget?: number
+  aktiv: boolean
+  sortierung?: number
+  erstelltAm: Date
+  zuletztGeaendert: Date
+}
+
+export interface Transaktion {
+  _id?: string
+  mandantId?: string
+  typ: 'einnahme' | 'ausgabe'
+  betrag: number
+  kategorie: string
+  kategorieId?: string
+  beschreibung: string
+  datum: Date
+  belegnummer?: string
+  zahlungsart?: 'bar' | 'ueberweisung' | 'karte' | 'lastschrift' | 'sonstige'
+  mwstSatz?: number
+  nettoBetrag?: number
+  bruttoBetrag?: number
+  buchungsdatum?: Date
+  wiederkehrend?: boolean
+  wiederkehrendId?: string
+  dokument?: {
+    url: string
+    filename: string
+    mimeType: string
+    groesse: number
+  }
+  projekt?: {
+    id: string
+    name: string
+  }
+  kunde?: {
+    id: string
+    name: string
+  }
+  notizen?: string
+  tags?: string[]
+  status?: 'ausstehend' | 'gebucht' | 'storniert'
+  erstelltAm: Date
+  zuletztGeaendert: Date
+  erstelltVon?: string
+}
+
+export interface Budget {
+  _id?: string
+  mandantId?: string
+  kategorieId: string
+  kategorieName: string
+  limit: number
+  zeitraum: 'monat' | 'quartal' | 'jahr'
+  jahr: number
+  monat?: number // 1-12
+  quartal?: number // 1-4
+  ausgegeben: number
+  prozent: number
+  warnschwelle?: number // Prozent (z.B. 80)
+  aktiv: boolean
+  benachrichtigungen: boolean
+  erstelltAm: Date
+  zuletztGeaendert: Date
+}
+
+export interface KontostandSnapshot {
+  _id?: string
+  mandantId?: string
+  datum: Date
+  betrag: number
+  typ: 'manuell' | 'automatisch'
+  notiz?: string
+  erstelltAm: Date
+  erstelltVon?: string
+}
+
+export interface FinanzenKIBericht {
+  _id?: string
+  mandantId?: string
+  zeitraum: {
+    von: Date
+    bis: Date
+  }
+  analyse: {
+    einnahmen: number
+    ausgaben: number
+    bilanz: number
+    trends?: string
+    empfehlungen?: string
+    kategorieAnalyse?: any
+  }
+  generiert: Date
+  erstelltVon?: string
+}
+
 // Firmen-/Unternehmenseinstellungen
 export interface FirmenEinstellungen {
   _id?: string
