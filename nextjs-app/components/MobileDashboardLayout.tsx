@@ -55,8 +55,12 @@ export function MobileDashboardLayout({
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isDesktop, setIsDesktop] = useState(true)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    // Markiere Komponente als gemountet
+    setMounted(true)
+    
     // Check if we're on desktop or mobile
     const checkDesktop = () => {
       setIsDesktop(window.innerWidth >= 768)
@@ -68,9 +72,12 @@ export function MobileDashboardLayout({
     return () => window.removeEventListener('resize', checkDesktop)
   }, [])
 
+  // Verhindere Hydration-Fehler: verwende statischen Wert bis zum Mount
+  const sidebarDefaultOpen = mounted ? isDesktop : true
+
   return (
-    <SidebarProvider defaultOpen={isDesktop}>
-      <div className="flex min-h-screen overflow-hidden">
+    <SidebarProvider defaultOpen={sidebarDefaultOpen}>
+      <div className="flex min-h-screen overflow-hidden" suppressHydrationWarning>
         {/* Mobile Header */}
         <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 h-14 flex items-center px-4">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
