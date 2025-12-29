@@ -35,7 +35,11 @@ export default function LoginPage() {
       }
       
       toast.success('Erfolgreich eingeloggt')
-      router.push('/dashboard')
+      
+      // Verwende window.location für vollständigen Reload, damit Cookie gesetzt wird
+      setTimeout(() => {
+        window.location.href = '/dashboard'
+      }, 500)
     } catch (error) {
       toast.error('Ein Fehler ist aufgetreten')
     } finally {
