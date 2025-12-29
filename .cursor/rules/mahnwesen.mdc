@@ -1,0 +1,149 @@
+🎯 Ziel des Moduls „Mahnwesen“
+Ein kontrolliertes, revisionssicheres und bewusst manuell steuerbares Mahnwesen, das:
+nicht automatisch mahnt
+projekt- und kundenabhängig steuerbar ist
+nahtlos mit Angeboten & Rechnungen verknüpft ist
+vollständig nachvollziehbar (Chronik/Audit) bleibt
+1️⃣ Mahnwesen – Übersichtsseite (Dashboard)
+🔹 Obere KPI- / Status-Cards
+Oben werden Status-Cards angezeigt (Filter + Schnellübersicht):
+Pflicht-Cards (von dir genannt):
+🟥 Aktive Mahnungen
+📤 Gesendete Mahnungen
+⏳ Offene Mahnungen
+Sinnvolle zusätzliche Cards (Empfehlung):
+🕒 Überfällige Rechnungen (noch nicht gemahnt)
+🔒 Gesperrte Kunden (Mahnung nicht erlaubt)
+🧾 Mahnungen zur Genehmigung
+❌ Abgelehnte Mahnungen
+🔁 Mehrfach gemahnte Rechnungen
+💰 Offener Gesamtbetrag (Summe)
+👉 Jede Card wirkt gleichzeitig als Filter für die Tabelle.
+2️⃣ Mahnungen – Tabellenansicht (Kernstück)
+🔹 Tabellenstruktur (Spalten)
+Identifikation & Kontext
+Kunde
+Projektname
+Projekt-ID
+Rechnungs-ID
+Rechnungsdatum
+Zahlungsfrist (Fälligkeitsdatum)
+Mahnstufe (z. B. 1 / 2 / 3)
+Status (offen, genehmigt, gesendet, abgelehnt)
+Genehmigung
+Genehmigungsstatus:
+⏳ offen
+✅ genehmigt
+❌ abgelehnt
+Button: „Mahnung genehmigen“
+öffnet Dialog
+Optionen:
+Genehmigen
+Ablehnen
+Begründung (Pflichtfeld bei Ablehnung)
+Optional: „Kunde dauerhaft von Mahnungen ausschließen“
+Aktionen (Aktionsspalte)
+👁 Rechnung ansehen
+✏️ Mahnung bearbeiten
+🗑 Mahnung löschen
+📄 Mahnungsdetails öffnen
+3️⃣ Manuelle Genehmigungslogik (wichtig!)
+🔐 Warum?
+Nicht jeder Kunde darf automatisch gemahnt werden (Großkunden, Sonderverträge, Kulanzfälle).
+🔹 Logik
+Standard: jede Mahnung = genehmigungspflichtig
+Mahnung wird erst nach Genehmigung versendbar
+Kunden-Flag:
+mahnung_erlaubt: true | false
+Projekt-Override möglich (Projekt darf Mahnungen erlauben, Kunde sonst nicht)
+4️⃣ Mahnungsdetailsseite (Detailansicht)
+🔹 Inhalt der Mahnungsdetailsseite
+Kopfdaten
+Kunde (mit Verlinkung)
+Projekt (mit Verlinkung)
+Rechnung (mit Verlinkung zur Rechnungsdetailsseite)
+Rechnungsbetrag
+Offener Betrag
+Mahnstufe
+Status
+Genehmigungsstatus
+Zeitleiste / Chronik (sehr wichtig!)
+Rechnung erstellt
+Zahlungsziel gesetzt
+Zahlungsziel überschritten
+Mahnung erstellt
+Mahnung genehmigt / abgelehnt
+Mahnung versendet
+Änderungen / Bearbeitungen
+Nutzer + Zeitstempel
+Mahnungsinhalt
+Text der Mahnung (Versioniert)
+Versandart:
+E-Mail
+PDF
+Post (optional später)
+Vorschau der Mahnung (PDF / HTML)
+Aktionen
+Mahnung erneut senden
+Mahnstufe erhöhen
+Mahnung pausieren
+Mahnung stornieren
+5️⃣ Verknüpfung zur Rechnungsdetailsseite
+🔗 Rechnungsdetailsseite – Erweiterung
+Auf der Rechnungsdetailsseite:
+Abschnitt „Mahnungen zu dieser Rechnung“
+Liste aller Mahnungen
+Status je Mahnung
+Datum
+Mahnstufe
+Genehmigungsstatus
+Direktlink zur Mahnungsdetailsseite
+Aktionen von hier aus
+Neue Mahnung anlegen
+Mahnung bearbeiten
+Mahnung löschen (nur vor Versand)
+6️⃣ Prozess-Roadmap (Ablauflogik)
+🔁 Gesamtprozess
+Rechnung wird erstellt
+Zahlungsfrist wird überschritten
+Rechnung erscheint in:
+„Überfällige Rechnungen“
+Nutzer erstellt manuell eine Mahnung
+Mahnung erhält Status:
+„Genehmigung ausstehend“
+Verantwortlicher:
+genehmigt oder lehnt ab
+Nach Genehmigung:
+Versand möglich
+Versand erzeugt:
+Chronik-Eintrag
+Dokument
+Optional:
+nächste Mahnstufe
+Eskalation
+7️⃣ Technische Struktur (Cursor-tauglich)
+🔹 Hauptseiten / Routen
+/mahnwesen
+/mahnwesen/:id
+/rechnungen/:id
+🔹 Zentrale Module
+Mahnungen
+Rechnungen
+Kunden
+Projekte
+Genehmigungen
+Chroniken / Logs
+🔹 Wichtige Komponenten
+StatusCards
+MahnungenTable
+GenehmigungsDialog
+MahnungsDetailView
+ChronikTimeline
+RechnungPreview
+8️⃣ Erweiterungsideen (später)
+Automatische Vorschläge („Mahnung möglich“)
+Mahnstufen-Templates
+Mahngebühren
+Zahlungslink in Mahnung
+SEPA- / Zahlungsstatus-Abgleich
+Rechte & Rollen (wer darf genehmigen)

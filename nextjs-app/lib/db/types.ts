@@ -2,6 +2,118 @@
 // Diese Typen werden auf Client und Server verwendet
 
 // ========================================
+// AUTHENTIFIZIERUNG & AUTORISIERUNG
+// ========================================
+
+export enum UserRole {
+  SUPERADMIN = 'SUPERADMIN',
+  ADMIN = 'ADMIN',
+  EMPLOYEE = 'EMPLOYEE'
+}
+
+export enum UserStatus {
+  PENDING = 'PENDING',
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  SUSPENDED = 'SUSPENDED'
+}
+
+// Auth-User Interface (für das neue Auth-System)
+export interface User {
+  _id?: any // ObjectId wird zur Laufzeit konvertiert
+  email: string
+  firstName: string
+  lastName: string
+  role: UserRole
+  passwordHash: string | null
+  status: UserStatus
+  emailVerifiedAt: Date | null
+  lastLoginAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+  createdByUserId?: any | null
+  
+  // Erweiterte Profilfelder
+  profile?: {
+    telefon?: string
+    geburtsdatum?: Date
+    personalnummer?: string
+    
+    // Adresse
+    adresse?: {
+      strasse?: string
+      hausnummer?: string
+      plz?: string
+      stadt?: string
+      land?: string
+    }
+    
+    // Notfallkontakt
+    notfallkontakt?: {
+      name?: string
+      beziehung?: string
+      telefon?: string
+    }
+    
+    // Bankdaten (verschlüsselt speichern)
+    bankdaten?: {
+      iban?: string
+      bic?: string
+      bankname?: string
+    }
+    
+    // Steuerliche Daten
+    steuerDaten?: {
+      steuerID?: string
+      sozialversicherungsnummer?: string
+    }
+    
+    // Profilbild
+    profilbild?: {
+      url?: string
+      filename?: string
+      uploadedAt?: Date
+    }
+  }
+}
+
+// Session Interface
+export interface Session {
+  userId: string
+  email: string
+  role: UserRole
+  iat: number
+  exp: number
+}
+
+// Invitation Interface
+export interface Invitation {
+  _id?: any
+  email: string
+  firstName: string
+  lastName: string
+  role: UserRole
+  tokenHash: string
+  expiresAt: Date
+  usedAt: Date | null
+  invitedByUserId: any
+  createdAt: Date
+}
+
+// Audit Log Interface
+export interface AuditLog {
+  _id?: any
+  userId: any
+  action: string
+  resource: string
+  resourceId?: string
+  details?: any
+  ipAddress?: string
+  userAgent?: string
+  timestamp: Date
+}
+
+// ========================================
 // GERÜSTBAU ERP - Neue Typen
 // ========================================
 
@@ -668,8 +780,8 @@ export interface Abrechnung {
   zahlungsreferenz?: string
 }
 
-// NEU: Audit-Log für Änderungsverfolgung
-export interface AuditLog {
+// NEU: Fall-bezogenes Audit-Log für Änderungsverfolgung
+export interface FallAuditLog {
   _id?: string
   fallId: string
   aktion: 'erstellt' | 'bearbeitet' | 'status_geaendert' | 'dokument_hinzugefuegt' | 'aufgabe_erstellt' | 'aufgabe_erledigt' | 'zugewiesen' | 'kommentar_hinzugefuegt'
@@ -818,9 +930,9 @@ export interface Conversation {
   chatType: 'fallbezogen' | 'direkt' // Art des Chats
 }
 
-// User-Typen für Authentifizierung
-export interface User {
-  _id?: string
+// Legacy User-Typen (altes System mit Gutachter/Partner)
+export interface LegacyUser {
+  _id?: any
   email: string
   vorname: string
   nachname: string
@@ -1008,4 +1120,88 @@ export interface Anfrage {
   erstelltAm: Date
   zuletztGeaendert: Date
   erstelltVon: string
+}
+
+// ============================================================================
+// SYSTEM-EINSTELLUNGEN
+// ============================================================================
+
+// Benachrichtigungsvorlagen für automatische E-Mails
+export interface BenachrichtigungsVorlagen {
+  _id?: string
+  mandantId?: string
+  
+  // Willkommensnachricht (bei neuem Benutzer)
+  willkommen: {
+    betreff: string
+    inhalt: string
+    aktiv: boolean
+  }
+  
+  // Passwort zurücksetzen
+  passwortZuruecksetzen: {
+    betreff: string
+    inhalt: string
+    aktiv: boolean
+  }
+  
+  // Angebot erstellt und versendet
+  angebotVersendet: {
+    betreff: string
+    inhalt: string
+    aktiv: boolean
+  }
+  
+  // Rechnung versendet
+  rechnungVersendet: {
+    betreff: string
+    inhalt: string
+    aktiv: boolean
+  }
+  
+  // Rechnung als bezahlt markiert
+  rechnungBezahlt: {
+    betreff: string
+    inhalt: string
+    aktiv: boolean
+  }
+  
+  // Zahlungserinnerung
+  zahlungserinnerung: {
+    betreff: string
+    inhalt: string
+    aktiv: boolean
+  }
+  
+  // Mahnung erstellt (Zahlungsfrist nicht eingehalten)
+  mahnungErstellt: {
+    betreff: string
+    inhalt: string
+    aktiv: boolean
+  }
+  
+  erstelltAm: Date
+  zuletztGeaendert: Date
+}
+
+// Firmen-/Unternehmenseinstellungen
+export interface FirmenEinstellungen {
+  _id?: string
+  mandantId?: string
+  
+  // Unternehmensdaten
+  firmenname: string
+  supportEmail: string
+  supportPhone: string
+  imprintUrl: string
+  privacyUrl: string
+  
+  // Optional: Logo und weitere Daten
+  logo?: {
+    primary?: string
+    secondary?: string
+  }
+  
+  erstelltAm: Date
+  zuletztGeaendert: Date
 }

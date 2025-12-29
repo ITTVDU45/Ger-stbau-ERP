@@ -290,7 +290,7 @@ export default function AngebotDialog({ open, angebot, onClose }: AngebotDialogP
 
                 <div className="flex justify-between items-center py-2">
                   <span className="text-gray-700">MwSt. ({formData.mwstSatz}%):</span>
-                  <span className="text-gray-600">{formData.mwstBetrag.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</span>
+                  <span className="text-gray-600">{(formData.mwstBetrag || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</span>
                 </div>
 
                 <div className="flex justify-between items-center py-2 border-t-2 border-gray-300">

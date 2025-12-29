@@ -365,3 +365,119 @@ Ihr Rechtly-Team
   return sendEmail({ to, subject, html, text })
 }
 
+/**
+ * Einladungs-Email für Auth-System senden
+ */
+export async function sendInviteEmail(
+  to: string,
+  firstName: string,
+  inviteLink: string
+): Promise<void> {
+  const subject = 'Einladung zum Gerüstbau ERP System'
+  
+  const html = `
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Einladung</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f3f4f6; padding: 40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); padding: 40px; text-align: center; border-radius: 8px 8px 0 0;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">Gerüstbau ERP</h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">Willkommen im Team</p>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              <h2 style="color: #111827; margin: 0 0 20px 0; font-size: 24px;">Willkommen, ${firstName}!</h2>
+              
+              <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                Sie wurden zum Gerüstbau ERP System eingeladen.
+              </p>
+              
+              <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                Bitte klicken Sie auf den folgenden Link, um Ihr Passwort zu setzen und Ihr Konto zu aktivieren:
+              </p>
+
+              <!-- Button -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="${inviteLink}" 
+                       style="display: inline-block; background: linear-gradient(135deg, #10B981 0%, #059669 100%); 
+                              color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; 
+                              font-weight: 600; font-size: 16px;">
+                      Passwort festlegen
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 20px 0 0 0;">
+                Oder kopieren Sie diesen Link in Ihren Browser:
+              </p>
+              <p style="color: #3b82f6; font-size: 14px; word-break: break-all; margin: 10px 0 0 0;">
+                ${inviteLink}
+              </p>
+
+              <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin: 30px 0; border-radius: 4px;">
+                <p style="color: #92400e; font-size: 14px; margin: 0; line-height: 1.6;">
+                  <strong>⏰ Wichtig:</strong> Dieser Link ist 48 Stunden gültig. Falls Sie diese E-Mail nicht erwartet haben, können Sie sie ignorieren.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f9fafb; padding: 30px; text-align: center; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
+              <p style="color: #6b7280; font-size: 14px; margin: 0 0 10px 0;">
+                Mit freundlichen Grüßen<br>
+                <strong>Ihr Gerüstbau ERP Team</strong>
+              </p>
+              <p style="color: #9ca3af; font-size: 12px; margin: 10px 0 0 0;">
+                Diese E-Mail wurde automatisch generiert. Bitte antworten Sie nicht auf diese E-Mail.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `
+
+  const text = `
+Willkommen, ${firstName}!
+
+Sie wurden zum Gerüstbau ERP System eingeladen.
+
+Bitte verwenden Sie den folgenden Link, um Ihr Passwort zu setzen:
+${inviteLink}
+
+Dieser Link ist 48 Stunden gültig.
+
+Falls Sie diese E-Mail nicht erwartet haben, können Sie sie ignorieren.
+
+Mit freundlichen Grüßen
+Ihr Gerüstbau ERP Team
+  `
+
+  const result = await sendEmail({ to, subject, html, text })
+  
+  if (!result.erfolg) {
+    throw new Error(`Failed to send invite email: ${result.nachricht}`)
+  }
+}
+

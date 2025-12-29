@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ArrowLeft, Edit, Mail, Archive, Building2, Phone, MapPin } from 'lucide-react'
+import { ArrowLeft, Edit, Mail, Archive, Building2, Phone, MapPin, BarChart3 } from 'lucide-react'
 import { Kunde } from '@/lib/db/types'
 import Link from 'next/link'
 import KundenUebersicht from '../components/KundenUebersicht'
@@ -145,6 +145,12 @@ export default function KundenDeteilseitePage({ params }: { params: Promise<{ id
 
             {/* Aktionen */}
             <div className="flex gap-2">
+              <Button variant="outline" asChild className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0 hover:from-purple-700 hover:to-blue-700">
+                <Link href={`/dashboard/admin/kunden/berichte/${resolvedParams.id}`}>
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  <span className="font-medium">Kundenbericht</span>
+                </Link>
+              </Button>
               <Button variant="outline" className="bg-white border-gray-300 text-gray-900 hover:bg-gray-50">
                 <Mail className="h-4 w-4 mr-2 text-gray-700" />
                 <span className="font-medium">E-Mail senden</span>

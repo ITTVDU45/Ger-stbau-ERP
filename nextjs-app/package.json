@@ -12,7 +12,9 @@
     "test:services": "node scripts/test-all.js",
     "db:migrate": "node scripts/migrate-db.js",
     "db:setup-notifications": "node scripts/setup-notifications.js",
-    "db:setup-gutachter": "node scripts/setup-gutachter.js"
+    "db:setup-gutachter": "node scripts/setup-gutachter.js",
+    "seed:superadmin": "node scripts/seed-superadmin.js",
+    "auth:indexes": "node scripts/create-auth-indexes.js"
   },
   "dependencies": {
     "@chatscope/chat-ui-kit-react": "^2.1.1",
@@ -56,6 +58,7 @@
     "@tiptap/extension-underline": "^3.10.1",
     "@tiptap/react": "^3.10.1",
     "@tiptap/starter-kit": "^3.10.1",
+    "bcryptjs": "^2.4.3",
     "caniuse-lite": "^1.0.30001741",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -64,7 +67,8 @@
     "dotenv": "^17.2.3",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
-    "jspdf": "^3.0.3",
+    "jose": "^5.9.6",
+    "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.2",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.545.0",
@@ -73,6 +77,9 @@
     "next": "^15.0.0",
     "next-themes": "^0.4.6",
     "nodemailer": "^7.0.9",
+    "openai": "^6.15.0",
+    "pdf-parse": "^2.4.5",
+    "pdf2pic": "^3.2.0",
     "react": "^19.0.0",
     "react-day-picker": "^9.11.0",
     "react-dom": "^19.0.0",
@@ -86,6 +93,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.0.0",
     "@types/nodemailer": "^7.0.2",
     "@types/react": "^19.0.0",

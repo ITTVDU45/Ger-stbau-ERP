@@ -1,11 +1,17 @@
 // Server-only imports - nur auf dem Server verfügbar
 let MongoClient: any
 let Db: any
+let dns: any
+let Resolver: any
 
 if (typeof window === 'undefined') {
   const mongodb = require('mongodb')
   MongoClient = mongodb.MongoClient
   Db = mongodb.Db
+  
+  // DNS-Resolver für SRV-Lookups (Fix für macOS DNS-Probleme)
+  dns = require('dns')
+  Resolver = dns.Resolver
 }
 
 interface MongoConnection {
@@ -61,17 +67,26 @@ async function connectToDatabase(): Promise<MongoConnection> {
 
   globalForMongo.isConnecting = true
 
+  // Fix für DNS SRV-Lookup Probleme (macOS/Router DNS)
+  // Setze Google DNS als Standard für Node.js DNS-Lookups
+  if (dns && Resolver) {
+    dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1'])
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔧 DNS-Server auf Google DNS (8.8.8.8, 8.8.4.4, 1.1.1.1) gesetzt')
+    }
+  }
+
   let mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI
   
   // Debug: Log welche URI verwendet wird
   if (process.env.NODE_ENV === 'development') {
-    console.log('🔗 Verbinde mit MongoDB:', mongoUri.replace(/:[^:@]+@/, ':***@'))
+    console.log('🔗 Verbinde mit MongoDB:', mongoUri?.replace(/:[^:@]+@/, ':***@'))
   }
   
   // Füge wichtige Connection-Optionen zur URI hinzu, falls nicht vorhanden
-  if (mongoUri.includes('mongodb+srv://') && !mongoUri.includes('retryWrites')) {
+  if (mongoUri?.includes('mongodb+srv://') && !mongoUri.includes('retryWrites')) {
     const separator = mongoUri.includes('?') ? '&' : '?'
-    mongoUri += `${separator}retryWrites=true&w=majority&maxPoolSize=50`
+    mongoUri += `${separator}retryWrites=true&w=majority&maxPoolSize=50&serverSelectionTimeoutMS=10000`
   }
   
   if (!mongoUri) {
@@ -79,57 +94,83 @@ async function connectToDatabase(): Promise<MongoConnection> {
     throw new Error('Please define the MONGO_URI or MONGODB_URI environment variable')
   }
 
-  try {
-    // TLS nur für Cloud-Verbindungen aktivieren (mongodb+srv oder nicht localhost)
-    const isLocalConnection = mongoUri.includes('localhost') || mongoUri.includes('127.0.0.1')
-    const useTLS = mongoUri.startsWith('mongodb+srv://') || (!isLocalConnection && !mongoUri.includes('mongodb://localhost'))
-    
-    const client = new MongoClient(mongoUri, {
-      maxPoolSize: 10,
-      minPoolSize: 2,
-      // Erhöhte Timeouts für MongoDB Atlas (oft langsamer im Next.js Kontext)
-      serverSelectionTimeoutMS: 60000, // 60 Sekunden für DNS-Lookup
-      socketTimeoutMS: 45000, // 45 Sekunden für Socket-Operationen
-      connectTimeoutMS: 60000, // 60 Sekunden für initiale Verbindung
-      maxIdleTimeMS: 120000,
-      waitQueueTimeoutMS: 60000,
-      ...(useTLS && {
-        tls: true,
-        tlsAllowInvalidCertificates: false,
-        tlsAllowInvalidHostnames: false,
-      }),
-      retryWrites: true,
-      retryReads: true,
-      compressors: ['zlib'],
-      directConnection: false,
-    })
+  // Retry-Mechanismus für DNS-Fehler
+  let lastError: Error | null = null
+  const maxRetries = 3
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      if (attempt > 1) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`🔄 MongoDB Verbindungsversuch ${attempt}/${maxRetries}...`)
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt)) // Exponential backoff
+      }
 
-    await client.connect()
+      // TLS nur für Cloud-Verbindungen aktivieren (mongodb+srv oder nicht localhost)
+      const isLocalConnection = mongoUri.includes('localhost') || mongoUri.includes('127.0.0.1')
+      const useTLS = mongoUri.startsWith('mongodb+srv://') || (!isLocalConnection && !mongoUri.includes('mongodb://localhost'))
+      
+      const client = new MongoClient(mongoUri, {
+        maxPoolSize: 10,
+        minPoolSize: 2,
+        // Erhöhte Timeouts für MongoDB Atlas (oft langsamer im Next.js Kontext)
+        serverSelectionTimeoutMS: 60000, // 60 Sekunden für DNS-Lookup
+        socketTimeoutMS: 45000, // 45 Sekunden für Socket-Operationen
+        connectTimeoutMS: 60000, // 60 Sekunden für initiale Verbindung
+        maxIdleTimeMS: 120000,
+        waitQueueTimeoutMS: 60000,
+        ...(useTLS && {
+          tls: true,
+          tlsAllowInvalidCertificates: false,
+          tlsAllowInvalidHostnames: false,
+        }),
+        retryWrites: true,
+        retryReads: true,
+        compressors: ['zlib'],
+        directConnection: false,
+      })
 
-    const dbName = process.env.MONGODB_DB || mongoUri.split('/').pop()?.split('?')[0] || 'geruestbau_erp'
-    const db = client.db(dbName)
-    
-    // Debug: Log welche Datenbank verwendet wird
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📂 Verwende Datenbank:', dbName)
+      await client.connect()
+
+      const dbName = process.env.MONGODB_DB || mongoUri.split('/').pop()?.split('?')[0] || 'geruestbau_erp'
+      const db = client.db(dbName)
+      
+      // Debug: Log welche Datenbank verwendet wird
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📂 Verwende Datenbank:', dbName)
+      }
+
+      globalForMongo.mongoConnection = { 
+        client, 
+        db,
+        lastPing: Date.now()
+      }
+
+      // Nur beim ersten Connect loggen
+      console.log('✓ MongoDB verbunden:', dbName)
+      globalForMongo.isConnecting = false
+      return globalForMongo.mongoConnection
+      
+    } catch (error: any) {
+      lastError = error
+      console.error(`❌ MongoDB Verbindungsfehler (Versuch ${attempt}/${maxRetries}):`, error.message)
+      
+      // Wenn es der letzte Versuch war, werfe den Fehler
+      if (attempt === maxRetries) {
+        globalForMongo.mongoConnection = null
+        globalForMongo.isConnecting = false
+        throw error
+      }
+      
+      // Ansonsten versuche es erneut
+      continue
     }
-
-    globalForMongo.mongoConnection = { 
-      client, 
-      db,
-      lastPing: Date.now()
-    }
-
-    // Nur beim ersten Connect loggen
-    console.log('✓ MongoDB verbunden:', dbName)
-    globalForMongo.isConnecting = false
-    return globalForMongo.mongoConnection
-  } catch (error) {
-    console.error('❌ MongoDB Verbindungsfehler:', error)
-    globalForMongo.mongoConnection = null
-    globalForMongo.isConnecting = false
-    throw error
   }
+  
+  // Sollte nie erreicht werden, aber für TypeScript
+  globalForMongo.isConnecting = false
+  throw lastError || new Error('MongoDB connection failed after retries')
 }
 
 export async function getDatabase(): Promise<Db> {

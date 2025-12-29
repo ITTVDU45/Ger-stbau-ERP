@@ -15,14 +15,9 @@ import {
   AlertTriangle,
   Calendar,
   BarChart3,
-  DollarSign,
-  Download,
-  Briefcase,
   Settings,
   TrendingUp,
-  Calculator,
-  FolderArchive,
-  Plug,
+  Banknote,
 } from "lucide-react"
 import {
   Sidebar,
@@ -37,6 +32,48 @@ import {
   SidebarRail,
   SidebarFooter,
 } from "@/components/ui/sidebar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+
+// Serialisierter User-Typ für Client-Komponente
+type SerializedUser = {
+  _id?: string
+  email: string
+  firstName: string
+  lastName: string
+  role: string
+  status: string
+  profile?: {
+    telefon?: string
+    geburtsdatum?: string
+    personalnummer?: string
+    adresse?: {
+      strasse?: string
+      hausnummer?: string
+      plz?: string
+      stadt?: string
+      land?: string
+    }
+    notfallkontakt?: {
+      name?: string
+      beziehung?: string
+      telefon?: string
+    }
+    bankdaten?: {
+      iban?: string
+      bic?: string
+      bankname?: string
+    }
+    steuerDaten?: {
+      steuerID?: string
+      sozialversicherungsnummer?: string
+    }
+    profilbild?: {
+      url?: string
+      filename?: string
+      uploadedAt?: string
+    }
+  }
+}
 
 // Gerüstbau ERP Admin Navigation - Strukturiert in Kategorien
 const adminData = {
@@ -82,6 +119,11 @@ const adminData = {
       name: "Finanzen",
       items: [
         {
+          title: "Finanzen",
+          icon: Banknote,
+          url: "/dashboard/admin/finanzen",
+        },
+        {
           title: "Angebote & Rechnungen",
           icon: FileText,
           url: "/dashboard/admin/angebote",
@@ -108,23 +150,6 @@ const adminData = {
             },
           ],
         },
-        {
-          title: "Buchhaltung",
-          icon: Briefcase,
-          url: "/dashboard/admin/buchhaltung",
-          items: [
-            {
-              title: "DATEV-Export",
-              icon: Calculator,
-              url: "/dashboard/admin/buchhaltung/datev",
-            },
-            {
-              title: "Archiv",
-              icon: FolderArchive,
-              url: "/dashboard/admin/buchhaltung/archiv",
-            },
-          ],
-        },
       ],
     },
     {
@@ -139,28 +164,6 @@ const adminData = {
           title: "Statistiken & Reports",
           icon: TrendingUp,
           url: "/dashboard/admin/statistiken",
-          items: [
-            {
-              title: "Finanzen",
-              icon: DollarSign,
-              url: "/dashboard/admin/statistiken/finanzen",
-            },
-            {
-              title: "Projekte",
-              icon: Building2,
-              url: "/dashboard/admin/statistiken/projekte",
-            },
-            {
-              title: "Mitarbeiter",
-              icon: Users,
-              url: "/dashboard/admin/statistiken/mitarbeiter",
-            },
-            {
-              title: "Export",
-              icon: Download,
-              url: "/dashboard/admin/statistiken/export",
-            },
-          ],
         },
       ],
     },
@@ -171,43 +174,47 @@ const adminData = {
           title: "Einstellungen",
           icon: Settings,
           url: "/dashboard/admin/einstellungen",
-          items: [
-            {
-              title: "Allgemein",
-              icon: Settings,
-              url: "/dashboard/admin/einstellungen",
-            },
-            {
-              title: "Benutzer",
-              icon: Users,
-              url: "/dashboard/admin/einstellungen/benutzer",
-            },
-            {
-              title: "Integration",
-              icon: Plug,
-              url: "/dashboard/admin/einstellungen/integration",
-            },
-          ],
         },
       ],
     },
   ],
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar> & { user?: any }) {
+export function AppSidebar({ 
+  user, 
+  ...props 
+}: React.ComponentProps<typeof Sidebar> & { user?: SerializedUser | null }) {
   const pathname = usePathname()
   const router = useRouter()
 
   // Verwende die Gerüstbau ERP Navigation
   const navigationData = adminData
 
-  const handleLogout = () => {
-    // Entferne Session-Daten
+  // Benutzer-Initialen für Avatar
+  const getUserInitials = () => {
+    if (!user) return '?'
+    return `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`.toUpperCase()
+  }
+  
+  // Rollen-Label
+  const getRoleLabel = (role: string) => {
+    switch(role) {
+      case 'SUPERADMIN': return 'Superadmin'
+      case 'ADMIN': return 'Administrator'
+      case 'EMPLOYEE': return 'Mitarbeiter'
+      default: return role
+    }
+  }
+
+  const handleLogout = async () => {
+    // Rufe API-Logout auf
+    await fetch('/api/auth/logout', { method: 'POST' })
+    // Entferne lokale Session-Daten
     localStorage.removeItem('user')
     localStorage.removeItem('session')
     document.cookie = 'session=; path=/; max-age=0'
-    // Weiterleitung zur Startseite
-    router.push('/')
+    // Weiterleitung zur Login-Seite
+    router.push('/login')
   }
 
   return (
@@ -287,9 +294,31 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar> & 
         ))}
       </SidebarContent>
       
-      {/* Footer mit Abmelden */}
+      {/* Footer mit Benutzeranzeige und Abmelden */}
       <SidebarFooter>
         <SidebarMenu>
+          {/* Benutzer-Anzeige */}
+          {user && (
+            <div className="px-3 py-2 mb-2 border-t border-gray-200">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-9 w-9">
+                  <AvatarImage src={user.profile?.profilbild?.url} />
+                  <AvatarFallback className="bg-blue-600 text-white text-sm font-semibold">
+                    {getUserInitials()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {user.firstName} {user.lastName}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {getRoleLabel(user.role)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {/* Abmelden */}
           <SidebarMenuItem>
             <SidebarMenuButton onClick={handleLogout}>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db/client'
 import { ObjectId } from 'mongodb'
+import { Mahnung } from '@/lib/db/types'
 
 // GET - Einzelne Rechnung abrufen
 export async function GET(
@@ -27,7 +28,21 @@ export async function GET(
       )
     }
 
-    return NextResponse.json({ erfolg: true, rechnung })
+    // Prüfen, ob offene Mahnungen existieren
+    const mahnungenCollection = db.collection<Mahnung>('mahnungen')
+    const offeneMahnungen = await mahnungenCollection.countDocuments({
+      rechnungId: id,
+      status: { $in: ['zur_genehmigung', 'genehmigt', 'versendet'] }
+    })
+
+    const now = new Date()
+    const enrichedRechnung = {
+      ...rechnung,
+      istUeberfaellig: rechnung.faelligAm && new Date(rechnung.faelligAm) < now && rechnung.status !== 'bezahlt',
+      hatOffeneMahnung: offeneMahnungen > 0
+    }
+
+    return NextResponse.json({ erfolg: true, rechnung: enrichedRechnung })
   } catch (error) {
     console.error('Fehler beim Abrufen der Rechnung:', error)
     return NextResponse.json(

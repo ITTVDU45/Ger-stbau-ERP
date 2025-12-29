@@ -31,7 +31,8 @@ export default function VorkalkulationEditor({
   const [autoSaving, setAutoSaving] = useState(false)
   const [stundensatz, setStundensatz] = useState(72)
   const [nettoUmsatz, setNettoUmsatz] = useState(0)
-  const [anzahlMitarbeiter, setAnzahlMitarbeiter] = useState(1)
+  const [anzahlMitarbeiterAufbau, setAnzahlMitarbeiterAufbau] = useState(1)
+  const [anzahlMitarbeiterAbbau, setAnzahlMitarbeiterAbbau] = useState(1)
   const [sollStundenAufbauProMA, setSollStundenAufbauProMA] = useState(0)
   const [sollStundenAbbauProMA, setSollStundenAbbauProMA] = useState(0)
   const initializedRef = useRef(false)
@@ -40,8 +41,8 @@ export default function VorkalkulationEditor({
   const isLoadingRef = useRef(false) // true während wir Daten laden, um Auto-Save zu blockieren
 
   // Berechnete Werte - Gesamt für ganze Kolonne
-  const sollStundenAufbauGesamt = sollStundenAufbauProMA * anzahlMitarbeiter
-  const sollStundenAbbauGesamt = sollStundenAbbauProMA * anzahlMitarbeiter
+  const sollStundenAufbauGesamt = sollStundenAufbauProMA * anzahlMitarbeiterAufbau
+  const sollStundenAbbauGesamt = sollStundenAbbauProMA * anzahlMitarbeiterAbbau
   const sollUmsatzAufbau = sollStundenAufbauGesamt * stundensatz
   const sollUmsatzAbbau = sollStundenAbbauGesamt * stundensatz
   
@@ -67,9 +68,17 @@ export default function VorkalkulationEditor({
       console.warn('⚠️ PROBLEM: Keine Angebot-ID vorhanden! Das Projekt hat kein zugewiesenes Angebot.')
     }
     
-    // Setze Mitarbeiter-Anzahl
-    const mitarbeiterCount = zugewieseneMitarbeiter?.length || 1
-    setAnzahlMitarbeiter(mitarbeiterCount)
+    // Setze Mitarbeiter-Anzahl SEPARAT für Aufbau und Abbau
+    const mitarbeiterAufbau = zugewieseneMitarbeiter?.filter(m => 
+      (m.stundenAufbau !== undefined && m.stundenAufbau !== null && m.stundenAufbau > 0)
+    ).length || 1
+    
+    const mitarbeiterAbbau = zugewieseneMitarbeiter?.filter(m => 
+      (m.stundenAbbau !== undefined && m.stundenAbbau !== null && m.stundenAbbau > 0)
+    ).length || 1
+    
+    setAnzahlMitarbeiterAufbau(mitarbeiterAufbau)
+    setAnzahlMitarbeiterAbbau(mitarbeiterAbbau)
     
     // PRIORITÄT 1: Wenn Vorkalkulation existiert, lade die Werte (HÖCHSTE PRIORITÄT)
     if (vorkalkulation) {
@@ -77,8 +86,8 @@ export default function VorkalkulationEditor({
       setStundensatz(vorkalkulation.stundensatz || 72)
       
       // Teile durch Anzahl Mitarbeiter um Pro-MA zu bekommen
-      const aufbauProMA = vorkalkulation.sollStundenAufbau / mitarbeiterCount
-      const abbauProMA = vorkalkulation.sollStundenAbbau / mitarbeiterCount
+      const aufbauProMA = vorkalkulation.sollStundenAufbau / mitarbeiterAufbau
+      const abbauProMA = vorkalkulation.sollStundenAbbau / mitarbeiterAbbau
       setSollStundenAufbauProMA(Math.round(aufbauProMA * 100) / 100)
       setSollStundenAbbauProMA(Math.round(abbauProMA * 100) / 100)
       
@@ -105,8 +114,8 @@ export default function VorkalkulationEditor({
         const gesamtAbbau = zugewieseneMitarbeiter?.reduce((sum: number, m: any) => 
           sum + (m.stundenAbbau || 0), 0) || 0
         
-        const aufbauProMA = mitarbeiterCount > 0 ? gesamtAufbau / mitarbeiterCount : 0
-        const abbauProMA = mitarbeiterCount > 0 ? gesamtAbbau / mitarbeiterCount : 0
+        const aufbauProMA = mitarbeiterAufbau > 0 ? gesamtAufbau / mitarbeiterAufbau : 0
+        const abbauProMA = mitarbeiterAbbau > 0 ? gesamtAbbau / mitarbeiterAbbau : 0
         
         setSollStundenAufbauProMA(Math.round(aufbauProMA * 100) / 100)
         setSollStundenAbbauProMA(Math.round(abbauProMA * 100) / 100)
@@ -127,8 +136,8 @@ export default function VorkalkulationEditor({
         const gesamtStunden = angebotssumme / tempStundensatz
         const aufbauStundenKolonne = gesamtStunden * 0.70
         const abbauStundenKolonne = gesamtStunden * 0.30
-        const aufbauStundenProMA = aufbauStundenKolonne / mitarbeiterCount
-        const abbauStundenProMA = abbauStundenKolonne / mitarbeiterCount
+        const aufbauStundenProMA = aufbauStundenKolonne / mitarbeiterAufbau
+        const abbauStundenProMA = abbauStundenKolonne / mitarbeiterAbbau
         
         setSollStundenAufbauProMA(Math.round(aufbauStundenProMA * 100) / 100)
         setSollStundenAbbauProMA(Math.round(abbauStundenProMA * 100) / 100)
@@ -167,11 +176,11 @@ export default function VorkalkulationEditor({
       if (saveTimer.current) clearTimeout(saveTimer.current)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sollStundenAufbauProMA, sollStundenAbbauProMA, stundensatz, nettoUmsatz, anzahlMitarbeiter])
+  }, [sollStundenAufbauProMA, sollStundenAbbauProMA, stundensatz, nettoUmsatz, anzahlMitarbeiterAufbau, anzahlMitarbeiterAbbau])
 
   // Automatische Berechnung aus Netto-Umsatz
   const berechneAusNetto = async () => {
-    if (nettoUmsatz <= 0 || stundensatz <= 0 || anzahlMitarbeiter <= 0) {
+    if (nettoUmsatz <= 0 || stundensatz <= 0 || anzahlMitarbeiterAufbau <= 0 || anzahlMitarbeiterAbbau <= 0) {
       toast.error('Bitte geben Sie einen gültigen Netto-Umsatz, Stundensatz und Mitarbeiter-Anzahl ein')
       return
     }
@@ -187,8 +196,8 @@ export default function VorkalkulationEditor({
     const abbauStundenKolonne = gesamtStunden * 0.30
     
     // Pro Mitarbeiter teilen
-    const aufbauStundenProMA = aufbauStundenKolonne / anzahlMitarbeiter
-    const abbauStundenProMA = abbauStundenKolonne / anzahlMitarbeiter
+    const aufbauStundenProMA = aufbauStundenKolonne / anzahlMitarbeiterAufbau
+    const abbauStundenProMA = abbauStundenKolonne / anzahlMitarbeiterAbbau
     
     // Runde auf 2 Dezimalstellen
     const aufbauGerundet = Math.round(aufbauStundenProMA * 100) / 100
@@ -200,8 +209,8 @@ export default function VorkalkulationEditor({
     // Sofort speichern nach Berechnung
     setSaving(true)
     try {
-      const aufbauGesamt = aufbauGerundet * anzahlMitarbeiter
-      const abbauGesamt = abbauGerundet * anzahlMitarbeiter
+      const aufbauGesamt = aufbauGerundet * anzahlMitarbeiterAufbau
+      const abbauGesamt = abbauGerundet * anzahlMitarbeiterAbbau
       
       const response = await fetch(`/api/kalkulation/${projektId}/vorkalkulation`, {
         method: vorkalkulation ? 'PUT' : 'POST',
@@ -217,7 +226,7 @@ export default function VorkalkulationEditor({
       const data = await response.json()
 
       if (data.erfolg) {
-        toast.success(`Soll-Stunden berechnet und gespeichert: Pro MA (${anzahlMitarbeiter} Mitarbeiter, 70/30-Verteilung)`)
+        toast.success(`Soll-Stunden berechnet und gespeichert: Pro MA (${anzahlMitarbeiterAufbau} Aufbau, ${anzahlMitarbeiterAbbau} Abbau, 70/30-Verteilung)`)
         await onUpdate() // Lade aktualisierte Daten
         // Nach onUpdate() bleibt isLoadingRef.current auf true durch den ersten useEffect
       } else {
@@ -402,7 +411,7 @@ export default function VorkalkulationEditor({
         )}
 
         {/* Basis-Werte für automatische Berechnung */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
           {/* Netto-Umsatz */}
           <div className="space-y-2">
             <Label htmlFor="nettoUmsatz" className="text-base font-semibold text-gray-900">
@@ -450,18 +459,19 @@ export default function VorkalkulationEditor({
             </div>
           </div>
 
-          {/* Anzahl Mitarbeiter */}
+          {/* Anzahl Mitarbeiter Aufbau */}
           <div className="space-y-2">
-            <Label htmlFor="anzahlMitarbeiter" className="text-base font-semibold text-gray-900">
-              Anzahl Mitarbeiter
+            <Label htmlFor="anzahlMitarbeiterAufbau" className="text-base font-semibold text-gray-900 flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+              Anzahl Mitarbeiter Aufbau
             </Label>
             <div className="relative">
               <Input
-                id="anzahlMitarbeiter"
+                id="anzahlMitarbeiterAufbau"
                 type="number"
-                value={anzahlMitarbeiter}
-                onChange={(e) => setAnzahlMitarbeiter(Number(e.target.value))}
-                className="pr-12 text-gray-900 font-semibold text-base border-gray-300"
+                value={anzahlMitarbeiterAufbau}
+                onChange={(e) => setAnzahlMitarbeiterAufbau(Number(e.target.value))}
+                className="pr-12 text-gray-900 font-semibold text-base border-blue-300"
                 min="1"
                 step="1"
               />
@@ -469,9 +479,44 @@ export default function VorkalkulationEditor({
                 MA
               </span>
             </div>
-            {zugewieseneMitarbeiter && zugewieseneMitarbeiter.length > 0 && (
+            {zugewieseneMitarbeiter && zugewieseneMitarbeiter.filter(m => 
+              (m.stundenAufbau !== undefined && m.stundenAufbau !== null && m.stundenAufbau > 0)
+            ).length > 0 && (
               <p className="text-xs text-gray-700 font-medium">
-                Zugewiesen: {zugewieseneMitarbeiter.length} MA
+                Zugewiesen: {zugewieseneMitarbeiter.filter(m => 
+                  (m.stundenAufbau !== undefined && m.stundenAufbau !== null && m.stundenAufbau > 0)
+                ).length} MA
+              </p>
+            )}
+          </div>
+
+          {/* Anzahl Mitarbeiter Abbau */}
+          <div className="space-y-2">
+            <Label htmlFor="anzahlMitarbeiterAbbau" className="text-base font-semibold text-gray-900 flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+              Anzahl Mitarbeiter Abbau
+            </Label>
+            <div className="relative">
+              <Input
+                id="anzahlMitarbeiterAbbau"
+                type="number"
+                value={anzahlMitarbeiterAbbau}
+                onChange={(e) => setAnzahlMitarbeiterAbbau(Number(e.target.value))}
+                className="pr-12 text-gray-900 font-semibold text-base border-green-300"
+                min="1"
+                step="1"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-700 font-medium">
+                MA
+              </span>
+            </div>
+            {zugewieseneMitarbeiter && zugewieseneMitarbeiter.filter(m => 
+              (m.stundenAbbau !== undefined && m.stundenAbbau !== null && m.stundenAbbau > 0)
+            ).length > 0 && (
+              <p className="text-xs text-gray-700 font-medium">
+                Zugewiesen: {zugewieseneMitarbeiter.filter(m => 
+                  (m.stundenAbbau !== undefined && m.stundenAbbau !== null && m.stundenAbbau > 0)
+                ).length} MA
               </p>
             )}
           </div>
@@ -517,7 +562,7 @@ export default function VorkalkulationEditor({
           <div className="bg-blue-50 p-3 rounded border border-blue-200">
             <p className="text-sm text-blue-900 font-medium">
               <strong>Hinweis:</strong> Geben Sie die Soll-Stunden <strong>PRO MA</strong> ein. 
-              Die gesamt-kolonne ({anzahlMitarbeiter} Mitarbeiter) wird automatisch berechnet.
+              Die gesamt-kolonne ({anzahlMitarbeiterAufbau} Aufbau, {anzahlMitarbeiterAbbau} Abbau) wird automatisch berechnet.
             </p>
           </div>
 
@@ -544,7 +589,7 @@ export default function VorkalkulationEditor({
               </div>
               <div className="space-y-1">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-700 font-medium">Umsatz gesamt:</span>
+                  <span className="text-gray-700 font-medium">Ausgabe gesamt:</span>
                   <span className="text-gray-900 font-bold">
                     {sollUmsatzAufbau.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
                   </span>
@@ -580,7 +625,7 @@ export default function VorkalkulationEditor({
               </div>
               <div className="space-y-1">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-700 font-medium">Umsatz gesamt:</span>
+                  <span className="text-gray-700 font-medium">Ausgabe gesamt:</span>
                   <span className="text-gray-900 font-bold">
                     {sollUmsatzAbbau.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
                   </span>
@@ -604,29 +649,29 @@ export default function VorkalkulationEditor({
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-2">
               <p className="text-sm text-gray-700 font-medium">Zeit</p>
-              <p className="text-4xl font-bold text-gray-900">
-                {gesamtSollStunden.toFixed(2)} h
+              <p className="text-4xl font-bold text-indigo-700">
+                PRO MA: {(sollStundenAufbauProMA + sollStundenAbbauProMA).toFixed(2)}h
               </p>
               <div className="space-y-1 text-xs">
                 <p className="text-gray-600">
-                  {sollStundenAufbauGesamt.toFixed(2)}h Aufbau + {sollStundenAbbauGesamt.toFixed(2)}h Abbau
+                  <span className="font-medium">Gesamtzeit für alle Mitarbeiter:</span> {gesamtSollStunden.toFixed(2)} h
                 </p>
-                <p className="text-indigo-700 font-bold text-sm">
-                  PRO MA: {anzahlMitarbeiter > 0 ? (gesamtSollStunden / anzahlMitarbeiter).toFixed(2) : '0,00'}h
+                <p className="text-gray-600">
+                  {sollStundenAufbauGesamt.toFixed(2)}h Aufbau ({anzahlMitarbeiterAufbau} MA) + {sollStundenAbbauGesamt.toFixed(2)}h Abbau ({anzahlMitarbeiterAbbau} MA)
                 </p>
               </div>
             </div>
             <div className="space-y-2">
-              <p className="text-sm text-gray-700 font-medium">Umsatz</p>
-              <p className="text-4xl font-bold text-gray-900">
-                {gesamtSollUmsatz.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+              <p className="text-sm text-gray-700 font-medium">Ausgabe</p>
+              <p className="text-4xl font-bold text-indigo-700">
+                PRO MA: {((sollUmsatzAufbau / anzahlMitarbeiterAufbau) + (sollUmsatzAbbau / anzahlMitarbeiterAbbau)).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
               </p>
               <div className="space-y-1 text-xs">
                 <p className="text-gray-600">
-                  {sollUmsatzAufbau.toLocaleString('de-DE', { minimumFractionDigits: 2 })} € + {sollUmsatzAbbau.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                  <span className="font-medium">Gesamtausgabe für alle Mitarbeiter:</span> {gesamtSollUmsatz.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
                 </p>
-                <p className="text-indigo-700 font-bold text-sm">
-                  PRO MA: {anzahlMitarbeiter > 0 ? (gesamtSollUmsatz / anzahlMitarbeiter).toLocaleString('de-DE', { minimumFractionDigits: 2 }) : '0,00'} €
+                <p className="text-gray-600">
+                  {sollUmsatzAufbau.toLocaleString('de-DE', { minimumFractionDigits: 2 })} € Aufbau ({anzahlMitarbeiterAufbau} MA) + {sollUmsatzAbbau.toLocaleString('de-DE', { minimumFractionDigits: 2 })} € Abbau ({anzahlMitarbeiterAbbau} MA)
                 </p>
               </div>
             </div>

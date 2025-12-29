@@ -107,7 +107,7 @@ export default function KalkulationsparameterTab() {
 
   return (
     <div className="space-y-6">
-      <Card className="border-gray-200">
+      <Card className="bg-white border shadow-sm">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-gray-900">Kalkulationsparameter</CardTitle>
           <CardDescription className="text-gray-600">

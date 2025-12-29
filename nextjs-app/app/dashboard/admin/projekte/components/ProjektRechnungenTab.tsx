@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Projekt } from '@/lib/db/types'
-import { FileText, Plus } from 'lucide-react'
+import { FileText, Plus, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
@@ -62,16 +62,36 @@ export default function ProjektRechnungenTab({ projekt, onProjektUpdated }: Proj
     }
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (rechnung: any) => {
+    const status = rechnung.status
     const config: any = {
       entwurf: { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-300', label: 'Entwurf' },
       gesendet: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-300', label: 'Gesendet' },
+      offen: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-300', label: 'Offen' },
       bezahlt: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-300', label: 'Bezahlt' },
-      teilweise_bezahlt: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-300', label: 'Teilweise bezahlt' },
+      teilweise_bezahlt: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-300', label: 'Teilweise bezahlt' },
       ueberfaellig: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-300', label: 'Überfällig' },
+      storniert: { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-300', label: 'Storniert' },
     }
     const c = config[status] || config.entwurf
-    return <Badge variant="outline" className={`${c.bg} ${c.text} ${c.border}`}>{c.label}</Badge>
+    
+    // Status-Badge
+    const statusBadge = <Badge variant="outline" className={`${c.bg} ${c.text} ${c.border}`}>{c.label}</Badge>
+    
+    // Mahnung-Badge hinzufügen, wenn offene Mahnung existiert
+    if (rechnung.hatOffeneMahnung && rechnung.status !== 'bezahlt') {
+      return (
+        <div className="flex flex-col gap-1">
+          {statusBadge}
+          <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-300 flex items-center gap-1 w-fit">
+            <AlertTriangle className="h-3 w-3" />
+            Mahnung offen
+          </Badge>
+        </div>
+      )
+    }
+    
+    return statusBadge
   }
 
   const getTypBadge = (typ: string) => {
@@ -153,7 +173,7 @@ export default function ProjektRechnungenTab({ projekt, onProjektUpdated }: Proj
                     <TableCell className="text-gray-900 font-semibold text-right">
                       {rechnung.brutto.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
                     </TableCell>
-                    <TableCell>{getStatusBadge(rechnung.status)}</TableCell>
+                    <TableCell>{getStatusBadge(rechnung)}</TableCell>
                     <TableCell className="text-right">
                       <Button 
                         variant="ghost" 
@@ -172,11 +192,11 @@ export default function ProjektRechnungenTab({ projekt, onProjektUpdated }: Proj
         </CardContent>
       </Card>
 
-      {/* Zusammenfassung */}
+      {/* Zusammenfassung mit Projekt-KPIs */}
       {rechnungen.length > 0 && (
         <Card className="bg-gray-50 border-gray-200">
           <CardContent className="p-6">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <div>
                 <p className="text-sm text-gray-600">Anzahl Rechnungen</p>
                 <p className="text-2xl font-bold text-gray-900">{rechnungen.length}</p>
@@ -188,9 +208,26 @@ export default function ProjektRechnungenTab({ projekt, onProjektUpdated }: Proj
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Offener Betrag</p>
-                <p className="text-2xl font-bold text-orange-900">
-                  {(projekt.offenerBetrag || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                <p className="text-sm text-gray-600">Summe bezahlt</p>
+                <p className="text-2xl font-bold text-green-700">
+                  {rechnungen
+                    .filter(r => r.status === 'bezahlt')
+                    .reduce((sum, r) => sum + r.brutto, 0)
+                    .toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Summe offen</p>
+                <p className="text-2xl font-bold text-orange-700">
+                  {rechnungen
+                    .filter(r => r.status !== 'bezahlt' && r.status !== 'storniert')
+                    .reduce((sum, r) => {
+                      if (r.status === 'teilweise_bezahlt' && r.bezahltBetrag) {
+                        return sum + (r.brutto - r.bezahltBetrag)
+                      }
+                      return sum + r.brutto
+                    }, 0)
+                    .toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
                 </p>
               </div>
             </div>

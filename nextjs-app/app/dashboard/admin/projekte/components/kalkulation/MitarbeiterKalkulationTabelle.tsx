@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
@@ -67,7 +68,7 @@ export default function MitarbeiterKalkulationTabelle({ mitarbeiterKalkulation }
           Mitarbeiter-Abgleich
         </CardTitle>
         <CardDescription className="text-gray-600">
-          Detaillierte Aufschlüsselung der Soll-Ist-Werte pro Mitarbeiter ({mitarbeiterKalkulation.length} Mitarbeiter)
+          Detaillierte Aufschlüsselung der Soll-Ist-Werte pro Mitarbeiter mit Aufbau/Abbau-Details ({mitarbeiterKalkulation.length} Mitarbeiter)
         </CardDescription>
       </CardHeader>
       <CardContent className="bg-white">
@@ -75,41 +76,97 @@ export default function MitarbeiterKalkulationTabelle({ mitarbeiterKalkulation }
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-100 border-b-2 border-gray-300">
-                <TableHead className="font-bold text-gray-900 text-sm">Mitarbeiter</TableHead>
-                <TableHead className="text-right font-bold text-gray-900 text-sm">Zeit-SOLL</TableHead>
-                <TableHead className="text-right font-bold text-gray-900 text-sm">Zeit-IST</TableHead>
-                <TableHead className="text-right font-bold text-gray-900 text-sm">Differenz</TableHead>
-                <TableHead className="text-right font-bold text-gray-900 text-sm">Summe-SOLL</TableHead>
-                <TableHead className="text-right font-bold text-gray-900 text-sm">Summe-IST</TableHead>
-                <TableHead className="text-right font-bold text-gray-900 text-sm">Differenz €</TableHead>
-                <TableHead className="text-center font-bold text-gray-900 text-sm">%</TableHead>
+                <TableHead className="font-bold text-gray-900 text-sm" rowSpan={2}>Mitarbeiter</TableHead>
+                <TableHead colSpan={3} className="text-center font-bold text-gray-900 text-sm border-b border-gray-300 bg-blue-50">
+                  Aufbau
+                </TableHead>
+                <TableHead colSpan={3} className="text-center font-bold text-gray-900 text-sm border-b border-gray-300 bg-green-50">
+                  Abbau
+                </TableHead>
+                <TableHead colSpan={3} className="text-center font-bold text-gray-900 text-sm border-b border-gray-300 bg-gray-50">
+                  Gesamt
+                </TableHead>
+                <TableHead rowSpan={2} className="text-center font-bold text-gray-900 text-sm">%</TableHead>
+              </TableRow>
+              <TableRow className="bg-gray-100 border-b-2 border-gray-300">
+                {/* Aufbau */}
+                <TableHead className="text-right font-semibold text-gray-700 text-xs bg-blue-50/50">SOLL</TableHead>
+                <TableHead className="text-right font-semibold text-gray-700 text-xs bg-blue-50/50">IST</TableHead>
+                <TableHead className="text-right font-semibold text-gray-700 text-xs bg-blue-50/50">Diff</TableHead>
+                {/* Abbau */}
+                <TableHead className="text-right font-semibold text-gray-700 text-xs bg-green-50/50">SOLL</TableHead>
+                <TableHead className="text-right font-semibold text-gray-700 text-xs bg-green-50/50">IST</TableHead>
+                <TableHead className="text-right font-semibold text-gray-700 text-xs bg-green-50/50">Diff</TableHead>
+                {/* Gesamt */}
+                <TableHead className="text-right font-semibold text-gray-700 text-xs">SOLL Zeit/€</TableHead>
+                <TableHead className="text-right font-semibold text-gray-700 text-xs">IST Zeit/€</TableHead>
+                <TableHead className="text-right font-semibold text-gray-700 text-xs">Diff €</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mitarbeiterKalkulation.map((ma, index) => (
-                <TableRow key={ma.mitarbeiterId} className="bg-white hover:bg-gray-50">
-                  <TableCell className="font-bold text-gray-900 text-base">{ma.mitarbeiterName}</TableCell>
-                  <TableCell className="text-right text-gray-900 font-semibold text-base">{ma.zeitSoll.toFixed(1)} h</TableCell>
-                  <TableCell className="text-right font-bold text-gray-900 text-base">{ma.zeitIst.toFixed(1)} h</TableCell>
-                  <TableCell className={`text-right font-bold text-base ${getDifferenzClass(ma.differenzZeit)}`}>
-                    {ma.differenzZeit > 0 ? '+' : ''}{ma.differenzZeit.toFixed(1)} h
-                  </TableCell>
-                  <TableCell className="text-right text-gray-900 font-semibold text-base">
-                    {ma.summeSoll.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
-                  </TableCell>
-                  <TableCell className="text-right font-bold text-gray-900 text-base">
-                    {ma.summeIst.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
-                  </TableCell>
-                  <TableCell className={`text-right font-bold text-base ${getDifferenzClass(ma.differenzSumme)}`}>
-                    {ma.differenzSumme > 0 ? '+' : ''}{ma.differenzSumme.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant="outline" className={getBadgeClass(ma.abweichungProzent)}>
-                      {ma.abweichungProzent > 0 ? '+' : ''}{ma.abweichungProzent.toFixed(1)}%
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {mitarbeiterKalkulation.map((ma, index) => {
+                const diffAufbau = (ma.zeitSollAufbau || 0) - (ma.zeitIstAufbau || 0)
+                const diffAbbau = (ma.zeitSollAbbau || 0) - (ma.zeitIstAbbau || 0)
+                
+                return (
+                  <TableRow key={ma.mitarbeiterId} className="bg-white hover:bg-gray-50">
+                    <TableCell className="font-bold text-gray-900 text-base">{ma.mitarbeiterName}</TableCell>
+                    
+                    {/* Aufbau */}
+                    <TableCell className="text-right text-gray-900 font-semibold text-sm bg-blue-50/30">
+                      <div className="flex items-center justify-end gap-1">
+                        <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                        {(ma.zeitSollAufbau || 0).toFixed(1)}h
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-gray-900 text-sm bg-blue-50/30">
+                      <div className="flex items-center justify-end gap-1">
+                        <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                        {(ma.zeitIstAufbau || 0).toFixed(1)}h
+                      </div>
+                    </TableCell>
+                    <TableCell className={`text-right font-semibold text-sm bg-blue-50/30 ${getDifferenzClass(diffAufbau)}`}>
+                      {diffAufbau > 0 ? '+' : ''}{diffAufbau.toFixed(1)}h
+                    </TableCell>
+                    
+                    {/* Abbau */}
+                    <TableCell className="text-right text-gray-900 font-semibold text-sm bg-green-50/30">
+                      <div className="flex items-center justify-end gap-1">
+                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        {(ma.zeitSollAbbau || 0).toFixed(1)}h
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-gray-900 text-sm bg-green-50/30">
+                      <div className="flex items-center justify-end gap-1">
+                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        {(ma.zeitIstAbbau || 0).toFixed(1)}h
+                      </div>
+                    </TableCell>
+                    <TableCell className={`text-right font-semibold text-sm bg-green-50/30 ${getDifferenzClass(diffAbbau)}`}>
+                      {diffAbbau > 0 ? '+' : ''}{diffAbbau.toFixed(1)}h
+                    </TableCell>
+                    
+                    {/* Gesamt */}
+                    <TableCell className="text-right text-gray-900 font-semibold text-sm">
+                      <div>{ma.zeitSoll.toFixed(1)}h</div>
+                      <div className="text-xs text-gray-600">{ma.summeSoll.toLocaleString('de-DE', { minimumFractionDigits: 2 })}€</div>
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-gray-900 text-sm">
+                      <div>{ma.zeitIst.toFixed(1)}h</div>
+                      <div className="text-xs text-gray-600">{ma.summeIst.toLocaleString('de-DE', { minimumFractionDigits: 2 })}€</div>
+                    </TableCell>
+                    <TableCell className={`text-right font-bold text-sm ${getDifferenzClass(ma.differenzSumme)}`}>
+                      {ma.differenzSumme > 0 ? '+' : ''}{ma.differenzSumme.toLocaleString('de-DE', { minimumFractionDigits: 2 })}€
+                    </TableCell>
+                    
+                    <TableCell className="text-center">
+                      <Badge variant="outline" className={getBadgeClass(ma.abweichungProzent)}>
+                        {ma.abweichungProzent < 0 ? '+' : ma.abweichungProzent > 0 ? '-' : ''}{Math.abs(ma.abweichungProzent).toFixed(1)}%
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>

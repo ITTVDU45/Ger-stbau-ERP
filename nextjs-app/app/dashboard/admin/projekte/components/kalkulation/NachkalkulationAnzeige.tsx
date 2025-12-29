@@ -15,6 +15,7 @@ interface NachkalkulationAnzeigeProps {
   projektId: string
   vorkalkulation?: Vorkalkulation
   nachkalkulation?: Nachkalkulation
+  zugewieseneMitarbeiter?: any[]
   onUpdate: () => void
 }
 
@@ -22,9 +23,19 @@ export default function NachkalkulationAnzeige({
   projektId, 
   vorkalkulation, 
   nachkalkulation,
+  zugewieseneMitarbeiter,
   onUpdate 
 }: NachkalkulationAnzeigeProps) {
   const [neuBerechnen, setNeuBerechnen] = useState(false)
+  
+  // Anzahl Mitarbeiter für Pro-MA-Berechnung SEPARAT für Aufbau und Abbau
+  const anzahlMitarbeiterAufbau = zugewieseneMitarbeiter?.filter(m => 
+    (m.stundenAufbau !== undefined && m.stundenAufbau !== null && m.stundenAufbau > 0)
+  ).length || 1
+  
+  const anzahlMitarbeiterAbbau = zugewieseneMitarbeiter?.filter(m => 
+    (m.stundenAbbau !== undefined && m.stundenAbbau !== null && m.stundenAbbau > 0)
+  ).length || 1
 
   if (!vorkalkulation) {
     return (
@@ -128,12 +139,12 @@ export default function NachkalkulationAnzeige({
                 <TableHeader>
                   <TableRow className="bg-gray-100 border-b-2 border-gray-300">
                     <TableHead className="font-bold text-gray-900 text-sm">Kategorie</TableHead>
-                    <TableHead className="text-right font-bold text-gray-900 text-sm">Soll-Stunden</TableHead>
-                    <TableHead className="text-right font-bold text-gray-900 text-sm">Ist-Stunden</TableHead>
-                    <TableHead className="text-right font-bold text-gray-900 text-sm">Differenz</TableHead>
-                    <TableHead className="text-right font-bold text-gray-900 text-sm">Soll-Umsatz</TableHead>
-                    <TableHead className="text-right font-bold text-gray-900 text-sm">Ist-Umsatz</TableHead>
-                    <TableHead className="text-right font-bold text-gray-900 text-sm">Differenz</TableHead>
+                    <TableHead className="text-right font-bold text-gray-900 text-sm">Soll-Stunden<br />(PRO MA)</TableHead>
+                    <TableHead className="text-right font-bold text-gray-900 text-sm">Ist-Stunden<br />(PRO MA)</TableHead>
+                    <TableHead className="text-right font-bold text-gray-900 text-sm">Differenz<br />(PRO MA)</TableHead>
+                    <TableHead className="text-right font-bold text-gray-900 text-sm">Soll-Umsatz<br />(PRO MA)</TableHead>
+                    <TableHead className="text-right font-bold text-gray-900 text-sm">Ist-Umsatz<br />(PRO MA)</TableHead>
+                    <TableHead className="text-right font-bold text-gray-900 text-sm">Differenz<br />(PRO MA)</TableHead>
                     <TableHead className="text-center font-bold text-gray-900 text-sm">%</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -141,21 +152,37 @@ export default function NachkalkulationAnzeige({
                   {/* Aufbau */}
                   <TableRow className="bg-white hover:bg-gray-50">
                     <TableCell className="font-bold text-gray-900 text-base">Aufbau</TableCell>
-                    <TableCell className="text-right text-gray-900 font-semibold text-base">{vorkalkulation.sollStundenAufbau} h</TableCell>
-                    <TableCell className="text-right font-bold text-gray-900 text-base">{nachkalkulation.istStundenAufbau} h</TableCell>
-                    <TableCell className={`text-right font-bold text-base ${getDifferenzClass(vorkalkulation.sollStundenAufbau - nachkalkulation.istStundenAufbau)}`}>
-                      {vorkalkulation.sollStundenAufbau - nachkalkulation.istStundenAufbau > 0 ? '+' : ''}
-                      {(vorkalkulation.sollStundenAufbau - nachkalkulation.istStundenAufbau).toFixed(1)} h
-                    </TableCell>
                     <TableCell className="text-right text-gray-900 font-semibold text-base">
-                      {vorkalkulation.sollUmsatzAufbau.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                      {(vorkalkulation.sollStundenAufbau / anzahlMitarbeiterAufbau).toFixed(2)} h
+                      <div className="text-xs text-gray-500 font-normal">
+                        {vorkalkulation.sollStundenAufbau.toFixed(2)} h gesamt
+                      </div>
                     </TableCell>
                     <TableCell className="text-right font-bold text-gray-900 text-base">
-                      {nachkalkulation.istUmsatzAufbau.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                      {(nachkalkulation.istStundenAufbau / anzahlMitarbeiterAufbau).toFixed(2)} h
+                      <div className="text-xs text-gray-500 font-normal">
+                        {nachkalkulation.istStundenAufbau.toFixed(2)} h gesamt
+                      </div>
                     </TableCell>
-                    <TableCell className={`text-right font-bold text-base ${getDifferenzClass(vorkalkulation.sollUmsatzAufbau - nachkalkulation.istUmsatzAufbau)}`}>
-                      {vorkalkulation.sollUmsatzAufbau - nachkalkulation.istUmsatzAufbau > 0 ? '+' : ''}
-                      {(vorkalkulation.sollUmsatzAufbau - nachkalkulation.istUmsatzAufbau).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                    <TableCell className={`text-right font-bold text-base ${getDifferenzClass((vorkalkulation.sollStundenAufbau - nachkalkulation.istStundenAufbau) / anzahlMitarbeiterAufbau)}`}>
+                      {((vorkalkulation.sollStundenAufbau - nachkalkulation.istStundenAufbau) / anzahlMitarbeiterAufbau) > 0 ? '+' : ''}
+                      {((vorkalkulation.sollStundenAufbau - nachkalkulation.istStundenAufbau) / anzahlMitarbeiterAufbau).toFixed(1)} h
+                    </TableCell>
+                    <TableCell className="text-right text-gray-900 font-semibold text-base">
+                      {(vorkalkulation.sollUmsatzAufbau / anzahlMitarbeiterAufbau).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                      <div className="text-xs text-gray-500 font-normal">
+                        {vorkalkulation.sollUmsatzAufbau.toLocaleString('de-DE', { minimumFractionDigits: 2 })} € gesamt
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-gray-900 text-base">
+                      {(nachkalkulation.istUmsatzAufbau / anzahlMitarbeiterAufbau).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                      <div className="text-xs text-gray-500 font-normal">
+                        {nachkalkulation.istUmsatzAufbau.toLocaleString('de-DE', { minimumFractionDigits: 2 })} € gesamt
+                      </div>
+                    </TableCell>
+                    <TableCell className={`text-right font-bold text-base ${getDifferenzClass((vorkalkulation.sollUmsatzAufbau - nachkalkulation.istUmsatzAufbau) / anzahlMitarbeiterAufbau)}`}>
+                      {((vorkalkulation.sollUmsatzAufbau - nachkalkulation.istUmsatzAufbau) / anzahlMitarbeiterAufbau) > 0 ? '+' : ''}
+                      {((vorkalkulation.sollUmsatzAufbau - nachkalkulation.istUmsatzAufbau) / anzahlMitarbeiterAufbau).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge variant="outline" className={getBadgeClass(
@@ -173,21 +200,37 @@ export default function NachkalkulationAnzeige({
                   {/* Abbau */}
                   <TableRow className="bg-white hover:bg-gray-50">
                     <TableCell className="font-bold text-gray-900 text-base">Abbau</TableCell>
-                    <TableCell className="text-right text-gray-900 font-semibold text-base">{vorkalkulation.sollStundenAbbau} h</TableCell>
-                    <TableCell className="text-right font-bold text-gray-900 text-base">{nachkalkulation.istStundenAbbau} h</TableCell>
-                    <TableCell className={`text-right font-bold text-base ${getDifferenzClass(vorkalkulation.sollStundenAbbau - nachkalkulation.istStundenAbbau)}`}>
-                      {vorkalkulation.sollStundenAbbau - nachkalkulation.istStundenAbbau > 0 ? '+' : ''}
-                      {(vorkalkulation.sollStundenAbbau - nachkalkulation.istStundenAbbau).toFixed(1)} h
-                    </TableCell>
                     <TableCell className="text-right text-gray-900 font-semibold text-base">
-                      {vorkalkulation.sollUmsatzAbbau.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                      {(vorkalkulation.sollStundenAbbau / anzahlMitarbeiterAbbau).toFixed(2)} h
+                      <div className="text-xs text-gray-500 font-normal">
+                        {vorkalkulation.sollStundenAbbau.toFixed(2)} h gesamt
+                      </div>
                     </TableCell>
                     <TableCell className="text-right font-bold text-gray-900 text-base">
-                      {nachkalkulation.istUmsatzAbbau.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                      {(nachkalkulation.istStundenAbbau / anzahlMitarbeiterAbbau).toFixed(2)} h
+                      <div className="text-xs text-gray-500 font-normal">
+                        {nachkalkulation.istStundenAbbau.toFixed(2)} h gesamt
+                      </div>
                     </TableCell>
-                    <TableCell className={`text-right font-bold text-base ${getDifferenzClass(vorkalkulation.sollUmsatzAbbau - nachkalkulation.istUmsatzAbbau)}`}>
-                      {vorkalkulation.sollUmsatzAbbau - nachkalkulation.istUmsatzAbbau > 0 ? '+' : ''}
-                      {(vorkalkulation.sollUmsatzAbbau - nachkalkulation.istUmsatzAbbau).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                    <TableCell className={`text-right font-bold text-base ${getDifferenzClass((vorkalkulation.sollStundenAbbau - nachkalkulation.istStundenAbbau) / anzahlMitarbeiterAbbau)}`}>
+                      {((vorkalkulation.sollStundenAbbau - nachkalkulation.istStundenAbbau) / anzahlMitarbeiterAbbau) > 0 ? '+' : ''}
+                      {((vorkalkulation.sollStundenAbbau - nachkalkulation.istStundenAbbau) / anzahlMitarbeiterAbbau).toFixed(1)} h
+                    </TableCell>
+                    <TableCell className="text-right text-gray-900 font-semibold text-base">
+                      {(vorkalkulation.sollUmsatzAbbau / anzahlMitarbeiterAbbau).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                      <div className="text-xs text-gray-500 font-normal">
+                        {vorkalkulation.sollUmsatzAbbau.toLocaleString('de-DE', { minimumFractionDigits: 2 })} € gesamt
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-gray-900 text-base">
+                      {(nachkalkulation.istUmsatzAbbau / anzahlMitarbeiterAbbau).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                      <div className="text-xs text-gray-500 font-normal">
+                        {nachkalkulation.istUmsatzAbbau.toLocaleString('de-DE', { minimumFractionDigits: 2 })} € gesamt
+                      </div>
+                    </TableCell>
+                    <TableCell className={`text-right font-bold text-base ${getDifferenzClass((vorkalkulation.sollUmsatzAbbau - nachkalkulation.istUmsatzAbbau) / anzahlMitarbeiterAbbau)}`}>
+                      {((vorkalkulation.sollUmsatzAbbau - nachkalkulation.istUmsatzAbbau) / anzahlMitarbeiterAbbau) > 0 ? '+' : ''}
+                      {((vorkalkulation.sollUmsatzAbbau - nachkalkulation.istUmsatzAbbau) / anzahlMitarbeiterAbbau).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge variant="outline" className={getBadgeClass(
@@ -206,34 +249,46 @@ export default function NachkalkulationAnzeige({
                   <TableRow className="bg-gray-100 font-bold border-t-2 border-gray-300">
                     <TableCell className="text-gray-900 font-bold text-base">Gesamt</TableCell>
                     <TableCell className="text-right text-gray-900 font-bold text-base">
-                      {(vorkalkulation.sollStundenAufbau + vorkalkulation.sollStundenAbbau).toFixed(1)} h
+                      {((vorkalkulation.sollStundenAufbau / anzahlMitarbeiterAufbau) + (vorkalkulation.sollStundenAbbau / anzahlMitarbeiterAbbau)).toFixed(1)} h
+                      <div className="text-xs text-gray-500 font-normal">
+                        {(vorkalkulation.sollStundenAufbau + vorkalkulation.sollStundenAbbau).toFixed(1)} h gesamt
+                      </div>
                     </TableCell>
                     <TableCell className="text-right text-gray-900 font-bold text-base">
-                      {(nachkalkulation.istStundenAufbau + nachkalkulation.istStundenAbbau).toFixed(1)} h
+                      {((nachkalkulation.istStundenAufbau / anzahlMitarbeiterAufbau) + (nachkalkulation.istStundenAbbau / anzahlMitarbeiterAbbau)).toFixed(1)} h
+                      <div className="text-xs text-gray-500 font-normal">
+                        {(nachkalkulation.istStundenAufbau + nachkalkulation.istStundenAbbau).toFixed(1)} h gesamt
+                      </div>
                     </TableCell>
                     <TableCell className={`text-right font-bold text-base ${getDifferenzClass(
-                      (vorkalkulation.sollStundenAufbau + vorkalkulation.sollStundenAbbau) - 
-                      (nachkalkulation.istStundenAufbau + nachkalkulation.istStundenAbbau)
+                      ((vorkalkulation.sollStundenAufbau / anzahlMitarbeiterAufbau) + (vorkalkulation.sollStundenAbbau / anzahlMitarbeiterAbbau)) - 
+                      ((nachkalkulation.istStundenAufbau / anzahlMitarbeiterAufbau) + (nachkalkulation.istStundenAbbau / anzahlMitarbeiterAbbau))
                     )}`}>
-                      {((vorkalkulation.sollStundenAufbau + vorkalkulation.sollStundenAbbau) - 
-                        (nachkalkulation.istStundenAufbau + nachkalkulation.istStundenAbbau)) > 0 ? '+' : ''}
-                      {((vorkalkulation.sollStundenAufbau + vorkalkulation.sollStundenAbbau) - 
-                        (nachkalkulation.istStundenAufbau + nachkalkulation.istStundenAbbau)).toFixed(1)} h
+                      {((((vorkalkulation.sollStundenAufbau / anzahlMitarbeiterAufbau) + (vorkalkulation.sollStundenAbbau / anzahlMitarbeiterAbbau)) - 
+                        ((nachkalkulation.istStundenAufbau / anzahlMitarbeiterAufbau) + (nachkalkulation.istStundenAbbau / anzahlMitarbeiterAbbau)))) > 0 ? '+' : ''}
+                      {((((vorkalkulation.sollStundenAufbau / anzahlMitarbeiterAufbau) + (vorkalkulation.sollStundenAbbau / anzahlMitarbeiterAbbau)) - 
+                        ((nachkalkulation.istStundenAufbau / anzahlMitarbeiterAufbau) + (nachkalkulation.istStundenAbbau / anzahlMitarbeiterAbbau)))).toFixed(1)} h
                     </TableCell>
                     <TableCell className="text-right text-gray-900 font-bold text-base">
-                      {(vorkalkulation.sollUmsatzAufbau + vorkalkulation.sollUmsatzAbbau).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                      {((vorkalkulation.sollUmsatzAufbau / anzahlMitarbeiterAufbau) + (vorkalkulation.sollUmsatzAbbau / anzahlMitarbeiterAbbau)).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                      <div className="text-xs text-gray-500 font-normal">
+                        {(vorkalkulation.sollUmsatzAufbau + vorkalkulation.sollUmsatzAbbau).toLocaleString('de-DE', { minimumFractionDigits: 2 })} € gesamt
+                      </div>
                     </TableCell>
                     <TableCell className="text-right text-gray-900 font-bold text-base">
-                      {(nachkalkulation.istUmsatzAufbau + nachkalkulation.istUmsatzAbbau).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                      {((nachkalkulation.istUmsatzAufbau / anzahlMitarbeiterAufbau) + (nachkalkulation.istUmsatzAbbau / anzahlMitarbeiterAbbau)).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                      <div className="text-xs text-gray-500 font-normal">
+                        {(nachkalkulation.istUmsatzAufbau + nachkalkulation.istUmsatzAbbau).toLocaleString('de-DE', { minimumFractionDigits: 2 })} € gesamt
+                      </div>
                     </TableCell>
                     <TableCell className={`text-right font-bold text-base ${getDifferenzClass(
-                      (vorkalkulation.sollUmsatzAufbau + vorkalkulation.sollUmsatzAbbau) - 
-                      (nachkalkulation.istUmsatzAufbau + nachkalkulation.istUmsatzAbbau)
+                      ((vorkalkulation.sollUmsatzAufbau / anzahlMitarbeiterAufbau) + (vorkalkulation.sollUmsatzAbbau / anzahlMitarbeiterAbbau)) - 
+                      ((nachkalkulation.istUmsatzAufbau / anzahlMitarbeiterAufbau) + (nachkalkulation.istUmsatzAbbau / anzahlMitarbeiterAbbau))
                     )}`}>
-                      {((vorkalkulation.sollUmsatzAufbau + vorkalkulation.sollUmsatzAbbau) - 
-                        (nachkalkulation.istUmsatzAufbau + nachkalkulation.istUmsatzAbbau)) > 0 ? '+' : ''}
-                      {((vorkalkulation.sollUmsatzAufbau + vorkalkulation.sollUmsatzAbbau) - 
-                        (nachkalkulation.istUmsatzAufbau + nachkalkulation.istUmsatzAbbau)).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                      {((((vorkalkulation.sollUmsatzAufbau / anzahlMitarbeiterAufbau) + (vorkalkulation.sollUmsatzAbbau / anzahlMitarbeiterAbbau)) - 
+                        ((nachkalkulation.istUmsatzAufbau / anzahlMitarbeiterAufbau) + (nachkalkulation.istUmsatzAbbau / anzahlMitarbeiterAbbau)))) > 0 ? '+' : ''}
+                      {((((vorkalkulation.sollUmsatzAufbau / anzahlMitarbeiterAufbau) + (vorkalkulation.sollUmsatzAbbau / anzahlMitarbeiterAbbau)) - 
+                        ((nachkalkulation.istUmsatzAufbau / anzahlMitarbeiterAufbau) + (nachkalkulation.istUmsatzAbbau / anzahlMitarbeiterAbbau)))).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge variant="outline" className={`${getBadgeClass(

@@ -58,6 +58,15 @@ export default function StatusAenderungDialog({ angebot, onUpdate, children }: S
   const handleInProjektUmwandeln = async () => {
     try {
       setLoading(true)
+      
+      // Wenn bereits ein Projekt existiert, direkt zur Projektseite navigieren
+      if (angebot.projektId) {
+        router.push(`/dashboard/admin/projekte/${angebot.projektId}`)
+        setOpen(false)
+        return
+      }
+      
+      // Ansonsten neues Projekt erstellen
       const response = await fetch(`/api/angebote/${angebot._id}/zu-projekt`, {
         method: 'POST'
       })
@@ -106,7 +115,10 @@ export default function StatusAenderungDialog({ angebot, onUpdate, children }: S
           <Alert className="bg-blue-50 border-blue-200">
             <AlertCircle className="h-4 w-4 text-blue-600" />
             <AlertDescription className="text-blue-900">
-              Markieren Sie das Angebot als angenommen oder abgelehnt. Angenommene Angebote können zu einem Projekt umgewandelt werden.
+              {angebot.projektId 
+                ? 'Markieren Sie das Angebot als angenommen oder abgelehnt. Dieses Angebot wurde bereits in ein Projekt umgewandelt.'
+                : 'Markieren Sie das Angebot als angenommen oder abgelehnt. Angenommene Angebote können zu einem Projekt umgewandelt werden.'
+              }
             </AlertDescription>
           </Alert>
 
@@ -146,7 +158,7 @@ export default function StatusAenderungDialog({ angebot, onUpdate, children }: S
             Als angenommen markieren
           </Button>
 
-          {/* Button: In Projekt umwandeln (nur wenn angenommen) */}
+          {/* Button: Zum Projekt / In Projekt umwandeln (nur wenn angenommen) */}
           {angebot.status === 'angenommen' && (
             <Button
               onClick={handleInProjektUmwandeln}
@@ -154,7 +166,7 @@ export default function StatusAenderungDialog({ angebot, onUpdate, children }: S
               className="w-full bg-blue-600 hover:bg-blue-700 text-white"
             >
               <Briefcase className="h-4 w-4 mr-2" />
-              In Projekt umwandeln
+              {angebot.projektId ? 'Zum Projekt' : 'In Projekt umwandeln'}
             </Button>
           )}
 

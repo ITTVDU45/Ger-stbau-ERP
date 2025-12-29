@@ -6,10 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ArrowLeft, Edit, Download, Send, CheckCircle, XCircle, Eye, FileText } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { ArrowLeft, Edit, Download, Send, CheckCircle, XCircle, Eye, FileText, AlertTriangle, FileWarning } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
+import MahnungenBereich from '../components/MahnungenBereich'
 
 export default function RechnungDetailPage() {
   const router = useRouter()
@@ -18,6 +24,12 @@ export default function RechnungDetailPage() {
   
   const [rechnung, setRechnung] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false)
+  const [selectedStatus, setSelectedStatus] = useState<string>('')
+  const [bezahltAm, setBezahltAm] = useState<string>(format(new Date(), 'yyyy-MM-dd'))
+  const [bezahltBetrag, setBezahltBetrag] = useState<string>('')
+  const [zahlungsnotiz, setZahlungsnotiz] = useState<string>('')
+  const [statusLoading, setStatusLoading] = useState(false)
 
   useEffect(() => {
     if (id) {
@@ -33,6 +45,7 @@ export default function RechnungDetailPage() {
       
       if (data.erfolg) {
         setRechnung(data.rechnung)
+        setBezahltBetrag(data.rechnung.brutto.toString())
       } else {
         toast.error('Fehler beim Laden der Rechnung')
         router.push('/dashboard/admin/rechnungen')
@@ -45,13 +58,58 @@ export default function RechnungDetailPage() {
     }
   }
 
+  const handleStatusChange = async () => {
+    if (!selectedStatus) {
+      toast.error('Bitte wählen Sie einen Status aus')
+      return
+    }
+
+    try {
+      setStatusLoading(true)
+      const response = await fetch(`/api/rechnungen/${id}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: selectedStatus,
+          bezahltAm: selectedStatus === 'bezahlt' ? new Date(bezahltAm) : undefined,
+          bezahltBetrag: selectedStatus === 'bezahlt' || selectedStatus === 'teilweise_bezahlt' 
+            ? parseFloat(bezahltBetrag) 
+            : undefined,
+          zahlungsnotiz: zahlungsnotiz || undefined
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success('Status erfolgreich aktualisiert')
+        setStatusDialogOpen(false)
+        loadRechnung()
+      } else {
+        toast.error(data.error || 'Fehler beim Aktualisieren des Status')
+      }
+    } catch (error) {
+      console.error('Fehler:', error)
+      toast.error('Fehler beim Aktualisieren')
+    } finally {
+      setStatusLoading(false)
+    }
+  }
+
+  const openStatusDialog = (status: string) => {
+    setSelectedStatus(status)
+    setStatusDialogOpen(true)
+  }
+
   const getStatusBadge = (status: string) => {
     const config: any = {
       entwurf: { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-300', label: 'Entwurf', icon: Edit },
       gesendet: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-300', label: 'Gesendet', icon: Send },
+      offen: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-300', label: 'Offen', icon: AlertTriangle },
       bezahlt: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-300', label: 'Bezahlt', icon: CheckCircle },
-      teilweise_bezahlt: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-300', label: 'Teilweise bezahlt', icon: CheckCircle },
+      teilweise_bezahlt: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-300', label: 'Teilweise bezahlt', icon: CheckCircle },
       ueberfaellig: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-300', label: 'Überfällig', icon: XCircle },
+      storniert: { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-300', label: 'Storniert', icon: XCircle },
     }
     const c = config[status] || config.entwurf
     const Icon = c.icon
@@ -102,8 +160,35 @@ export default function RechnungDetailPage() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold text-gray-900">{rechnung.rechnungsnummer}</h1>
-              {getStatusBadge(rechnung.status)}
-              {getTypBadge(rechnung.typ)}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  {getStatusBadge(rechnung.status)}
+                  {getTypBadge(rechnung.typ)}
+                  <Select value={rechnung.status} onValueChange={openStatusDialog}>
+                    <SelectTrigger className="w-[160px] h-8 text-xs">
+                      <SelectValue placeholder="Status ändern" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="offen">Offen</SelectItem>
+                      <SelectItem value="bezahlt">Bezahlt</SelectItem>
+                      <SelectItem value="teilweise_bezahlt">Teilweise bezahlt</SelectItem>
+                      <SelectItem value="storniert">Storniert</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {rechnung.hatOffeneMahnung && rechnung.status !== 'bezahlt' && (
+                  <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-300 flex items-center gap-1 w-fit">
+                    <AlertTriangle className="h-3 w-3" />
+                    Nicht bezahlt (Mahnung offen)
+                  </Badge>
+                )}
+                {rechnung.hoechsteMahnstufe && (
+                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300 flex items-center gap-1 w-fit">
+                    <FileWarning className="h-3 w-3" />
+                    Mahnung {rechnung.hoechsteMahnstufe}
+                  </Badge>
+                )}
+              </div>
             </div>
             <p className="text-gray-600 mt-1">
               {rechnung.kundeName} {rechnung.projektId && `• Projekt: ${rechnung.projektnummer}`}
@@ -130,6 +215,97 @@ export default function RechnungDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Status-Änderungs-Dialog */}
+      <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-gray-900">Rechnungsstatus ändern</DialogTitle>
+            <DialogDescription className="text-gray-600">
+              Ändern Sie den Status der Rechnung {rechnung.rechnungsnummer}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="status" className="text-gray-900">Neuer Status</Label>
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger id="status" className="bg-white border-gray-300">
+                  <SelectValue placeholder="Status auswählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="offen">Offen</SelectItem>
+                  <SelectItem value="bezahlt">Bezahlt</SelectItem>
+                  <SelectItem value="teilweise_bezahlt">Teilweise bezahlt</SelectItem>
+                  <SelectItem value="storniert">Storniert</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {(selectedStatus === 'bezahlt' || selectedStatus === 'teilweise_bezahlt') && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="bezahltAm" className="text-gray-900">Zahlungsdatum</Label>
+                  <Input
+                    id="bezahltAm"
+                    type="date"
+                    value={bezahltAm}
+                    onChange={(e) => setBezahltAm(e.target.value)}
+                    className="bg-white border-gray-300"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="bezahltBetrag" className="text-gray-900">
+                    {selectedStatus === 'bezahlt' ? 'Bezahlter Betrag' : 'Teilbetrag'}
+                  </Label>
+                  <Input
+                    id="bezahltBetrag"
+                    type="number"
+                    step="0.01"
+                    value={bezahltBetrag}
+                    onChange={(e) => setBezahltBetrag(e.target.value)}
+                    className="bg-white border-gray-300"
+                  />
+                  <p className="text-xs text-gray-600">
+                    Rechnungsbetrag: {rechnung.brutto.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="zahlungsnotiz" className="text-gray-900">Notiz (optional)</Label>
+                  <Textarea
+                    id="zahlungsnotiz"
+                    value={zahlungsnotiz}
+                    onChange={(e) => setZahlungsnotiz(e.target.value)}
+                    placeholder="z.B. Überweisung, Bankeinzug, etc."
+                    className="bg-white border-gray-300"
+                    rows={3}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setStatusDialogOpen(false)}
+              disabled={statusLoading}
+              className="border-gray-300 text-gray-700"
+            >
+              Abbrechen
+            </Button>
+            <Button
+              onClick={handleStatusChange}
+              disabled={statusLoading || !selectedStatus}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {statusLoading ? 'Wird gespeichert...' : 'Status ändern'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Tabs */}
       <Tabs defaultValue="details" className="space-y-6">
@@ -189,7 +365,7 @@ export default function RechnungDetailPage() {
             <div>
               <p className="text-sm text-gray-600">MwSt. ({rechnung.mwstSatz}%)</p>
               <p className="text-base font-medium text-gray-900">
-                {rechnung.mwstBetrag.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                {(rechnung.mwstBetrag || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
               </p>
             </div>
             <div>
@@ -283,7 +459,7 @@ export default function RechnungDetailPage() {
               <div className="flex justify-between py-2">
                 <span className="text-gray-700">MwSt. ({rechnung.mwstSatz}%)</span>
                 <span className="font-medium text-gray-900">
-                  {rechnung.mwstBetrag.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                  {(rechnung.mwstBetrag || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
                 </span>
               </div>
               <div className="flex justify-between py-3 border-t-2 border-gray-300">
@@ -308,6 +484,13 @@ export default function RechnungDetailPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* Mahnungen */}
+          <MahnungenBereich 
+            rechnungId={id} 
+            rechnungStatus={rechnung.status}
+            rechnungBrutto={rechnung.brutto}
+          />
         </TabsContent>
 
         <TabsContent value="vorschau">
@@ -410,7 +593,7 @@ export default function RechnungDetailPage() {
                 <div className="flex justify-between py-2 text-gray-700">
                   <span>MwSt. ({rechnung.mwstSatz}%)</span>
                   <span className="font-medium">
-                    {rechnung.mwstBetrag.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                    {(rechnung.mwstBetrag || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
                   </span>
                 </div>
                 <div className="flex justify-between py-3 border-t-2 border-gray-900 text-gray-900">

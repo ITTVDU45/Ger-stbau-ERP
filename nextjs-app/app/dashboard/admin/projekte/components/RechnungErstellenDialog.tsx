@@ -30,6 +30,7 @@ export default function RechnungErstellenDialog({
   const [methode, setMethode] = useState<'positionen' | 'prozent'>('prozent')
   const [prozentsatz, setProzentsatz] = useState<number>(30)
   const [selectedPositionen, setSelectedPositionen] = useState<string[]>([])
+  const [mietZeitraeume, setMietZeitraeume] = useState<Record<string, { von: string; bis: string }>>({})
   const [angebote, setAngebote] = useState<any[]>([])
   const [selectedAngebotId, setSelectedAngebotId] = useState<string>('')
   const [loading, setLoading] = useState(false)
@@ -38,6 +39,9 @@ export default function RechnungErstellenDialog({
   useEffect(() => {
     if (open) {
       loadAngebote()
+      // Reset states
+      setSelectedPositionen([])
+      setMietZeitraeume({})
     }
   }, [open, projekt._id])
 
@@ -70,11 +74,29 @@ export default function RechnungErstellenDialog({
   const angebot = angebote.find(a => a._id === selectedAngebotId)
 
   const handlePositionToggle = (positionId: string) => {
-    setSelectedPositionen(prev =>
-      prev.includes(positionId)
-        ? prev.filter(id => id !== positionId)
-        : [...prev, positionId]
-    )
+    setSelectedPositionen(prev => {
+      const isCurrentlySelected = prev.includes(positionId)
+      if (isCurrentlySelected) {
+        // Wenn deselektiert, entferne auch den Mietzeitraum
+        setMietZeitraeume(prevZeitraeume => {
+          const newZeitraeume = { ...prevZeitraeume }
+          delete newZeitraeume[positionId]
+          return newZeitraeume
+        })
+        return prev.filter(id => id !== positionId)
+      } else {
+        return [...prev, positionId]
+      }
+    })
+  }
+
+  const calculateWeeks = (von: string, bis: string): number => {
+    if (!von || !bis) return 0
+    const vonDate = new Date(von)
+    const bisDate = new Date(bis)
+    const diffTime = Math.abs(bisDate.getTime() - vonDate.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return Math.ceil(diffDays / 7) // Aufrunden auf volle Wochen
   }
 
   const calculatePreview = () => {
@@ -101,7 +123,23 @@ export default function RechnungErstellenDialog({
     const selectedPos = angebot.positionen.filter((p: any) =>
       selectedPositionen.includes(p._id?.toString() || p.position)
     )
-    const netto = selectedPos.reduce((sum: number, p: any) => sum + (p.gesamtpreis || p.gesamt || 0), 0)
+    
+    const netto = selectedPos.reduce((sum: number, p: any) => {
+      const positionId = p._id?.toString() || p.position
+      const istMiete = p.beschreibung?.toLowerCase().includes('miete')
+      const basisPreis = p.gesamtpreis || p.gesamt || 0
+      
+      if (istMiete) {
+        const zeitraum = mietZeitraeume[positionId]
+        if (zeitraum?.von && zeitraum?.bis) {
+          const wochen = calculateWeeks(zeitraum.von, zeitraum.bis)
+          return sum + (basisPreis * wochen)
+        }
+      }
+      
+      return sum + basisPreis
+    }, 0)
+    
     const mwstSatz = angebot.mwstSatz || 19
     const mwst = netto * (mwstSatz / 100)
     const brutto = netto + mwst
@@ -125,6 +163,24 @@ export default function RechnungErstellenDialog({
       return
     }
 
+    // Validierung für Miete-Positionen
+    if (typ === 'teil' && methode === 'positionen') {
+      const mietPositionen = angebot.positionen.filter((p: any) => {
+        const positionId = p._id?.toString() || p.position
+        const istMiete = p.beschreibung?.toLowerCase().includes('miete')
+        return istMiete && selectedPositionen.includes(positionId)
+      })
+
+      for (const pos of mietPositionen) {
+        const positionId = pos._id?.toString() || pos.position
+        const zeitraum = mietZeitraeume[positionId]
+        if (!zeitraum?.von || !zeitraum?.bis) {
+          toast.error('Bitte geben Sie für alle Miete-Positionen einen Zeitraum an')
+          return
+        }
+      }
+    }
+
     try {
       setLoading(true)
       const response = await fetch(`/api/projekte/${projekt._id}/rechnung-erstellen`, {
@@ -134,7 +190,10 @@ export default function RechnungErstellenDialog({
           angebotId: selectedAngebotId,
           typ,
           ...(typ === 'teil' && methode === 'prozent' ? { prozentsatz } : {}),
-          ...(typ === 'teil' && methode === 'positionen' ? { positionen: selectedPositionen } : {}),
+          ...(typ === 'teil' && methode === 'positionen' ? { 
+            positionen: selectedPositionen,
+            mietZeitraeume 
+          } : {}),
           benutzer: 'admin'
         })
       })
@@ -276,27 +335,88 @@ export default function RechnungErstellenDialog({
                 <TabsContent value="positionen" className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-gray-900">Positionen auswählen</Label>
-                    <div className="border border-gray-200 rounded-lg divide-y divide-gray-200 max-h-64 overflow-y-auto">
+                    <div className="border border-gray-200 rounded-lg divide-y divide-gray-200 max-h-96 overflow-y-auto">
                       {angebot.positionen.map((position: any, index: number) => {
                         const gesamt = position.gesamtpreis || position.gesamt || 0
                         const einzelpreis = position.einzelpreis || 0
+                        const positionId = position._id?.toString() || position.position
+                        const istMiete = position.beschreibung?.toLowerCase().includes('miete')
+                        const isSelected = selectedPositionen.includes(positionId)
+                        
                         return (
                           <div key={index} className="p-3 hover:bg-gray-50">
                             <div className="flex items-start gap-3">
                               <Checkbox
                                 id={`pos-${index}`}
-                                checked={selectedPositionen.includes(position._id?.toString() || position.position)}
-                                onCheckedChange={() =>
-                                  handlePositionToggle(position._id?.toString() || position.position)
-                                }
+                                checked={isSelected}
+                                onCheckedChange={() => handlePositionToggle(positionId)}
                               />
-                              <label htmlFor={`pos-${index}`} className="flex-1 cursor-pointer">
-                                <p className="text-sm font-medium text-gray-900">{position.beschreibung}</p>
-                                <p className="text-xs text-gray-600 mt-1">
-                                  {position.menge} {position.einheit} × {einzelpreis.toFixed(2)} € = 
-                                  <span className="font-semibold"> {gesamt.toFixed(2)} €</span>
-                                </p>
-                              </label>
+                              <div className="flex-1">
+                                <label htmlFor={`pos-${index}`} className="cursor-pointer block">
+                                  <div 
+                                    className="text-sm font-medium text-gray-900 prose prose-sm max-w-none" 
+                                    dangerouslySetInnerHTML={{ __html: position.beschreibung }}
+                                  />
+                                  <p className="text-xs text-gray-600 mt-1">
+                                    {position.menge} {position.einheit} × {einzelpreis.toFixed(2)} € = 
+                                    <span className="font-semibold"> {gesamt.toFixed(2)} €</span>
+                                    {istMiete && <span className="text-blue-600"> / Woche</span>}
+                                  </p>
+                                </label>
+                                
+                                {/* Zeitraum für Miete */}
+                                {istMiete && isSelected && (
+                                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md space-y-2">
+                                    <p className="text-xs font-medium text-blue-900">Mietzeitraum (pro Woche)</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div>
+                                        <Label htmlFor={`von-${index}`} className="text-xs text-gray-700">Von</Label>
+                                        <Input
+                                          id={`von-${index}`}
+                                          type="date"
+                                          value={mietZeitraeume[positionId]?.von || ''}
+                                          onChange={(e) => setMietZeitraeume(prev => ({
+                                            ...prev,
+                                            [positionId]: {
+                                              ...prev[positionId],
+                                              von: e.target.value
+                                            }
+                                          }))}
+                                          className="h-8 text-xs"
+                                        />
+                                      </div>
+                                      <div>
+                                        <Label htmlFor={`bis-${index}`} className="text-xs text-gray-700">Bis</Label>
+                                        <Input
+                                          id={`bis-${index}`}
+                                          type="date"
+                                          value={mietZeitraeume[positionId]?.bis || ''}
+                                          onChange={(e) => setMietZeitraeume(prev => ({
+                                            ...prev,
+                                            [positionId]: {
+                                              ...prev[positionId],
+                                              bis: e.target.value
+                                            }
+                                          }))}
+                                          className="h-8 text-xs"
+                                        />
+                                      </div>
+                                    </div>
+                                    {mietZeitraeume[positionId]?.von && mietZeitraeume[positionId]?.bis && (() => {
+                                      const wochen = calculateWeeks(mietZeitraeume[positionId].von, mietZeitraeume[positionId].bis)
+                                      const gesamtpreis = gesamt * wochen
+                                      return (
+                                        <div className="text-xs bg-white p-2 rounded border border-blue-300">
+                                          <p className="text-blue-900 font-medium">
+                                            Berechnung: {gesamt.toFixed(2)} € × {wochen} Woche{wochen !== 1 ? 'n' : ''} = 
+                                            <span className="font-bold text-blue-700"> {gesamtpreis.toFixed(2)} €</span>
+                                          </p>
+                                        </div>
+                                      )
+                                    })()}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
                         )

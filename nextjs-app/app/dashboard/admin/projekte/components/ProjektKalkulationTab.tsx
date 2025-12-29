@@ -158,6 +158,7 @@ export default function ProjektKalkulationTab({ projekt, onProjektUpdated }: Pro
             projektId={projekt._id!}
             vorkalkulation={vorkalkulation}
             nachkalkulation={nachkalkulation}
+            zugewieseneMitarbeiter={projekt.zugewieseneMitarbeiter}
             onUpdate={handleUpdate}
           />
         </TabsContent>

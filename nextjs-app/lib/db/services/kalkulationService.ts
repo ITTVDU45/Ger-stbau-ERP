@@ -166,44 +166,150 @@ export class KalkulationService {
     vorkalkulation: Vorkalkulation, 
     zeiterfassungen: Zeiterfassung[],
     parameter: KalkulationsParameter,
-    zugewieseneMitarbeiter: { mitarbeiterId: string, mitarbeiterName: string }[]
+    zugewieseneMitarbeiter: { mitarbeiterId: string, mitarbeiterName: string }[],
+    mitarbeiterHabenKorrekturen: boolean = false
   ): Promise<MitarbeiterKalkulation[]> {
     try {
+      // Wenn nicht explizit übergeben, prüfe ob zugewiesene Mitarbeiter Korrektur-Stunden haben
+      if (!mitarbeiterHabenKorrekturen) {
+        mitarbeiterHabenKorrekturen = zugewieseneMitarbeiter.some(
+          (m: any) => (m.stundenAufbau !== undefined && m.stundenAufbau !== null) || 
+                      (m.stundenAbbau !== undefined && m.stundenAbbau !== null)
+        )
+      }
+      
       // Basis: zugewiesene Mitarbeiter mit 0h hinzufügen (damit alle angezeigt werden)
       const mitarbeiterMap = new Map<string, { name: string, stunden: number }>()
-      ;(zugewieseneMitarbeiter || []).forEach(m => {
+      ;(zugewieseneMitarbeiter || []).forEach((m: any) => {
         if (m.mitarbeiterId) {
-          mitarbeiterMap.set(m.mitarbeiterId, { name: m.mitarbeiterName, stunden: 0 })
+          // Verwende entweder korrigierte Stunden ODER Zeiterfassungen
+          if (mitarbeiterHabenKorrekturen) {
+            // Verwende korrigierte Stunden aus Mitarbeiter-Zuweisungen
+            const gesamtStunden = (m.stundenAufbau || 0) + (m.stundenAbbau || 0)
+            mitarbeiterMap.set(m.mitarbeiterId, { name: m.mitarbeiterName, stunden: gesamtStunden })
+          } else {
+            // Initialisiere mit 0, wird durch Zeiterfassungen gefüllt
+            mitarbeiterMap.set(m.mitarbeiterId, { name: m.mitarbeiterName, stunden: 0 })
+          }
         }
       })
       
-      // Gruppiere Zeiterfassungen nach Mitarbeiter und addiere Stunden
-      zeiterfassungen.forEach(z => {
-        if (!z.mitarbeiterId) return
-        const existing = mitarbeiterMap.get(z.mitarbeiterId) || { name: z.mitarbeiterName, stunden: 0 }
-        existing.stunden += z.stunden
-        mitarbeiterMap.set(z.mitarbeiterId, existing)
-      })
+      // Wenn KEINE Korrekturen vorhanden: Gruppiere Zeiterfassungen nach Mitarbeiter
+      if (!mitarbeiterHabenKorrekturen) {
+        zeiterfassungen.forEach(z => {
+          if (!z.mitarbeiterId) return
+          const existing = mitarbeiterMap.get(z.mitarbeiterId) || { name: z.mitarbeiterName, stunden: 0 }
+          existing.stunden += z.stunden
+          mitarbeiterMap.set(z.mitarbeiterId, existing)
+        })
+      }
       
-      // Anzahl geplanter Mitarbeiter: nutze Zuweisungen, sonst fallback auf Zeiterfassung
-      const geplanteMitarbeiter = (zugewieseneMitarbeiter?.length || 0) > 0
-        ? zugewieseneMitarbeiter.length
-        : (mitarbeiterMap.size || 1)
+      // Zähle Mitarbeiter SEPARAT für Aufbau und Abbau
+      const mitarbeiterAufbau = zugewieseneMitarbeiter.filter((m: any) => 
+        (m.stundenAufbau !== undefined && m.stundenAufbau !== null && m.stundenAufbau > 0)
+      ).length || 1
+      
+      const mitarbeiterAbbau = zugewieseneMitarbeiter.filter((m: any) => 
+        (m.stundenAbbau !== undefined && m.stundenAbbau !== null && m.stundenAbbau > 0)
+      ).length || 1
 
-      // Berechne Soll-Stunden pro Mitarbeiter (un-gewichtete Summe / geplante MA)
-      const gesamtSollUngewichtet = (vorkalkulation.sollStundenAufbau || 0) + (vorkalkulation.sollStundenAbbau || 0)
-      const sollStundenProMitarbeiter = geplanteMitarbeiter > 0 
-        ? gesamtSollUngewichtet / geplanteMitarbeiter 
+      // Berechne Soll-Stunden PRO MA für jeden Prozess separat
+      const sollStundenAufbauProMA = mitarbeiterAufbau > 0 
+        ? vorkalkulation.sollStundenAufbau / mitarbeiterAufbau 
         : 0
+      
+      const sollStundenAbbauProMA = mitarbeiterAbbau > 0 
+        ? vorkalkulation.sollStundenAbbau / mitarbeiterAbbau 
+        : 0
+      
       // auf eine Nachkommastelle runden
       const round1 = (v: number) => Math.round(v * 10) / 10
+      
+      // Gruppiere Zeiterfassungen nach Mitarbeiter und Typ für schnellen Zugriff
+      const zeiterfassungenProMA = new Map<string, { aufbau: number, abbau: number }>()
+      zeiterfassungen.forEach(z => {
+        if (!z.mitarbeiterId) return
+        const existing = zeiterfassungenProMA.get(z.mitarbeiterId) || { aufbau: 0, abbau: 0 }
+        if (z.taetigkeitstyp === 'aufbau' || !z.taetigkeitstyp) {
+          existing.aufbau += z.stunden
+        } else if (z.taetigkeitstyp === 'abbau') {
+          existing.abbau += z.stunden
+        }
+        zeiterfassungenProMA.set(z.mitarbeiterId, existing)
+      })
       
       // Erstelle Kalkulation für jeden Mitarbeiter
       const ergebnis: MitarbeiterKalkulation[] = []
       
       mitarbeiterMap.forEach((data, mitarbeiterId) => {
-        const zeitSoll = round1(sollStundenProMitarbeiter)
-        const zeitIst = round1(data.stunden)
+        // Prüfe, ob dieser Mitarbeiter bei Aufbau/Abbau beteiligt ist
+        const mitarbeiterInfo = zugewieseneMitarbeiter.find((m: any) => m.mitarbeiterId === mitarbeiterId)
+        const zeiterfassungenMA = zeiterfassungenProMA.get(mitarbeiterId) || { aufbau: 0, abbau: 0 }
+        
+        let istBeiAufbau = false
+        let istBeiAbbau = false
+        
+        if (mitarbeiterHabenKorrekturen && mitarbeiterInfo) {
+          // Fall 1: Verwende Korrektur-Stunden zur Bestimmung
+          istBeiAufbau = (mitarbeiterInfo.stundenAufbau || 0) > 0
+          istBeiAbbau = (mitarbeiterInfo.stundenAbbau || 0) > 0
+        } else {
+          // Fall 2: Verwende Zeiterfassungen zur Bestimmung
+          istBeiAufbau = zeiterfassungenMA.aufbau > 0
+          istBeiAbbau = zeiterfassungenMA.abbau > 0
+        }
+        
+        // Berechne individuelles Soll für diesen Mitarbeiter
+        let zeitSoll = 0
+        let zeitSollAufbau = 0
+        let zeitSollAbbau = 0
+        
+        if (istBeiAufbau) {
+          zeitSollAufbau = sollStundenAufbauProMA
+          zeitSoll += sollStundenAufbauProMA
+        }
+        if (istBeiAbbau) {
+          zeitSollAbbau = sollStundenAbbauProMA
+          zeitSoll += sollStundenAbbauProMA
+        }
+        
+        // Berechne IST-Stunden getrennt nach Aufbau/Abbau
+        let zeitIstAufbau = 0
+        let zeitIstAbbau = 0
+        
+        if (mitarbeiterHabenKorrekturen && mitarbeiterInfo) {
+          // Verwende korrigierte Werte
+          zeitIstAufbau = mitarbeiterInfo.stundenAufbau || 0
+          zeitIstAbbau = mitarbeiterInfo.stundenAbbau || 0
+        } else {
+          // Verwende Zeiterfassungen
+          const maZeiterfassungen = zeiterfassungen.filter(z => z.mitarbeiterId === mitarbeiterId)
+          zeitIstAufbau = maZeiterfassungen
+            .filter(z => z.taetigkeitstyp === 'aufbau' || !z.taetigkeitstyp)
+            .reduce((sum, z) => sum + z.stunden, 0)
+          zeitIstAbbau = maZeiterfassungen
+            .filter(z => z.taetigkeitstyp === 'abbau')
+            .reduce((sum, z) => sum + z.stunden, 0)
+        }
+        
+        // DEBUG: Log Mitarbeiter-Kalkulation Details
+        console.log('[Mitarbeiter-Kalkulation] Details pro MA:', {
+          mitarbeiterId,
+          name: data.name,
+          mitarbeiterHabenKorrekturen,
+          zeiterfassungenMA,
+          istBeiAufbau,
+          istBeiAbbau,
+          zeitSollAufbau,
+          zeitSollAbbau,
+          zeitIstAufbau,
+          zeitIstAbbau,
+          zeitSollGesamt: zeitSoll,
+          zeitIstGesamt: zeitIstAufbau + zeitIstAbbau
+        })
+        
+        zeitSoll = round1(zeitSoll)
+        const zeitIst = round1(zeitIstAufbau + zeitIstAbbau)
         // Differenz: Soll - Ist (positiv = gut, negativ = schlecht)
         const differenzZeit = round1(zeitSoll - zeitIst)
         
@@ -226,7 +332,12 @@ export class KalkulationService {
           summeSoll,
           summeIst,
           differenzSumme,
-          abweichungProzent
+          abweichungProzent,
+          // NEU: Aufschlüsselung
+          zeitSollAufbau: round1(zeitSollAufbau),
+          zeitIstAufbau: round1(zeitIstAufbau),
+          zeitSollAbbau: round1(zeitSollAbbau),
+          zeitIstAbbau: round1(zeitIstAbbau)
         })
       })
       
@@ -324,7 +435,8 @@ export class KalkulationService {
         vorkalkulation, 
         alle,
         parameter,
-        zugewieseneMitarbeiter
+        zugewieseneMitarbeiter,
+        mitarbeiterHabenKorrekturen
       )
       
       // Erstelle Nachkalkulation

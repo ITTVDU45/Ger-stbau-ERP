@@ -1,0 +1,150 @@
+1) Zielbild und Prinzipien
+Rollen
+SUPERADMIN
+kann Admins und Mitarbeiter anlegen/einladen
+sieht alles
+ADMIN
+kann Mitarbeiter anlegen/einladen
+sieht alles
+MITARBEITER
+sieht nur, was für ihn freigeschaltet ist (mindestens: kein Admin-Panel)
+Prinzipien (Sicherheit)
+Passwörter nie im Klartext → nur bcrypt/argon2 Hash
+Einladungen/Verifizierung über zeitlich begrenzte Tokens, gehasht gespeichert
+Sessions als httpOnly Secure Cookies
+RBAC serverseitig (nicht nur UI)
+Rate-Limit + Audit-Log + saubere Fehlertexte (keine User-Enumeration)
+2) Empfohlene Architektur (Next.js App Router)
+Auth-Lösung (2 Wege, beide ok):
+Auth.js (NextAuth) + Credentials Provider + JWT/DB Session
+Eigene Auth (Sessions + Cookies) (mehr Kontrolle, etwas mehr Aufwand)
+Für dein Setup (Invite-Flow, Rollen, sicher, serverseitig) passt Auth.js sehr gut – du ergänzt einfach deine RBAC-Checks in Server Actions / Route Handlers.
+Bausteine
+/app/(auth)/login (Login)
+/app/(auth)/set-password?token=... (Erstlogin/Invite bestätigen + Passwort setzen)
+/app/(auth)/verify?token=... (optional getrennt, meist nicht nötig wenn “set password” gleichzeitig verifiziert)
+/app/(app)/settings/users (User-Verwaltung: Superadmin/Admin)
+Server:
+POST /api/invitations (Invite erstellen)
+POST /api/auth/set-password (Token prüfen, Passwort setzen)
+POST /api/auth/login (oder Auth.js route)
+Middleware / serverseitige Guards
+3) Datenbank-Design (Minimal, sauber)
+Tabellen
+users
+id (uuid)
+email (unique, lowercase)
+firstName, lastName
+role enum: SUPERADMIN | ADMIN | EMPLOYEE
+passwordHash (nullable bis Erstlogin abgeschlossen)
+status enum: INVITED | ACTIVE | DISABLED
+emailVerifiedAt (nullable)
+createdAt, updatedAt, lastLoginAt
+invitations
+id
+email
+role (ADMIN/EMPLOYEE)
+invitedByUserId
+tokenHash (SHA-256 o.ä.)
+expiresAt
+usedAt (nullable)
+createdAt
+audit_logs (sehr empfohlen)
+id, actorUserId, action, targetUserId, metaJson, ip, userAgent, createdAt
+Optional, wenn du Mandantenfähigkeit brauchst (Unternehmen):
+organizations, user_organizations etc. (später)
+4) Roadmap in Phasen
+Phase A — Grundlagen (Auth + Session)
+Projekt-Setup
+Next.js App Router + TS strict
+Env: AUTH_SECRET, DATABASE_URL, SMTP_*, APP_URL
+User-Model + Migration
+Login (nur ACTIVE User)
+Credentials prüfen (bcrypt compare)
+Session erstellen (Auth.js oder eigene Session)
+Logout
+Session Zugriff
+getSession()/auth() serverseitig
+UI zeigt Rolle/Name
+✅ Ergebnis: Superadmin kann sich einloggen, Rollen sind im System.
+Phase B — RBAC (Superadmin/Admin/Mitarbeiter)
+RBAC Utility
+hasRole(user, ['ADMIN','SUPERADMIN'])
+requireRole() für Server Actions/Route Handlers
+Schutz auf Server-Ebene
+Jede “Admin-Funktion” prüft Rolle im Backend
+UI-Routing
+Mitarbeiter sehen kein /settings/users, etc.
+✅ Ergebnis: Rechte sind sauber erzwungen (nicht nur “hidden buttons”).
+Phase C — Invite-Flow (Admin anlegen per Dialog beim Superadmin)
+Superadmin Flow
+Settings-Seite: Einstellungen → Benutzerverwaltung
+Button: Admin einladen
+Dialog: Vorname, Nachname, Email, Rolle (fix ADMIN), optional Notiz
+Backend:
+prüft: Rolle = SUPERADMIN
+erstellt/updated users als INVITED (passwordHash = null)
+erstellt invitations mit:
+rawToken = random(32–64 bytes)
+tokenHash = sha256(rawToken)
+expiresAt = now + 48h
+sendet Mail: Link APP_URL/set-password?token=rawToken
+Admin klickt Link
+5. Seite /set-password:
+Token an Backend schicken
+Backend findet Invitation via Hash, prüft expiresAt, usedAt
+UI zeigt: “Passwort festlegen” + ggf. Name/Email
+Submit:
+Passwortregeln (min 10–12, z.B. zxcvbn Score)
+Backend speichert passwordHash, setzt status=ACTIVE, emailVerifiedAt=now, usedAt=now
+Optional: direkt einloggen (Session erstellen) → redirect ins Dashboard
+✅ Ergebnis: Admin wird ohne Passwortversand sicher aktiviert.
+Phase D — Mitarbeiter-Invite durch Admin (und auch durch Superadmin)
+Exakt gleicher Flow, nur:
+role = EMPLOYEE
+allowed inviters: ADMIN oder SUPERADMIN
+optional: Mitarbeiter nach Org/Team/Projekt zuweisen
+✅ Ergebnis: Admin kann Mitarbeiter pflegen, Superadmin auch.
+Phase E — Hardening (Sicherheit “Production-ready”)
+Rate Limiting
+auf /login, /set-password (z.B. 5/min pro IP + 5/min pro Email)
+Anti-User-Enumeration
+Login Fehler: immer “E-Mail oder Passwort falsch”
+Invite: immer “Wenn möglich wurde eine Einladung versendet” (intern loggen)
+Token Hygiene
+Token nur gehasht speichern
+TTL + One-time-use
+Password Security
+bcrypt cost 12+ oder argon2id
+optional: “breached password check” (später)
+Session Security
+httpOnly, secure, sameSite=lax/strict
+CSRF (Auth.js bringt das; bei eigener Auth: CSRF Token)
+Audit Logs
+Invite erstellt, Passwort gesetzt, Rollen geändert, User deaktiviert
+Account Disable
+DISABLED blockt Login sofort
+2FA (optional, später)
+TOTP für Admin/Superadmin
+5) Konkrete Guards (wer darf was?)
+Actions
+inviteAdmin() → nur SUPERADMIN
+inviteEmployee() → ADMIN + SUPERADMIN
+listUsers() → ADMIN + SUPERADMIN
+updateUserRole() → nur SUPERADMIN (damit Admin sich nicht hochstuft)
+disableUser() → SUPERADMIN (optional ADMIN darf Mitarbeiter deaktivieren)
+6) UI/Pages Struktur (App Router Vorschlag)
+(auth)
+/login
+/set-password (token)
+/forgot-password (optional)
+(app)
+/dashboard
+/settings
+/settings/users (Admin/Superadmin)
+Invite Dialog (Admin/Mitarbeiter je nach Rolle)
+Tabelle: Users + Status + Aktionen
+/settings/company (Unternehmensdaten)
+/projects
+/invoices
+/finance

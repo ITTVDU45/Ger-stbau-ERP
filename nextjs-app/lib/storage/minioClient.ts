@@ -385,3 +385,64 @@ export async function deleteMitarbeiterDokument(objectName: string): Promise<voi
   await client.removeObject(MITARBEITER_BUCKET, objectName)
 }
 
+// ============================================================================
+// BENUTZER-PROFILBILDER
+// ============================================================================
+
+export const PROFIL_BUCKET = 'profil'
+
+/**
+ * Profilbild hochladen
+ * Pfadstruktur: /profil/{userId}/{timestamp}_{filename}
+ */
+export async function uploadProfilbild(
+  userId: string,
+  buffer: Buffer,
+  originalFileName: string,
+  contentType: string
+): Promise<{ erfolg: boolean; url?: string; objectName?: string; fehler?: string }> {
+  try {
+    const client = getMinioClient()
+    await ensureBucketExists(PROFIL_BUCKET)
+
+    const timestamp = Date.now()
+    const extension = originalFileName.split('.').pop()
+    const objectName = `profil/${userId}/${timestamp}_avatar.${extension}`
+
+    const metadata = {
+      'Content-Type': contentType,
+      'X-Upload-Type': 'profile-picture',
+      'X-User-ID': userId,
+      'X-Original-Filename': originalFileName
+    }
+
+    await client.putObject(PROFIL_BUCKET, objectName, buffer, buffer.length, metadata)
+
+    // Generiere presigned URL (7 Tage gültig - MinIO Maximum)
+    const url = await client.presignedGetObject(PROFIL_BUCKET, objectName, 7 * 24 * 60 * 60)
+
+    return { erfolg: true, url, objectName }
+  } catch (error: any) {
+    console.error('Profilbild Upload Fehler:', error)
+    return { erfolg: false, fehler: error.message }
+  }
+}
+
+/**
+ * Altes Profilbild löschen
+ */
+export async function deleteProfilbild(objectName: string): Promise<{ erfolg: boolean; fehler?: string }> {
+  return deleteFileFromMinio(PROFIL_BUCKET, objectName)
+}
+
+/**
+ * Generiere eine neue presigned URL für ein Profilbild
+ */
+export async function refreshProfilbildUrl(
+  objectName: string,
+  expiryDays: number = 7
+): Promise<string> {
+  const maxDays = Math.min(expiryDays, 7)
+  return getPresignedUrl(PROFIL_BUCKET, objectName, maxDays * 24 * 60 * 60)
+}
+

@@ -162,17 +162,24 @@ export default function AdminUebersichtPage() {
     const loadDashboardData = async () => {
       try {
         setLoadingDashboard(true)
+        console.log('🔄 Lade Dashboard-Daten...')
         const response = await fetch('/api/admin/dashboard', {
-          cache: 'force-cache',
-          next: { revalidate: 60 }
+          cache: 'no-store'
         })
+        
+        console.log('📡 Dashboard API Response Status:', response.status)
         const result = await response.json()
+        console.log('📊 Dashboard API Result:', result)
 
-        if (result.erfolg && result.data) {
-          setKpis(result.data.kpis || defaultKPIs)
+        if (result.erfolg && result.data && result.data.kpis) {
+          console.log('✅ Setze KPIs:', result.data.kpis)
+          setKpis(result.data.kpis)
+        } else {
+          console.warn('⚠️ Keine gültigen KPI-Daten erhalten:', result)
+          setKpis(defaultKPIs)
         }
       } catch (error) {
-        console.error('Error loading dashboard data:', error)
+        console.error('❌ Error loading dashboard data:', error)
         // Fallback auf default KPIs
         setKpis(defaultKPIs)
       } finally {

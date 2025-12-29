@@ -1,15 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db/client'
-import { Rechnung } from '@/lib/db/types'
+import { Rechnung, Mahnung } from '@/lib/db/types'
 
 export async function GET(request: NextRequest) {
   try {
     const db = await getDatabase()
     const rechnungenCollection = db.collection<Rechnung>('rechnungen')
+    const mahnungenCollection = db.collection<Mahnung>('mahnungen')
     
     const rechnungen = await rechnungenCollection.find({}).sort({ rechnungsdatum: -1 }).toArray()
     
-    return NextResponse.json({ erfolg: true, rechnungen })
+    // Offene Mahnungen abrufen
+    const offeneMahnungen = await mahnungenCollection.find({
+      status: { $in: ['zur_genehmigung', 'genehmigt', 'versendet'] }
+    }).toArray()
+
+    // Map für schnellen Zugriff: rechnungId -> hat offene Mahnung
+    const rechnungenMitMahnungSet = new Set(
+      offeneMahnungen.map(m => m.rechnungId)
+    )
+
+    const now = new Date()
+
+    // Rechnungen mit berechneten Feldern anreichern
+    const enrichedRechnungen = rechnungen.map(rechnung => ({
+      ...rechnung,
+      istUeberfaellig: rechnung.faelligAm && new Date(rechnung.faelligAm) < now && rechnung.status !== 'bezahlt',
+      hatOffeneMahnung: rechnungenMitMahnungSet.has(rechnung._id!.toString())
+    }))
+    
+    return NextResponse.json({ erfolg: true, rechnungen: enrichedRechnungen })
   } catch (error) {
     console.error('Fehler beim Abrufen der Rechnungen:', error)
     return NextResponse.json({ erfolg: false, fehler: 'Fehler beim Abrufen der Rechnungen' }, { status: 500 })
