@@ -94,4 +94,10 @@ nextjs-app/KALKULATION_IMPLEMENTATION_STATUS.md
 .env*
 !.env.example
 env.example.txt
+nextjs-app/.env.example
+
+# Config files to exclude
+nextjs-app/components.json
+nextjs-app/cookies.txt
+cookies.txt
 
