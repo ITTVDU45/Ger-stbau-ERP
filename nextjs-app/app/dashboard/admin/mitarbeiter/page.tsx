@@ -13,6 +13,7 @@ import {
   Calendar,
   TrendingUp
 } from 'lucide-react'
+import { FloatingActionButton } from '@/components/mobile/FloatingActionButton'
 import { Mitarbeiter } from '@/lib/db/types'
 import MitarbeiterTabelle from './components/MitarbeiterTabelle'
 import MitarbeiterDialog from './components/MitarbeiterDialog'
@@ -101,24 +102,31 @@ export default function MitarbeiterPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
       <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <CardTitle className="text-2xl text-gray-900">Mitarbeiter-Verwaltung</CardTitle>
-              <CardDescription className="text-gray-700">
+              <CardTitle className="text-xl md:text-2xl text-gray-900">Mitarbeiter-Verwaltung</CardTitle>
+              <CardDescription className="text-sm md:text-base text-gray-700">
                 Verwalten Sie alle Mitarbeiter, Qualifikationen und Einsätze
               </CardDescription>
             </div>
-            <Button onClick={handleNeuerMitarbeiter} className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={handleNeuerMitarbeiter} className="hidden md:flex bg-blue-600 hover:bg-blue-700">
               <UserPlus className="h-4 w-4 mr-2" />
               Neuer Mitarbeiter
             </Button>
           </div>
         </CardHeader>
       </Card>
+      
+      {/* Mobile FAB */}
+      <FloatingActionButton 
+        onClick={handleNeuerMitarbeiter}
+        label="Neuer Mitarbeiter"
+        icon={<UserPlus className="h-6 w-6" />}
+      />
 
       {/* Statistiken */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">

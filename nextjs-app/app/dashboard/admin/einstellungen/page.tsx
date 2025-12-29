@@ -513,7 +513,25 @@ export default function AdminEinstellungenPage() {
       </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        {/* Mobile Select Dropdown */}
+        <div className="md:hidden mb-6">
+          <Select value={activeTab} onValueChange={setActiveTab}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="general">Allgemein</SelectItem>
+              <SelectItem value="company">Vorlagen & Firmendaten</SelectItem>
+              <SelectItem value="kalkulation">Kalkulation</SelectItem>
+              <SelectItem value="mahnwesen">Mahnwesen</SelectItem>
+              <SelectItem value="invitations">Einladungen</SelectItem>
+              <SelectItem value="notifications">Benachrichtigungen</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Desktop Tabs */}
+        <TabsList className="hidden md:grid w-full grid-cols-6">
           <TabsTrigger value="general">Allgemein</TabsTrigger>
           <TabsTrigger value="company">Vorlagen & Firmendaten</TabsTrigger>
           <TabsTrigger value="kalkulation">Kalkulation</TabsTrigger>

@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus, Search } from 'lucide-react'
+import { FloatingActionButton } from '@/components/mobile/FloatingActionButton'
 import { Rechnung } from '@/lib/db/types'
 import RechnungTabelle from './components/RechnungTabelle'
 import RechnungDialog from './components/RechnungDialog'
@@ -109,24 +110,30 @@ export default function RechnungenPage() {
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
       <Card className="bg-linear-to-r from-purple-50 to-pink-50 border-purple-200">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <CardTitle className="text-2xl text-gray-900">Rechnungen</CardTitle>
-              <CardDescription className="text-gray-700">
+              <CardTitle className="text-xl md:text-2xl text-gray-900">Rechnungen</CardTitle>
+              <CardDescription className="text-sm md:text-base text-gray-700">
                 Verwalten Sie Rechnungen und Zahlungen
               </CardDescription>
             </div>
-            <Button onClick={handleNeueRechnung} className="bg-purple-600 hover:bg-purple-700">
+            <Button onClick={handleNeueRechnung} className="hidden md:flex bg-purple-600 hover:bg-purple-700">
               <Plus className="h-4 w-4 mr-2" />
               Neue Rechnung
             </Button>
           </div>
         </CardHeader>
       </Card>
+      
+      {/* Mobile FAB */}
+      <FloatingActionButton 
+        onClick={handleNeueRechnung}
+        label="Neue Rechnung"
+      />
 
       {/* NEU: KPI-Cards */}
       <RechnungenKPICards 

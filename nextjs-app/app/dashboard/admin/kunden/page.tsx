@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus, Search, Users, TrendingUp, DollarSign, AlertCircle } from 'lucide-react'
+import { FloatingActionButton } from '@/components/mobile/FloatingActionButton'
 import { Kunde } from '@/lib/db/types'
 import KundeTabelle from './components/KundeTabelle'
 import KundeDialog from './components/KundeDialog'
@@ -114,24 +115,30 @@ export default function KundenPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
       <Card className="bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-200">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <CardTitle className="text-2xl text-gray-900">Kunden-Verwaltung</CardTitle>
-              <CardDescription className="text-gray-700">
+              <CardTitle className="text-xl md:text-2xl text-gray-900">Kunden-Verwaltung</CardTitle>
+              <CardDescription className="text-sm md:text-base text-gray-700">
                 Verwalten Sie alle Kunden und deren Geschäftsbeziehungen
               </CardDescription>
             </div>
-            <Button onClick={handleNeuerKunde} className="bg-cyan-600 hover:bg-cyan-700">
+            <Button onClick={handleNeuerKunde} className="hidden md:flex bg-cyan-600 hover:bg-cyan-700">
               <Plus className="h-4 w-4 mr-2" />
               Neuer Kunde
             </Button>
           </div>
         </CardHeader>
       </Card>
+      
+      {/* Mobile FAB */}
+      <FloatingActionButton 
+        onClick={handleNeuerKunde}
+        label="Neuer Kunde"
+      />
 
       {/* Statistiken */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

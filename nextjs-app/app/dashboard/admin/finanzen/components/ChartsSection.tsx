@@ -78,17 +78,19 @@ export default function ChartsSection({ zeitraum, mandantId, refreshTrigger }: C
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Statistiken & Diagramme</h2>
 
       <Tabs defaultValue="zeitreihe" className="w-full">
-        <TabsList className="mb-6 bg-gray-100">
-          <TabsTrigger value="zeitreihe" className="text-gray-900 data-[state=active]:bg-white data-[state=active]:text-gray-900 font-semibold">
-            Zeitreihe
-          </TabsTrigger>
-          <TabsTrigger value="kategorien" className="text-gray-900 data-[state=active]:bg-white data-[state=active]:text-gray-900 font-semibold">
-            Kategorien
-          </TabsTrigger>
-          <TabsTrigger value="cashflow" className="text-gray-900 data-[state=active]:bg-white data-[state=active]:text-gray-900 font-semibold">
-            Cashflow
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto mb-6">
+          <TabsList className="bg-gray-100 w-full md:w-auto inline-flex">
+            <TabsTrigger value="zeitreihe" className="text-gray-900 data-[state=active]:bg-white data-[state=active]:text-gray-900 font-semibold text-sm md:text-base">
+              Zeitreihe
+            </TabsTrigger>
+            <TabsTrigger value="kategorien" className="text-gray-900 data-[state=active]:bg-white data-[state=active]:text-gray-900 font-semibold text-sm md:text-base">
+              Kategorien
+            </TabsTrigger>
+            <TabsTrigger value="cashflow" className="text-gray-900 data-[state=active]:bg-white data-[state=active]:text-gray-900 font-semibold text-sm md:text-base">
+              Cashflow
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Zeitreihe: Einnahmen vs. Ausgaben */}
         <TabsContent value="zeitreihe" className="mt-0">

@@ -195,24 +195,24 @@ export default function AdminUebersichtPage() {
       {/* Header */}
       <Card className="bg-gradient-to-r from-blue-600 to-indigo-600 border-0">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <CardTitle className="text-white text-2xl">Gerüstbau ERP Dashboard</CardTitle>
-              <CardDescription className="text-white/80">
+              <CardTitle className="text-white text-xl md:text-2xl">Gerüstbau ERP Dashboard</CardTitle>
+              <CardDescription className="text-white/80 text-sm">
                 Zentrale Steuerung Ihrer Gerüstbau-Projekte, Mitarbeiter und Finanzen
               </CardDescription>
             </div>
-            <div className="flex gap-2">
-              <Button asChild variant="outline" className="bg-white/10 text-white border-white/20 hover:bg-white/20">
+            <div className="flex gap-2 flex-wrap">
+              <Button asChild variant="outline" size="sm" className="bg-white/10 text-white border-white/20 hover:bg-white/20">
                 <Link href="/dashboard/admin/einstellungen">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Einstellungen
+                  <Settings className="h-4 w-4 md:mr-2" />
+                  <span className="hidden md:inline">Einstellungen</span>
                 </Link>
               </Button>
-              <Button asChild className="bg-white text-blue-600 hover:bg-white/90">
+              <Button asChild size="sm" className="bg-white text-blue-600 hover:bg-white/90">
                 <Link href="/dashboard/admin/projekte">
-                  <Briefcase className="h-4 w-4 mr-2" />
-                  Neue Projekte
+                  <Briefcase className="h-4 w-4 md:mr-2" />
+                  <span className="hidden md:inline">Neue Projekte</span>
                 </Link>
               </Button>
             </div>
@@ -442,11 +442,13 @@ export default function AdminUebersichtPage() {
 
       {/* Bottom Section with Tabs */}
       <Tabs defaultValue="activities" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="activities">Aktivitäten-Feed</TabsTrigger>
-          <TabsTrigger value="tasks">Offene Aufgaben ({offeneAufgaben.length})</TabsTrigger>
-          <TabsTrigger value="quick-actions">Schnellzugriffe</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="grid w-full md:grid-cols-3 grid-cols-1 gap-1 md:gap-0">
+            <TabsTrigger value="activities" className="text-sm">Aktivitäten-Feed</TabsTrigger>
+            <TabsTrigger value="tasks" className="text-sm">Offene Aufgaben ({offeneAufgaben.length})</TabsTrigger>
+            <TabsTrigger value="quick-actions" className="text-sm">Schnellzugriffe</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Activities Tab */}
         <TabsContent value="activities" className="space-y-4">

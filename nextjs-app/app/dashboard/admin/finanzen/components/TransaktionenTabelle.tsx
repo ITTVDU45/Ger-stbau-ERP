@@ -210,17 +210,17 @@ export default function TransaktionenTabelle({
   }
 
   return (
-    <Card className="p-6 bg-white border-2 border-gray-200">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Transaktionsübersicht</h2>
+    <Card className="p-4 md:p-6 bg-white border-2 border-gray-200">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
+        <h2 className="text-xl md:text-2xl font-bold text-gray-900">Transaktionsübersicht</h2>
         <div className="flex gap-2">
-          <div className="relative">
+          <div className="relative flex-1 md:flex-none">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
             <Input
               placeholder="Suchen..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 w-64 text-gray-900"
+              className="pl-9 w-full md:w-64 text-gray-900"
             />
           </div>
           <Button variant="outline" onClick={onRefresh} size="icon" title="Aktualisieren">
@@ -230,20 +230,22 @@ export default function TransaktionenTabelle({
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-        <TabsList className="mb-4 bg-gray-100">
-          <TabsTrigger value="alle" className="text-gray-900 data-[state=active]:bg-white data-[state=active]:text-gray-900 font-semibold">
-            Alle ({transaktionen.length})
-          </TabsTrigger>
-          <TabsTrigger value="einnahmen" className="text-gray-900 data-[state=active]:bg-white data-[state=active]:text-gray-900 font-semibold">
-            Einnahmen ({transaktionen.filter(t => t.typ === 'einnahme').length})
-          </TabsTrigger>
-          <TabsTrigger value="ausgaben" className="text-gray-900 data-[state=active]:bg-white data-[state=active]:text-gray-900 font-semibold">
-            Ausgaben ({transaktionen.filter(t => t.typ === 'ausgabe').length})
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto mb-4">
+          <TabsList className="bg-gray-100 w-full md:w-auto inline-flex">
+            <TabsTrigger value="alle" className="text-gray-900 data-[state=active]:bg-white data-[state=active]:text-gray-900 font-semibold text-sm md:text-base">
+              Alle ({transaktionen.length})
+            </TabsTrigger>
+            <TabsTrigger value="einnahmen" className="text-gray-900 data-[state=active]:bg-white data-[state=active]:text-gray-900 font-semibold text-sm md:text-base">
+              Einnahmen ({transaktionen.filter(t => t.typ === 'einnahme').length})
+            </TabsTrigger>
+            <TabsTrigger value="ausgaben" className="text-gray-900 data-[state=active]:bg-white data-[state=active]:text-gray-900 font-semibold text-sm md:text-base">
+              Ausgaben ({transaktionen.filter(t => t.typ === 'ausgabe').length})
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value={activeTab} className="mt-0">
-          <div className="rounded-md border">
+          <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50">

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Plus, Download, FileSpreadsheet, FileText } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { FloatingActionButton } from '@/components/mobile/FloatingActionButton'
 import ZeitraumFilter from '@/app/dashboard/admin/kunden/berichte/components/ZeitraumFilter'
 import FinanzenKPICards from './components/FinanzenKPICards'
 import TransaktionenTabelle from './components/TransaktionenTabelle'
@@ -307,15 +308,15 @@ export default function FinanzenPage() {
   }
   
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Finanzen</h1>
-          <p className="text-gray-600 mt-1">Einnahmen, Ausgaben und Finanzanalysen</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Finanzen</h1>
+          <p className="text-sm md:text-base text-gray-600 mt-1">Einnahmen, Ausgaben und Finanzanalysen</p>
         </div>
         
-        <div className="flex gap-2">
+        <div className="hidden md:flex gap-2">
           <Button onClick={() => { setDialogTyp('einnahme'); setDialogOpen(true); }}>
             <Plus className="h-4 w-4 mr-2" />
             Einnahme
@@ -344,6 +345,12 @@ export default function FinanzenPage() {
           </DropdownMenu>
         </div>
       </div>
+      
+      {/* Mobile FAB */}
+      <FloatingActionButton 
+        onClick={() => { setDialogTyp('einnahme'); setDialogOpen(true); }}
+        label="Neue Transaktion"
+      />
       
       {/* Kontostand-Karte */}
       <KontostandCard 

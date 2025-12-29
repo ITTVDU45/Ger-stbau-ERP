@@ -5,14 +5,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus, Search, FileText, Send, CheckCircle, XCircle } from 'lucide-react'
+import { FloatingActionButton } from '@/components/mobile/FloatingActionButton'
 import { Angebot } from '@/lib/db/types'
 import AngebotTabelle from './components/AngebotTabelle'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 export default function AngebotePage() {
+  const router = useRouter()
   const [angebote, setAngebote] = useState<Angebot[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -74,18 +77,18 @@ export default function AngebotePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
       <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <CardTitle className="text-2xl text-gray-900">Angebote</CardTitle>
-              <CardDescription className="text-gray-700">
+              <CardTitle className="text-xl md:text-2xl text-gray-900">Angebote</CardTitle>
+              <CardDescription className="text-sm md:text-base text-gray-700">
                 Erstellen und verwalten Sie Angebote
               </CardDescription>
             </div>
-            <Button asChild className="bg-green-600 hover:bg-green-700">
+            <Button asChild className="hidden md:flex bg-green-600 hover:bg-green-700">
               <Link href="/dashboard/admin/angebote/neu">
                 <Plus className="h-4 w-4 mr-2" />
                 Neues Angebot
@@ -94,6 +97,12 @@ export default function AngebotePage() {
           </div>
         </CardHeader>
       </Card>
+      
+      {/* Mobile FAB */}
+      <FloatingActionButton 
+        onClick={() => router.push('/dashboard/admin/angebote/neu')}
+        label="Neues Angebot"
+      />
 
       {/* Statistiken */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
