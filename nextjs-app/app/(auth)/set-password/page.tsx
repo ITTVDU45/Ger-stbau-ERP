@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Lock, CheckCircle2 } from 'lucide-react'
+import Image from 'next/image'
 
 function SetPasswordContent() {
   const router = useRouter()
@@ -20,6 +21,34 @@ function SetPasswordContent() {
   const [userInfo, setUserInfo] = useState<any>(null)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null)
+  const [companyName, setCompanyName] = useState('Gerüstbau ERP')
+  const [loadingSettings, setLoadingSettings] = useState(true)
+  
+  // Lade Firmenlogo und -name
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const response = await fetch('/api/settings/firmen')
+        const data = await response.json()
+        
+        if (data.erfolg && data.einstellungen) {
+          if (data.einstellungen.logo?.primary) {
+            setCompanyLogo(data.einstellungen.logo.primary)
+          }
+          if (data.einstellungen.firmenname) {
+            setCompanyName(data.einstellungen.firmenname)
+          }
+        }
+      } catch (error) {
+        console.error('Fehler beim Laden der Einstellungen:', error)
+      } finally {
+        setLoadingSettings(false)
+      }
+    }
+    
+    loadSettings()
+  }, [])
   
   useEffect(() => {
     if (!token) {
@@ -94,8 +123,8 @@ function SetPasswordContent() {
   
   if (verifying) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     )
   }
@@ -105,47 +134,131 @@ function SetPasswordContent() {
   }
   
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md p-8">
-        <h1 className="text-2xl font-bold mb-2">Passwort festlegen</h1>
-        {userInfo && (
-          <p className="text-gray-600 mb-6">
-            Willkommen, {userInfo.firstName}! Bitte legen Sie Ihr Passwort fest.
-          </p>
-        )}
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="password">Passwort</Label>
-            <Input
-              id="password"
-              type="password"
-              required
-              minLength={12}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <p className="text-xs text-gray-600 mt-1">
-              Mindestens 12 Zeichen, inkl. Groß-/Kleinbuchstaben, Ziffern und Sonderzeichen
-            </p>
+    <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="w-full max-w-md px-6">
+        <Card className="w-full p-8 shadow-xl border border-gray-200">
+          {/* Logo & Header */}
+          <div className="text-center mb-8">
+            {loadingSettings ? (
+              <div className="h-20 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              </div>
+            ) : (
+              <>
+                {companyLogo ? (
+                  <div className="mb-4 flex justify-center">
+                    <div className="relative w-full h-20 max-w-[280px]">
+                      <Image 
+                        src={companyLogo} 
+                        alt={`${companyName} Logo`}
+                        fill
+                        className="object-contain"
+                        priority
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">{companyName}</h1>
+                )}
+                <p className="text-gray-600 text-sm">Management System</p>
+              </>
+            )}
+          </div>
+
+          {/* Trennlinie */}
+          <div className="mb-8 border-t border-gray-200"></div>
+          
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Passwort festlegen</h2>
+            {userInfo && (
+              <p className="text-gray-600 text-sm">
+                Willkommen, <span className="font-medium text-gray-900">{userInfo.firstName}</span>! 
+                Bitte legen Sie Ihr Passwort fest.
+              </p>
+            )}
           </div>
           
-          <div>
-            <Label htmlFor="confirmPassword">Passwort bestätigen</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              required
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-gray-900 font-medium">Neues Passwort</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••••••"
+                required
+                minLength={12}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="h-11 bg-white border-gray-300 text-gray-900"
+              />
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-2">
+                <p className="text-xs text-gray-700 font-medium mb-1">Passwort-Anforderungen:</p>
+                <ul className="text-xs text-gray-600 space-y-1">
+                  <li className="flex items-center gap-1.5">
+                    <CheckCircle2 className={`h-3 w-3 ${password.length >= 12 ? 'text-green-600' : 'text-gray-400'}`} />
+                    Mindestens 12 Zeichen
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <CheckCircle2 className={`h-3 w-3 ${/[A-Z]/.test(password) ? 'text-green-600' : 'text-gray-400'}`} />
+                    Großbuchstaben
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <CheckCircle2 className={`h-3 w-3 ${/[a-z]/.test(password) ? 'text-green-600' : 'text-gray-400'}`} />
+                    Kleinbuchstaben
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <CheckCircle2 className={`h-3 w-3 ${/[0-9]/.test(password) ? 'text-green-600' : 'text-gray-400'}`} />
+                    Ziffern
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <CheckCircle2 className={`h-3 w-3 ${/[^A-Za-z0-9]/.test(password) ? 'text-green-600' : 'text-gray-400'}`} />
+                    Sonderzeichen
+                  </li>
+                </ul>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword" className="text-gray-900 font-medium">Passwort bestätigen</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="••••••••••••"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="h-11 bg-white border-gray-300 text-gray-900"
+              />
+              {confirmPassword && password !== confirmPassword && (
+                <p className="text-xs text-red-600">Passwörter stimmen nicht überein</p>
+              )}
+            </div>
+            
+            <Button 
+              type="submit" 
+              className="w-full h-11 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium" 
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Passwort wird gesetzt...
+                </>
+              ) : (
+                <>
+                  <Lock className="mr-2 h-4 w-4" />
+                  Passwort festlegen
+                </>
+              )}
+            </Button>
+          </form>
           
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Passwort wird gesetzt...' : 'Passwort festlegen'}
-          </Button>
-        </form>
-      </Card>
+          {/* Footer */}
+          <div className="mt-6 text-center text-xs text-gray-500">
+            <p>© {new Date().getFullYear()} {companyName}</p>
+          </div>
+        </Card>
+      </div>
     </div>
   )
 }
@@ -153,8 +266,8 @@ function SetPasswordContent() {
 export default function SetPasswordPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     }>
       <SetPasswordContent />
