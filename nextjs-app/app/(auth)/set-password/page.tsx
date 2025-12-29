@@ -180,7 +180,7 @@ function SetPasswordContent() {
           
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-gray-900 font-medium">Neues Passwort</Label>
+              <Label htmlFor="password" className="text-gray-900 font-medium" style={{ color: '#111827' }}>Neues Passwort</Label>
               <Input
                 id="password"
                 type="password"
@@ -190,6 +190,7 @@ function SetPasswordContent() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="h-11 bg-white border-gray-300 text-gray-900"
+                style={{ backgroundColor: '#ffffff', color: '#111827', borderColor: '#d1d5db' }}
               />
               <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-2">
                 <p className="text-xs text-gray-700 font-medium mb-1">Passwort-Anforderungen:</p>
@@ -219,7 +220,7 @@ function SetPasswordContent() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-gray-900 font-medium">Passwort bestätigen</Label>
+              <Label htmlFor="confirmPassword" className="text-gray-900 font-medium" style={{ color: '#111827' }}>Passwort bestätigen</Label>
               <Input
                 id="confirmPassword"
                 type="password"
@@ -228,6 +229,7 @@ function SetPasswordContent() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="h-11 bg-white border-gray-300 text-gray-900"
+                style={{ backgroundColor: '#ffffff', color: '#111827', borderColor: '#d1d5db' }}
               />
               {confirmPassword && password !== confirmPassword && (
                 <p className="text-xs text-red-600">Passwörter stimmen nicht überein</p>

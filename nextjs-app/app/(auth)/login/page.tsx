@@ -116,7 +116,7 @@ export default function LoginPage() {
           
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-gray-900 font-medium">E-Mail</Label>
+              <Label htmlFor="email" className="text-gray-900 font-medium" style={{ color: '#111827' }}>E-Mail</Label>
               <Input
                 id="email"
                 type="email"
@@ -125,11 +125,12 @@ export default function LoginPage() {
                 value={formData.email}
                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                 className="h-11 bg-white border-gray-300 text-gray-900 placeholder:text-gray-400"
+                style={{ backgroundColor: '#ffffff', color: '#111827', borderColor: '#d1d5db' }}
               />
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-gray-900 font-medium">Passwort</Label>
+              <Label htmlFor="password" className="text-gray-900 font-medium" style={{ color: '#111827' }}>Passwort</Label>
               <Input
                 id="password"
                 type="password"
@@ -138,6 +139,7 @@ export default function LoginPage() {
                 value={formData.password}
                 onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                 className="h-11 bg-white border-gray-300 text-gray-900"
+                style={{ backgroundColor: '#ffffff', color: '#111827', borderColor: '#d1d5db' }}
               />
             </div>
             
