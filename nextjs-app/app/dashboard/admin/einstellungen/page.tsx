@@ -60,6 +60,12 @@ export default function AdminEinstellungenPage() {
   const [loadingSystemSettings, setLoadingSystemSettings] = useState(true)
   const [savingSystemSettings, setSavingSystemSettings] = useState(false)
   
+  // Logo-States
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  
   // Benachrichtigungsvorlagen-States
   const [benachrichtigungsVorlagen, setBenachrichtigungsVorlagen] = useState({
     willkommen: { betreff: '', inhalt: '', aktiv: true },
@@ -155,6 +161,11 @@ export default function AdminEinstellungenPage() {
           imprintUrl: data.einstellungen.imprintUrl || '',
           privacyUrl: data.einstellungen.privacyUrl || ''
         })
+        
+        // Lade auch das Firmenlogo
+        if (data.einstellungen.logo?.primary) {
+          setCompanyLogo(data.einstellungen.logo.primary)
+        }
       }
     } catch (error) {
       console.error('Fehler beim Laden der Firmeneinstellungen:', error)
@@ -374,6 +385,80 @@ export default function AdminEinstellungenPage() {
       toast.error('Fehler beim Löschen des Profilbilds')
     } finally {
       setUploadingAvatar(false)
+    }
+  }
+
+  // Logo-Datei auswählen
+  const handleLogoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setLogoFile(file)
+      
+      // Erstelle Vorschau
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // Logo hochladen
+  const handleLogoUpload = async () => {
+    if (!logoFile) {
+      toast.error('Bitte wählen Sie zuerst ein Logo aus')
+      return
+    }
+
+    try {
+      setUploadingLogo(true)
+
+      const formData = new FormData()
+      formData.append('logo', logoFile)
+
+      const response = await fetch('/api/settings/logo', {
+        method: 'POST',
+        body: formData
+      })
+
+      const data = await response.json()
+
+      if (data.erfolg) {
+        toast.success('Logo erfolgreich hochgeladen')
+        setCompanyLogo(data.url)
+        setLogoFile(null)
+        setLogoPreview(null)
+      } else {
+        toast.error(data.nachricht || 'Fehler beim Logo-Upload')
+      }
+    } catch (error) {
+      console.error('Fehler beim Logo-Upload:', error)
+      toast.error('Fehler beim Logo-Upload')
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
+  // Logo löschen
+  const handleLogoDelete = async () => {
+    try {
+      const response = await fetch('/api/settings/logo', {
+        method: 'DELETE'
+      })
+
+      const data = await response.json()
+
+      if (data.erfolg) {
+        toast.success('Logo erfolgreich gelöscht')
+        setCompanyLogo(null)
+        setLogoPreview(null)
+        setLogoFile(null)
+      } else {
+        toast.error(data.nachricht || 'Fehler beim Löschen des Logos')
+      }
+    } catch (error) {
+      console.error('Fehler beim Löschen des Logos:', error)
+      toast.error('Fehler beim Löschen des Logos')
     }
   }
 
@@ -621,6 +706,95 @@ export default function AdminEinstellungenPage() {
                   </div>
                 </>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Firmenlogo */}
+          <Card className="bg-white border shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-gray-900">
+                <Building className="h-5 w-5" />
+                Firmenlogo
+              </CardTitle>
+              <CardDescription className="text-gray-600">
+                Logo für E-Mails und Dokumente
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Dieses Logo wird in E-Mails (Einladungen, Benachrichtigungen) und auf generierten Dokumenten angezeigt.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row items-start gap-6">
+                {/* Logo-Vorschau */}
+                <div className="flex-shrink-0">
+                  {(logoPreview || companyLogo) ? (
+                    <div className="relative">
+                      <div className="w-64 h-32 border-2 border-blue-200 rounded-lg bg-gradient-to-br from-blue-50 to-white p-4 flex items-center justify-center">
+                        <img 
+                          src={logoPreview || companyLogo || ''} 
+                          alt="Firmenlogo" 
+                          className="max-w-full max-h-full object-contain"
+                        />
+                      </div>
+                      {companyLogo && !logoPreview && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleLogoDelete}
+                          className="absolute -top-2 -right-2"
+                          title="Logo löschen"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="w-64 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
+                      <div className="text-center">
+                        <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                        <p className="text-sm text-gray-500">Kein Logo hochgeladen</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Upload-Controls */}
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <Label htmlFor="logo-upload" className="mb-2 block">Logo-Datei auswählen</Label>
+                    <Input
+                      id="logo-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoFileSelect}
+                      className="cursor-pointer"
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      Empfohlene Größe: 400x200px • Max. 5MB • PNG, JPG, GIF, SVG
+                    </p>
+                  </div>
+                  {logoFile && (
+                    <Button
+                      onClick={handleLogoUpload}
+                      disabled={uploadingLogo}
+                      className="w-full sm:w-auto"
+                    >
+                      {uploadingLogo ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Hochladen...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-2 h-4 w-4" />
+                          Logo hochladen
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
 

@@ -1,5 +1,40 @@
 const nodemailer = require('nodemailer')
 import { debug } from '@/lib/utils/debug'
+import { getDatabase } from '@/lib/db/client'
+
+/**
+ * Holt das Firmenlogo aus den Einstellungen
+ */
+async function getFirmenLogo(): Promise<string | null> {
+  try {
+    const db = await getDatabase()
+    const settings = await db.collection('firmeneinstellungen').findOne({})
+    return settings?.logo?.primary || null
+  } catch (error) {
+    console.error('[EmailService] Fehler beim Laden des Firmenlogos:', error)
+    return null
+  }
+}
+
+/**
+ * Holt die Firmendaten aus den Einstellungen
+ */
+async function getFirmenDaten(): Promise<{ firmenname: string; supportEmail: string }> {
+  try {
+    const db = await getDatabase()
+    const settings = await db.collection('firmeneinstellungen').findOne({})
+    return {
+      firmenname: settings?.firmenname || 'Gerüstbau ERP',
+      supportEmail: settings?.supportEmail || 'info@geruestbau-erp.de'
+    }
+  } catch (error) {
+    console.error('[EmailService] Fehler beim Laden der Firmendaten:', error)
+    return {
+      firmenname: 'Gerüstbau ERP',
+      supportEmail: 'info@geruestbau-erp.de'
+    }
+  }
+}
 
 // Email-Konfiguration aus Environment-Variablen
 // Unterstützt beide Formate: EMAIL_* und SMTP_*
@@ -373,7 +408,11 @@ export async function sendInviteEmail(
   firstName: string,
   inviteLink: string
 ): Promise<void> {
-  const subject = 'Einladung zum Gerüstbau ERP System'
+  // Lade Firmenlogo und -daten
+  const logoUrl = await getFirmenLogo()
+  const { firmenname } = await getFirmenDaten()
+  
+  const subject = `Einladung zum ${firmenname} System`
   
   const html = `
 <!DOCTYPE html>
@@ -390,8 +429,12 @@ export async function sendInviteEmail(
         <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
           <!-- Header -->
           <tr>
-            <td style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); padding: 40px; text-align: center; border-radius: 8px 8px 0 0;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">Gerüstbau ERP</h1>
+            <td style="background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%); padding: 40px; text-align: center; border-radius: 8px 8px 0 0;">
+              ${logoUrl ? `
+              <img src="${logoUrl}" alt="${firmenname} Logo" style="max-width: 200px; max-height: 80px; margin-bottom: 20px;" />
+              ` : `
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">${firmenname}</h1>
+              `}
               <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">Willkommen im Team</p>
             </td>
           </tr>
@@ -402,7 +445,7 @@ export async function sendInviteEmail(
               <h2 style="color: #111827; margin: 0 0 20px 0; font-size: 24px;">Willkommen, ${firstName}!</h2>
               
               <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-                Sie wurden zum Gerüstbau ERP System eingeladen.
+                Sie wurden zum ${firmenname} System eingeladen.
               </p>
               
               <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
@@ -414,7 +457,7 @@ export async function sendInviteEmail(
                 <tr>
                   <td align="center">
                     <a href="${inviteLink}" 
-                       style="display: inline-block; background: linear-gradient(135deg, #10B981 0%, #059669 100%); 
+                       style="display: inline-block; background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%); 
                               color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; 
                               font-weight: 600; font-size: 16px;">
                       Passwort festlegen
@@ -443,7 +486,7 @@ export async function sendInviteEmail(
             <td style="background-color: #f9fafb; padding: 30px; text-align: center; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
               <p style="color: #6b7280; font-size: 14px; margin: 0 0 10px 0;">
                 Mit freundlichen Grüßen<br>
-                <strong>Ihr Gerüstbau ERP Team</strong>
+                <strong>Ihr ${firmenname} Team</strong>
               </p>
               <p style="color: #9ca3af; font-size: 12px; margin: 10px 0 0 0;">
                 Diese E-Mail wurde automatisch generiert. Bitte antworten Sie nicht auf diese E-Mail.
@@ -461,7 +504,7 @@ export async function sendInviteEmail(
   const text = `
 Willkommen, ${firstName}!
 
-Sie wurden zum Gerüstbau ERP System eingeladen.
+Sie wurden zum ${firmenname} System eingeladen.
 
 Bitte verwenden Sie den folgenden Link, um Ihr Passwort zu setzen:
 ${inviteLink}
