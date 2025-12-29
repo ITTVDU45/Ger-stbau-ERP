@@ -91,6 +91,7 @@ nextjs-app/KALKULATION_IMPLEMENTATION_STATUS.md
 !next.config.json
 !components.json
 !tailwind.config.json
+!vercel.json
 
 # Environment files (additional)
 .env*
