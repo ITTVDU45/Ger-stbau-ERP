@@ -20,12 +20,22 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get('auth_session')?.value
   
   if (!token) {
+    console.log('[Middleware] No token found, redirecting to login')
     return NextResponse.redirect(new URL('/login', request.url))
   }
   
-  const session = await verifyJWT(token)
-  
-  if (!session) {
+  let session
+  try {
+    session = await verifyJWT(token)
+    
+    if (!session) {
+      console.log('[Middleware] Invalid session, redirecting to login')
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+    
+    console.log('[Middleware] Valid session for user:', session.email, 'role:', session.role)
+  } catch (error) {
+    console.error('[Middleware] JWT verification failed:', error)
     return NextResponse.redirect(new URL('/login', request.url))
   }
   
