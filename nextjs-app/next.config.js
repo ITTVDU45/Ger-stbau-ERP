@@ -30,9 +30,7 @@ const nextConfig = {
         pathname: '/**',
       }
     ],
-  },
-  // Vercel-spezifische Optimierungen
-  outputFileTracingRoot: require('path').join(__dirname, '../')
+  }
 }
 
 module.exports = nextConfig
