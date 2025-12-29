@@ -2,7 +2,7 @@
 
 import { AppSidebar } from '@/components/app-sidebar'
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
 import { Menu } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -88,6 +88,7 @@ export function MobileDashboardLayout({
               </button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0 w-[280px]">
+              <SheetTitle className="sr-only">Navigationsmenü</SheetTitle>
               <AppSidebar user={user} />
             </SheetContent>
           </Sheet>
