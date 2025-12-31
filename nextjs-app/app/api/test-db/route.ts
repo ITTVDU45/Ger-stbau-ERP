@@ -1,44 +1,37 @@
 import { NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db/client'
 
-/**
- * Test-Route für MongoDB-Verbindung
- * GET /api/test-db
- */
 export async function GET() {
   try {
-    console.log('🔍 Testing MongoDB connection...')
-    
     const db = await getDatabase()
     
-    // Teste Verbindung mit einem einfachen Ping
-    const collections = await db.listCollections().toArray()
+    // Zähle Benutzer
+    const userCount = await db.collection('users').countDocuments()
+    const mitarbeiterCount = await db.collection('mitarbeiter').countDocuments()
     
-    // Zähle Dokumente in faelle Collection
-    const faelleCollection = db.collection('faelle')
-    const faelleCount = await faelleCollection.countDocuments()
-    
-    console.log('✅ MongoDB connected successfully')
-    console.log(`📊 Collections: ${collections.map(c => c.name).join(', ')}`)
-    console.log(`📁 Fälle in DB: ${faelleCount}`)
+    // Hole ersten Superadmin
+    const superadmin = await db.collection('users').findOne({ role: 'SUPERADMIN' })
     
     return NextResponse.json({
       erfolg: true,
-      nachricht: 'MongoDB-Verbindung erfolgreich',
       datenbank: db.databaseName,
-      collections: collections.map(c => c.name),
-      faelleCount,
-      timestamp: new Date().toISOString()
+      benutzer: userCount,
+      mitarbeiter: mitarbeiterCount,
+      superadmin: superadmin ? {
+        email: superadmin.email,
+        name: `${superadmin.firstName} ${superadmin.lastName}`,
+        hasPassword: !!superadmin.passwordHash
+      } : null,
+      env: {
+        mongoUri: process.env.MONGO_URI ? 'gesetzt' : 'FEHLT',
+        mongodbDb: process.env.MONGODB_DB || 'nicht gesetzt'
+      }
     })
   } catch (error: any) {
-    console.error('❌ MongoDB connection failed:', error)
-    
     return NextResponse.json({
       erfolg: false,
-      nachricht: 'MongoDB-Verbindung fehlgeschlagen',
       fehler: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      stack: error.stack
     }, { status: 500 })
   }
 }
-
