@@ -12,7 +12,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
   // Allow public routes
-  if (PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith('/api/auth'))) {
+  if (PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith('/api/auth') || pathname.startsWith('/api/test-db'))) {
     return NextResponse.next()
   }
   
