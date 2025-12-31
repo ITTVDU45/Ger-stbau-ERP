@@ -4,10 +4,11 @@ import { getDatabase } from '@/lib/db/client'
 import { FirmenEinstellungen, UserRole } from '@/lib/db/types'
 import { requireRole } from '@/lib/auth/rbac'
 
-// GET - Firmeneinstellungen abrufen
+// GET - Firmeneinstellungen abrufen (ÖFFENTLICH - für Login-Seite)
 export async function GET() {
   try {
-    await requireAuth()
+    // KEINE Authentifizierung erforderlich - Login-Seite benötigt Logo/Name
+    // await requireAuth() - ENTFERNT
     
     const db = await getDatabase()
     const einstellungenCollection = db.collection<FirmenEinstellungen>('firmen_einstellungen')
