@@ -128,6 +128,12 @@ export default function MitarbeiterDialog({ open, mitarbeiter, onClose }: Mitarb
   }
 
   const handleSubmit = async () => {
+    // Validierung vor dem Absenden
+    if (!formData.vorname || !formData.nachname || !formData.email) {
+      alert('Bitte füllen Sie alle Pflichtfelder aus (Vorname, Nachname, E-Mail)')
+      return
+    }
+
     setSaving(true)
     try {
       const url = mitarbeiter?._id 
@@ -136,20 +142,44 @@ export default function MitarbeiterDialog({ open, mitarbeiter, onClose }: Mitarb
       
       const method = mitarbeiter?._id ? 'PUT' : 'POST'
       
+      // Daten für API vorbereiten - Datum korrekt konvertieren
+      const submitData = {
+        ...formData,
+        eintrittsdatum: formData.eintrittsdatum 
+          ? (formData.eintrittsdatum instanceof Date 
+              ? formData.eintrittsdatum.toISOString() 
+              : new Date(formData.eintrittsdatum).toISOString())
+          : new Date().toISOString(),
+        austrittsdatum: formData.austrittsdatum
+          ? (formData.austrittsdatum instanceof Date
+              ? formData.austrittsdatum.toISOString()
+              : new Date(formData.austrittsdatum).toISOString())
+          : undefined
+      }
+
+      console.log('📤 Sende Mitarbeiter-Daten:', submitData)
+      
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(submitData)
       })
+
+      const data = await response.json()
+      console.log('📥 API Response:', data)
 
       if (response.ok) {
         onClose(true)
       } else {
-        alert('Fehler beim Speichern')
+        // Detaillierte Fehlermeldung anzeigen
+        const fehlerText = data.fehler || 'Fehler beim Speichern'
+        const details = data.details ? `\n\nDetails: ${data.details}` : ''
+        alert(`${fehlerText}${details}`)
+        console.error('API Fehler:', data)
       }
     } catch (error) {
-      console.error('Fehler:', error)
-      alert('Fehler beim Speichern')
+      console.error('Fehler beim Speichern:', error)
+      alert(`Fehler beim Speichern: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`)
     } finally {
       setSaving(false)
     }

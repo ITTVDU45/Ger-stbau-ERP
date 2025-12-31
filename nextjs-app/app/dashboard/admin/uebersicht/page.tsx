@@ -309,18 +309,16 @@ export default function AdminUebersichtPage() {
           </Card>
         </Link>
 
-        <Link href="/dashboard/admin/zeiterfassung" className="block">
-          <Card className="bg-white border-gray-200 hover:shadow-lg transition-all cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-900">Zeiteinträge</CardTitle>
-              <Clock className="h-4 w-4 text-gray-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{kpis.offeneZeiteintraege || 0}</div>
-              <p className="text-xs text-gray-600 mt-1">Warten auf Freigabe</p>
-            </CardContent>
-          </Card>
-        </Link>
+        <Card className="bg-white border-gray-200 hover:shadow-lg transition-all">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-900">Zeiteinträge</CardTitle>
+            <Clock className="h-4 w-4 text-gray-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">{kpis.offeneZeiteintraege || 0}</div>
+            <p className="text-xs text-gray-600 mt-1">Warten auf Freigabe</p>
+          </CardContent>
+        </Card>
 
         <Link href="/dashboard/admin/rechnungen" className="block">
           <Card className="bg-white border-red-200 hover:shadow-lg transition-all cursor-pointer">
