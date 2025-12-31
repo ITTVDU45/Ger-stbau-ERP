@@ -67,10 +67,13 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
+     * - api (API routes - werden in der Middleware-Funktion geprüft)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - icon.svg (app icon)
+     * - manifest (PWA manifest)
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|icon.svg|manifest).*)',
   ]
 }
