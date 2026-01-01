@@ -65,10 +65,14 @@ export default function KundenPage() {
     setDialogOpen(true)
   }
 
-  const handleDialogClose = (updated: boolean) => {
+  const handleDialogClose = (updated: boolean, wasImport?: boolean) => {
     setDialogOpen(false)
     setSelectedKunde(undefined)
     if (updated) {
+      // Bei KI-Import: Filter auf "inaktiv" setzen, damit neue Kunden sichtbar sind
+      if (wasImport) {
+        setFilterStatus('inaktiv')
+      }
       loadKunden()
     }
   }

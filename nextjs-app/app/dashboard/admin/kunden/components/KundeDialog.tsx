@@ -10,14 +10,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from '@/components/ui/switch'
 import { Kunde } from '@/lib/db/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { toast } from 'sonner'
+import { CustomerImportModeSelector, AiCustomerImportWizard, type CustomerDialogMode } from '@/features/customer-import'
 
 interface KundeDialogProps {
   open: boolean
   kunde?: Kunde
-  onClose: (updated: boolean) => void
+  onClose: (updated: boolean, wasImport?: boolean) => void
 }
 
 export default function KundeDialog({ open, kunde, onClose }: KundeDialogProps) {
+  // Modus: Manuell oder KI-Import
+  const [mode, setMode] = useState<CustomerDialogMode>('manual')
+  
   const [formData, setFormData] = useState<Partial<Kunde>>({
     kundennummer: '',
     firma: '',
@@ -50,9 +55,11 @@ export default function KundeDialog({ open, kunde, onClose }: KundeDialogProps) 
 
   useEffect(() => {
     if (kunde) {
+      // Beim Bearbeiten: immer manueller Modus
+      setMode('manual')
       setFormData(kunde)
     } else {
-      // Kundennummer wird vom Backend automatisch generiert
+      // Neuer Kunde: Modus beibehalten, Formular zurücksetzen
       setFormData({
         kundennummer: 'Wird automatisch generiert',
         firma: '',
@@ -80,6 +87,11 @@ export default function KundeDialog({ open, kunde, onClose }: KundeDialogProps) 
         notizen: '',
         aktiv: true
       })
+    }
+    
+    // Modus zurücksetzen wenn Dialog geschlossen wird
+    if (!open) {
+      setMode('manual')
     }
   }, [kunde, open])
 
@@ -138,13 +150,30 @@ export default function KundeDialog({ open, kunde, onClose }: KundeDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={() => onClose(false)}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{kunde ? 'Kunde bearbeiten' : 'Neuer Kunde'}</DialogTitle>
-          <DialogDescription>Kundendaten erfassen und verwalten</DialogDescription>
-        </DialogHeader>
+      <DialogContent 
+        className="w-[95vw] !max-w-[95vw] max-h-[90vh] overflow-y-auto p-0"
+        style={{ maxWidth: '95vw', width: '95vw' }}
+      >
+        <div className="p-6 pb-0">
+          <DialogHeader>
+            <DialogTitle>{kunde ? 'Kunde bearbeiten' : 'Neuer Kunde'}</DialogTitle>
+            <DialogDescription>Kundendaten erfassen und verwalten</DialogDescription>
+          </DialogHeader>
 
-        <Tabs defaultValue="allgemein" className="w-full">
+          {/* Modus-Auswahl nur bei neuem Kunden */}
+          {!kunde && (
+            <CustomerImportModeSelector 
+              mode={mode}
+              onChange={setMode}
+            />
+          )}
+        </div>
+
+        {/* Bedingtes Rendering: Manuell ODER KI */}
+        <div className={mode === 'ai' ? '' : 'px-6'}>
+          {mode === 'manual' ? (
+            // Manuelles Formular
+            <Tabs defaultValue="allgemein" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="allgemein">Allgemein</TabsTrigger>
             <TabsTrigger value="kontakt">Ansprechpartner</TabsTrigger>
@@ -376,15 +405,31 @@ export default function KundeDialog({ open, kunde, onClose }: KundeDialogProps) 
             </div>
           </TabsContent>
         </Tabs>
+          ) : (
+            // KI-Import Wizard
+            <AiCustomerImportWizard
+              onImportComplete={(importedCount) => {
+                toast.success(`${importedCount} Kunden erfolgreich importiert! Der Filter wird automatisch auf "Inaktiv" gesetzt.`, {
+                  duration: 5000
+                })
+                onClose(true, true) // wasImport = true
+              }}
+              onCancel={() => setMode('manual')}
+            />
+          )}
+        </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onClose(false)}>
-            Abbrechen
-          </Button>
-          <Button onClick={handleSubmit} disabled={saving}>
-            {saving ? 'Speichern...' : 'Speichern'}
-          </Button>
-        </DialogFooter>
+        {/* Footer nur im manuellen Modus */}
+        {mode === 'manual' && (
+          <DialogFooter className="px-6 pb-6 pt-4">
+            <Button variant="outline" onClick={() => onClose(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleSubmit} disabled={saving}>
+              {saving ? 'Speichern...' : 'Speichern'}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   )

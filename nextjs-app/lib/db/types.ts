@@ -429,6 +429,13 @@ export interface Kunde {
   aktiv: boolean
   erstelltAm: Date
   zuletztGeaendert: Date
+  // Import-Quelle (für KI-Import)
+  source?: 'manual' | 'ai_import'
+  sourceMeta?: {
+    jobId?: string
+    externalId?: string // z.B. place_id von Google Maps
+    importedAt?: Date
+  }
 }
 
 // Kunden-Notiz für Timeline
