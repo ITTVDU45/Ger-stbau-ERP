@@ -102,17 +102,15 @@ export function MobileDashboardLayout({
 
       {/* Desktop Layout mit Sidebar */}
       <SidebarProvider defaultOpen={sidebarDefaultOpen}>
-        <div className="flex min-h-screen overflow-hidden" suppressHydrationWarning>
+        <div className="flex min-h-screen w-full" suppressHydrationWarning>
           {/* Desktop Sidebar */}
-          <div className="hidden md:block">
+          <div className="hidden md:block shrink-0">
             <AppSidebar user={user} />
           </div>
           
           {/* Main Content */}
-          <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6 bg-gray-50 md:pt-6 pt-[72px]">
-            <div className="max-w-[1600px] mx-auto">
-              {children}
-            </div>
+          <main className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-gray-50 md:pt-6 pt-[72px]">
+            {children}
           </main>
         </div>
       </SidebarProvider>

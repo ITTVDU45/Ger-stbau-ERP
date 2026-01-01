@@ -1,0 +1,5 @@
+Bitte speichern Sie das A Plus Gerüstbau Logo manuell als:
+- public/aplus-logo.png (für hellen Hintergrund)
+- public/aplus-logo-white.png (für dunklen Hintergrund, falls verfügbar)
+
+Das Logo sollte das blaue Gerüst-Icon mit "A PLUS" Text und "Gerüstbau GmbH - Das Plus am Bau" Untertitel sein.

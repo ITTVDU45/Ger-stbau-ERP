@@ -89,21 +89,17 @@ export default function LoginPage() {
               </div>
             ) : (
               <>
-                {companyLogo ? (
-                  <div className="mb-4 flex justify-center">
-                    <div className="relative w-full h-20 max-w-[280px]">
-                      <Image 
-                        src={companyLogo} 
-                        alt={`${companyName} Logo`}
-                        fill
-                        className="object-contain"
-                        priority
-                      />
-                    </div>
+                <div className="mb-4 flex justify-center">
+                  <div className="relative w-full h-24 max-w-[320px]">
+                    <Image 
+                      src={companyLogo || '/aplus-logo.png'} 
+                      alt={`${companyName} Logo`}
+                      fill
+                      className="object-contain"
+                      priority
+                    />
                   </div>
-                ) : (
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">{companyName}</h1>
-                )}
+                </div>
                 <p className="text-gray-600 text-sm">Management System</p>
               </>
             )}
