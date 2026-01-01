@@ -436,6 +436,20 @@ export interface Kunde {
     externalId?: string // z.B. place_id von Google Maps
     importedAt?: Date
   }
+  // KI-Website-Analyse (bei AI-Import)
+  websiteAnalyse?: {
+    beschreibung?: string
+    dienstleistungen?: string[]
+    extractedEmails?: string[]
+    extractedPhones?: string[]
+    ansprechpartner?: Array<{
+      vorname?: string
+      nachname?: string
+      position?: string
+      email?: string
+      telefon?: string
+    }>
+  }
 }
 
 // Kunden-Notiz für Timeline

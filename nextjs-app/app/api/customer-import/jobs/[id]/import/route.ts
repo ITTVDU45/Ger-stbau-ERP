@@ -105,7 +105,9 @@ export async function POST(
           sourceMeta: {
             jobId: id,
             externalId: result.externalId
-          }
+          },
+          // KI-Website-Analyse-Daten speichern
+          websiteAnalyse: result.websiteAnalyse
         }
 
         const insertResult = await kundenCollection.insertOne(newKunde as any)

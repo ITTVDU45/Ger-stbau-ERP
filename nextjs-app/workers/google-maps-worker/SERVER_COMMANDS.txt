@@ -1,0 +1,136 @@
+═══════════════════════════════════════════════════════════════
+  QUICK REFERENCE: Server Commands für Worker Setup
+═══════════════════════════════════════════════════════════════
+
+🔧 INITIAL SETUP (auf Server ausführen):
+───────────────────────────────────────────────────────────────
+
+# 1. Verzeichnis erstellen
+sudo mkdir -p /opt/customer-import-worker
+sudo chown $USER:$USER /opt/customer-import-worker
+cd /opt/customer-import-worker
+
+# 2. Quick Setup ausführen (nach Datei-Upload via SCP)
+chmod +x quick-setup.sh
+./quick-setup.sh
+
+───────────────────────────────────────────────────────────────
+
+📊 MONITORING:
+───────────────────────────────────────────────────────────────
+
+# Container Status
+docker-compose ps
+
+# Live Logs
+docker-compose logs -f worker-api
+
+# Letzte 100 Zeilen
+docker-compose logs --tail=100 worker-api
+
+# Ressourcen-Nutzung
+docker stats
+
+# Health Check
+curl http://localhost:8000/health
+
+───────────────────────────────────────────────────────────────
+
+🔄 CONTAINER MANAGEMENT:
+───────────────────────────────────────────────────────────────
+
+# Starten
+docker-compose up -d
+
+# Stoppen
+docker-compose down
+
+# Neustart
+docker-compose restart
+
+# Neu bauen + Starten
+docker-compose up -d --build
+
+# Logs löschen
+docker-compose down -v
+
+───────────────────────────────────────────────────────────────
+
+🔥 FIREWALL (falls nötig):
+───────────────────────────────────────────────────────────────
+
+# Port 8000 öffnen
+sudo ufw allow 8000/tcp
+
+# Firewall Status
+sudo ufw status
+
+───────────────────────────────────────────────────────────────
+
+🐛 TROUBLESHOOTING:
+───────────────────────────────────────────────────────────────
+
+# Container läuft nicht?
+docker-compose ps
+docker-compose logs worker-api
+docker-compose restart
+
+# MongoDB Connection Error?
+docker-compose exec worker-api python -c "from pymongo import MongoClient; print('OK')"
+
+# Port belegt?
+sudo lsof -i :8000
+
+# Container aufräumen
+docker system prune -a -f
+
+───────────────────────────────────────────────────────────────
+
+📝 ENV VARIABLES (.env Datei):
+───────────────────────────────────────────────────────────────
+
+MONGODB_URI=mongodb://GeruestbauAPLUS_db_user:spUVToPfcNNrGaEb@ac-o0nij6p-shard-00-01.0vn5roj.mongodb.net:27017,ac-o0nij6p-shard-00-02.0vn5roj.mongodb.net:27017,ac-o0nij6p-shard-00-00.0vn5roj.mongodb.net:27017/geruestbau_erp?ssl=true&authSource=admin&retryWrites=true&w=majority
+MONGODB_DB=geruestbau_erp
+GOOGLE_MAPS_API_KEY=AIzaSyA_1c2x50fbRkDFoOblzZS1vWMhxfB7hRQ
+PORT=8000
+ENVIRONMENT=production
+
+───────────────────────────────────────────────────────────────
+
+🌐 NGINX SETUP (optional, für HTTPS):
+───────────────────────────────────────────────────────────────
+
+# Installieren
+sudo apt install nginx certbot python3-certbot-nginx -y
+
+# Config erstellen
+sudo nano /etc/nginx/sites-available/worker
+
+# Inhalt (siehe README_PRODUCTION.md)
+
+# Aktivieren
+sudo ln -s /etc/nginx/sites-available/worker /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+
+# SSL
+sudo certbot --nginx -d worker.aplus-geruestbau.de
+
+───────────────────────────────────────────────────────────────
+
+✅ ERFOLGS-CHECK:
+───────────────────────────────────────────────────────────────
+
+curl http://localhost:8000/health
+
+Erwartete Antwort:
+{
+  "status": "healthy",
+  "mongodb_connected": true,
+  "google_maps_configured": true
+}
+
+Wenn Sie das sehen → ERFOLG! ✅
+
+═══════════════════════════════════════════════════════════════
+
