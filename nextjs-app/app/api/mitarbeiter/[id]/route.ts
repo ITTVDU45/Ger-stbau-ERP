@@ -109,8 +109,54 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
+    const { searchParams } = new URL(request.url)
+    const force = searchParams.get('force') === 'true'
+    
     const db = await getDatabase()
     const mitarbeiterCollection = db.collection<Mitarbeiter>('mitarbeiter')
+    
+    // Prüfen ob Mitarbeiter verknüpfte Daten hat
+    const zeiteintraege = await db.collection('zeiterfassung').countDocuments({ mitarbeiterId: id })
+    const projekte = await db.collection('projekte').countDocuments({ 'team.mitarbeiterId': id })
+    const urlaube = await db.collection('urlaube').countDocuments({ mitarbeiterId: id })
+    const dokumente = await db.collection('dokumente').countDocuments({ mitarbeiterId: id })
+    
+    const hasRelatedData = zeiteintraege > 0 || projekte > 0 || urlaube > 0
+    
+    if (hasRelatedData && !force) {
+      return NextResponse.json(
+        { 
+          erfolg: false, 
+          fehler: 'Mitarbeiter hat zugeordnete Zeiteinträge, Projekte oder Urlaube und kann nicht gelöscht werden.',
+          hasRelatedData: true,
+          relatedData: {
+            zeiteintraege,
+            projekte,
+            urlaube,
+            dokumente
+          }
+        },
+        { status: 400 }
+      )
+    }
+    
+    // Wenn force=true, alle zugehörigen Daten löschen
+    if (force && hasRelatedData) {
+      await db.collection('zeiterfassung').deleteMany({ mitarbeiterId: id })
+      await db.collection('projekte').updateMany(
+        { 'team.mitarbeiterId': id },
+        { $pull: { team: { mitarbeiterId: id } } }
+      )
+      await db.collection('urlaube').deleteMany({ mitarbeiterId: id })
+      await db.collection('dokumente').deleteMany({ mitarbeiterId: id })
+      
+      console.log(`Force-Delete: Gelöscht für Mitarbeiter ${id}:`, {
+        zeiteintraege,
+        projekte,
+        urlaube,
+        dokumente
+      })
+    }
     
     const result = await mitarbeiterCollection.deleteOne({ 
       _id: new ObjectId(id) 
@@ -125,7 +171,7 @@ export async function DELETE(
     
     return NextResponse.json({ 
       erfolg: true,
-      message: 'Mitarbeiter erfolgreich gelöscht'
+      message: force ? 'Mitarbeiter und alle zugehörigen Daten erfolgreich gelöscht' : 'Mitarbeiter erfolgreich gelöscht'
     })
   } catch (error) {
     console.error('Fehler beim Löschen des Mitarbeiters:', error)

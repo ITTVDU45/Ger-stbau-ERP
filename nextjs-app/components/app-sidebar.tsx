@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import Link from "next/link"
-import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import {
   LogOut,
@@ -223,13 +222,12 @@ export function AppSidebar({
       <SidebarHeader className="p-4">
         <div className="flex items-center justify-center">
           <Link href="/dashboard/admin/uebersicht" className="block w-full">
-            <div className="relative w-full h-16">
-              <Image 
-                src="/aplus-logo.png" 
+            <div className="w-full">
+              <img 
+                src="/Aplus.png" 
                 alt="A Plus Gerüstbau Logo"
-                fill
-                className="object-contain"
-                priority
+                className="w-full h-auto object-contain"
+                style={{ maxHeight: '64px' }}
               />
             </div>
           </Link>

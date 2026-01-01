@@ -111,19 +111,56 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
+    const { searchParams } = new URL(request.url)
+    const force = searchParams.get('force') === 'true'
+    
     const db = await getDatabase()
     const kundenCollection = db.collection<Kunde>('kunden')
     
-    // Prüfen ob Kunde Projekte/Rechnungen/Angebote hat
+    // Prüfen ob Kunde Projekte/Rechnungen/Angebote/Anfragen hat
     const projekte = await db.collection('projekte').countDocuments({ kundeId: id })
     const rechnungen = await db.collection('rechnungen').countDocuments({ kundeId: id })
     const angebote = await db.collection('angebote').countDocuments({ kundeId: id })
+    const anfragen = await db.collection('anfragen').countDocuments({ kundeId: id })
+    const notizen = await db.collection('notizen').countDocuments({ kundeId: id })
     
-    if (projekte > 0 || rechnungen > 0 || angebote > 0) {
+    const hasRelatedData = projekte > 0 || rechnungen > 0 || angebote > 0 || anfragen > 0
+    
+    if (hasRelatedData && !force) {
       return NextResponse.json(
-        { erfolg: false, fehler: 'Kunde hat zugeordnete Projekte, Angebote oder Rechnungen und kann nicht gelöscht werden. Bitte deaktivieren Sie den Kunden stattdessen.' },
+        { 
+          erfolg: false, 
+          fehler: 'Kunde hat zugeordnete Projekte, Angebote oder Rechnungen und kann nicht gelöscht werden.',
+          hasRelatedData: true,
+          relatedData: {
+            projekte,
+            rechnungen,
+            angebote,
+            anfragen,
+            notizen
+          }
+        },
         { status: 400 }
       )
+    }
+    
+    // Wenn force=true, alle zugehörigen Daten löschen
+    if (force && hasRelatedData) {
+      // Lösche alle zugehörigen Daten
+      await db.collection('projekte').deleteMany({ kundeId: id })
+      await db.collection('rechnungen').deleteMany({ kundeId: id })
+      await db.collection('angebote').deleteMany({ kundeId: id })
+      await db.collection('anfragen').deleteMany({ kundeId: id })
+      await db.collection('notizen').deleteMany({ kundeId: id })
+      await db.collection('dokumente').deleteMany({ kundeId: id })
+      
+      console.log(`Force-Delete: Gelöscht für Kunde ${id}:`, {
+        projekte,
+        rechnungen,
+        angebote,
+        anfragen,
+        notizen
+      })
     }
     
     const result = await kundenCollection.deleteOne({ 
@@ -139,7 +176,7 @@ export async function DELETE(
     
     return NextResponse.json({ 
       erfolg: true,
-      message: 'Kunde erfolgreich gelöscht'
+      message: force ? 'Kunde und alle zugehörigen Daten erfolgreich gelöscht' : 'Kunde erfolgreich gelöscht'
     })
   } catch (error) {
     console.error('Fehler beim Löschen des Kunden:', error)

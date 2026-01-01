@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { Loader2, LogIn } from 'lucide-react'
-import Image from 'next/image'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -90,13 +89,12 @@ export default function LoginPage() {
             ) : (
               <>
                 <div className="mb-4 flex justify-center">
-                  <div className="relative w-full h-24 max-w-[320px]">
-                    <Image 
-                      src={companyLogo || '/aplus-logo.png'} 
+                  <div className="w-full max-w-[320px]">
+                    <img 
+                      src={companyLogo || '/Aplus.png'} 
                       alt={`${companyName} Logo`}
-                      fill
-                      className="object-contain"
-                      priority
+                      className="w-full h-auto object-contain"
+                      style={{ maxHeight: '96px' }}
                     />
                   </div>
                 </div>

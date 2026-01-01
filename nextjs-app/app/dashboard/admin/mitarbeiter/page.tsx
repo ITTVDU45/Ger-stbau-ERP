@@ -11,8 +11,19 @@ import {
   Filter,
   Users,
   Calendar,
-  TrendingUp
+  TrendingUp,
+  AlertTriangle
 } from 'lucide-react'
+import { toast } from 'sonner'
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { FloatingActionButton } from '@/components/mobile/FloatingActionButton'
 import { Mitarbeiter } from '@/lib/db/types'
 import MitarbeiterTabelle from './components/MitarbeiterTabelle'
@@ -26,6 +37,12 @@ export default function MitarbeiterPage() {
   const [selectedMitarbeiter, setSelectedMitarbeiter] = useState<Mitarbeiter | undefined>(undefined)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<'alle' | 'aktiv' | 'inaktiv'>('aktiv')
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [mitarbeiterToDelete, setMitarbeiterToDelete] = useState<{ id: string, name: string } | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [showForceDeleteConfirm, setShowForceDeleteConfirm] = useState(false)
+  const [forceDeleteConfirmText, setForceDeleteConfirmText] = useState('')
+  const [relatedData, setRelatedData] = useState<{ zeiteintraege: number, projekte: number, urlaube: number, dokumente: number } | null>(null)
 
   useEffect(() => {
     loadMitarbeiter()
@@ -64,20 +81,74 @@ export default function MitarbeiterPage() {
     }
   }
 
-  const handleLoeschen = async (id: string) => {
-    if (!confirm('Möchten Sie diesen Mitarbeiter wirklich löschen?')) return
+  const handleLoeschen = (id: string) => {
+    const mitarbeiterData = mitarbeiter.find(m => m._id === id)
+    if (mitarbeiterData) {
+      setMitarbeiterToDelete({
+        id,
+        name: `${mitarbeiterData.vorname} ${mitarbeiterData.nachname}`
+      })
+      setDeleteError(null)
+      setShowForceDeleteConfirm(false)
+      setForceDeleteConfirmText('')
+      setRelatedData(null)
+      setDeleteDialogOpen(true)
+    }
+  }
+
+  const confirmLoeschen = async (force: boolean = false) => {
+    if (!mitarbeiterToDelete) return
     
     try {
-      const response = await fetch(`/api/mitarbeiter/${id}`, {
+      const url = force 
+        ? `/api/mitarbeiter/${mitarbeiterToDelete.id}?force=true`
+        : `/api/mitarbeiter/${mitarbeiterToDelete.id}`
+        
+      const response = await fetch(url, {
         method: 'DELETE'
       })
       
+      const data = await response.json()
+      
       if (response.ok) {
+        toast.success(data.message || 'Mitarbeiter erfolgreich gelöscht')
         loadMitarbeiter()
+        setDeleteDialogOpen(false)
+        setMitarbeiterToDelete(null)
+        setDeleteError(null)
+        setShowForceDeleteConfirm(false)
+        setForceDeleteConfirmText('')
+        setRelatedData(null)
+      } else {
+        if (data.hasRelatedData && data.relatedData) {
+          setDeleteError(data.fehler || 'Mitarbeiter hat zugeordnete Daten')
+          setRelatedData(data.relatedData)
+          setShowForceDeleteConfirm(true)
+          setForceDeleteConfirmText('')
+        } else {
+          setDeleteError(data.fehler || 'Fehler beim Löschen des Mitarbeiters')
+          setRelatedData(null)
+        }
       }
     } catch (error) {
       console.error('Fehler beim Löschen:', error)
+      setDeleteError('Ein unerwarteter Fehler ist aufgetreten')
+      setRelatedData(null)
     }
+  }
+
+  const handleForceDeleteClick = () => {
+    setShowForceDeleteConfirm(true)
+    setDeleteError(null)
+  }
+
+  const handleForceDeleteConfirm = async () => {
+    if (forceDeleteConfirmText !== 'LÖSCHEN') {
+      toast.error('Bitte geben Sie "LÖSCHEN" ein, um fortzufahren')
+      return
+    }
+    
+    await confirmLoeschen(true)
   }
 
   const filteredMitarbeiter = mitarbeiter.filter(m => {
@@ -224,6 +295,158 @@ export default function MitarbeiterPage() {
         mitarbeiter={selectedMitarbeiter}
         onClose={handleDialogClose}
       />
+
+      {/* Lösch-Bestätigungsdialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => {
+        setDeleteDialogOpen(open)
+        if (!open) {
+          setDeleteError(null)
+          setMitarbeiterToDelete(null)
+          setShowForceDeleteConfirm(false)
+          setForceDeleteConfirmText('')
+          setRelatedData(null)
+        }
+      }}>
+        <AlertDialogContent className="max-w-2xl">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <AlertDialogTitle className="text-xl">
+                {showForceDeleteConfirm 
+                  ? 'Bestätigung erforderlich' 
+                  : 'Mitarbeiter löschen'}
+              </AlertDialogTitle>
+            </div>
+          </AlertDialogHeader>
+          
+          <div className="space-y-4 pt-2">
+          <AlertDialogDescription className="text-sm text-gray-600">
+            Möchten Sie diesen Mitarbeiter wirklich löschen?
+          </AlertDialogDescription>
+            {showForceDeleteConfirm && relatedData ? (
+              <>
+                <AlertDialogDescription className="text-base">
+                  Sie sind dabei, den Mitarbeiter <strong className="text-gray-900">{mitarbeiterToDelete?.name}</strong> und ALLE zugehörigen Daten unwiderruflich zu löschen!
+                </AlertDialogDescription>
+                
+                <div className="bg-red-50 border-2 border-red-300 rounded-md p-4 space-y-3">
+                  <p className="text-sm text-red-900 font-bold text-center">🚨 ACHTUNG: KRITISCHE AKTION 🚨</p>
+                  
+                  <div className="bg-white rounded p-3 space-y-1">
+                    <p className="text-sm text-red-900 font-semibold mb-2">Folgende Daten werden UNWIDERRUFLICH gelöscht:</p>
+                    <ul className="text-sm text-red-800 space-y-1">
+                      {relatedData.zeiteintraege > 0 && <li>✗ {relatedData.zeiteintraege} Zeiteintrag/-einträge</li>}
+                      {relatedData.projekte > 0 && <li>✗ {relatedData.projekte} Projektzuordnung(en)</li>}
+                      {relatedData.urlaube > 0 && <li>✗ {relatedData.urlaube} Urlaub(e)</li>}
+                      {relatedData.dokumente > 0 && <li>✗ {relatedData.dokumente} Dokument(e)</li>}
+                    </ul>
+                  </div>
+                  
+                  <div className="space-y-2 mt-4">
+                    <p className="text-sm text-red-900 font-medium">
+                      Geben Sie zur Bestätigung das Wort <strong className="text-red-600">"LÖSCHEN"</strong> ein:
+                    </p>
+                    <Input
+                      value={forceDeleteConfirmText}
+                      onChange={(e) => setForceDeleteConfirmText(e.target.value.toUpperCase())}
+                      placeholder="LÖSCHEN"
+                      className="text-center font-bold text-lg border-red-300 focus:border-red-500"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : deleteError && relatedData ? (
+              <>
+                <AlertDialogDescription className="text-base">
+                  Der Mitarbeiter <strong className="text-gray-900">{mitarbeiterToDelete?.name}</strong> hat zugeordnete Daten.
+                </AlertDialogDescription>
+                
+                <div className="bg-amber-50 border border-amber-300 rounded-md p-3 space-y-2">
+                  <p className="text-sm text-amber-900 font-medium">📊 Zugeordnete Daten:</p>
+                  <ul className="text-sm text-amber-800 space-y-1">
+                    {relatedData.zeiteintraege > 0 && <li>• {relatedData.zeiteintraege} Zeiteintrag/-einträge</li>}
+                    {relatedData.projekte > 0 && <li>• {relatedData.projekte} Projektzuordnung(en)</li>}
+                    {relatedData.urlaube > 0 && <li>• {relatedData.urlaube} Urlaub(e)</li>}
+                    {relatedData.dokumente > 0 && <li>• {relatedData.dokumente} Dokument(e)</li>}
+                  </ul>
+                </div>
+                
+                <div className="bg-red-50 border border-red-200 rounded-md p-3 space-y-2">
+                  <p className="text-sm text-red-900 font-medium">⚠️ Hinweis:</p>
+                  <p className="text-sm text-red-800">
+                    Sie können den Mitarbeiter trotzdem löschen. Dabei werden ALLE zugehörigen Daten 
+                    (Zeiterfassung, Urlaube, Dokumente, etc.) unwiderruflich gelöscht!
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <AlertDialogDescription className="text-base">
+                  Möchten Sie den Mitarbeiter <strong className="text-gray-900">{mitarbeiterToDelete?.name}</strong> wirklich dauerhaft löschen?
+                </AlertDialogDescription>
+                
+                <div className="bg-amber-50 border border-amber-200 rounded-md p-3 space-y-2">
+                  <p className="text-sm text-amber-900 font-medium">⚠️ Wichtige Hinweise:</p>
+                  <ul className="text-sm text-amber-800 space-y-1 ml-4 list-disc">
+                    <li>Diese Aktion kann nicht rückgängig gemacht werden</li>
+                    <li>Falls der Mitarbeiter Zeiteinträge, Projekte oder Urlaube hat, wird eine zusätzliche Bestätigung erforderlich sein</li>
+                  </ul>
+                </div>
+              </>
+            )}
+          </div>
+          
+          <AlertDialogFooter>
+            {showForceDeleteConfirm ? (
+              <>
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setShowForceDeleteConfirm(false)
+                    setForceDeleteConfirmText('')
+                  }}
+                >
+                  Zurück
+                </Button>
+                <Button 
+                  onClick={handleForceDeleteConfirm}
+                  disabled={forceDeleteConfirmText !== 'LÖSCHEN'}
+                  className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Alles unwiderruflich löschen
+                </Button>
+              </>
+            ) : deleteError && relatedData ? (
+              <>
+                <AlertDialogCancel className="bg-white hover:bg-gray-50">
+                  Abbrechen
+                </AlertDialogCancel>
+                <Button 
+                  onClick={handleForceDeleteClick}
+                  variant="destructive"
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  Trotzdem löschen
+                </Button>
+              </>
+            ) : (
+              <>
+                <AlertDialogCancel className="bg-white hover:bg-gray-50">
+                  Abbrechen
+                </AlertDialogCancel>
+                <Button 
+                  onClick={() => confirmLoeschen(false)}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  Löschen
+                </Button>
+              </>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
