@@ -16,3 +16,8 @@ lxml==5.1.0
 # Optional: More advanced scraping
 # scrapy==2.11.0
 
+# FastAPI & API Server
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+

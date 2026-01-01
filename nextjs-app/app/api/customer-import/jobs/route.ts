@@ -62,27 +62,35 @@ export async function POST(request: NextRequest) {
       console.log('✅ Job-Speicherung verifiziert')
     }
 
-    // Python Worker im Hintergrund starten
+    // Python Worker API über HTTP aufrufen (läuft auf separatem Server)
     try {
-      console.log(`🚀 Starte Python Worker für Job ${jobId}...`)
-      const { spawn } = require('child_process')
-      const path = require('path')
+      const workerApiUrl = process.env.WORKER_API_URL || 'http://localhost:8000'
+      console.log(`🚀 Rufe Worker API auf: ${workerApiUrl}/process-job`)
       
-      const workerDir = path.join(process.cwd(), 'workers', 'google-maps-worker')
-      const pythonPath = path.join(workerDir, 'venv', 'bin', 'python3')
-      const workerScript = path.join(workerDir, 'worker.py')
-      
-      // Starte Worker als detached process
-      const worker = spawn(pythonPath, [workerScript, jobId], {
-        detached: true,
-        stdio: ['ignore', 'inherit', 'inherit'],
-        cwd: workerDir
+      // Trigger Worker API (Fire-and-Forget)
+      fetch(`${workerApiUrl}/process-job`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jobId: jobId,
+          mongoUri: process.env.MONGODB_URI || process.env.MONGO_URI || '',
+          googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || ''
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log(`✅ Worker API Response:`, data)
+      })
+      .catch(error => {
+        console.error(`⚠️ Worker API Error:`, error.message)
+        // Job bleibt in 'queued' Status - kann später manuell verarbeitet werden
       })
       
-      worker.unref()
-      console.log(`✅ Python Worker gestartet für Job ${jobId}`)
+      console.log(`✅ Worker API Request gesendet für Job ${jobId}`)
     } catch (workerError: any) {
-      console.error(`⚠️ Fehler beim Starten des Python Workers:`, workerError.message)
+      console.error(`⚠️ Fehler beim Aufruf der Worker API:`, workerError.message)
       // Job bleibt in 'queued' Status
     }
 

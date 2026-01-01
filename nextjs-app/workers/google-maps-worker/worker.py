@@ -335,16 +335,34 @@ class GoogleMapsWorker:
         
         return None
 
+def process_job_sync(job_id: str):
+    """
+    Synchrone Funktion zum Verarbeiten eines Jobs
+    Wird von der FastAPI aufgerufen
+    """
+    logger.info(f"🚀 Starting worker for job {job_id}")
+    
+    try:
+        worker = GoogleMapsWorker()
+        worker.process_job(job_id)
+        logger.info(f"✅ Worker completed for job {job_id}")
+    except Exception as e:
+        logger.error(f"❌ Worker failed for job {job_id}: {str(e)}")
+        raise
+
 def main():
-    """Main entry point"""
+    """Main entry point for command-line execution"""
     if len(sys.argv) < 2:
         logger.error("Usage: python worker.py <job_id>")
         sys.exit(1)
     
     job_id = sys.argv[1]
     
-    worker = GoogleMapsWorker()
-    worker.process_job(job_id)
+    try:
+        process_job_sync(job_id)
+    except Exception as e:
+        logger.error(f"Error: {str(e)}")
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()
