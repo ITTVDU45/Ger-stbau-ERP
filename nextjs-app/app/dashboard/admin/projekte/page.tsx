@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Search, Briefcase, TrendingUp, Clock, CheckCircle, Calendar } from 'lucide-react'
+import { Plus, Search, Briefcase, TrendingUp, Clock, CheckCircle, Calendar, AlertTriangle } from 'lucide-react'
 import { FloatingActionButton } from '@/components/mobile/FloatingActionButton'
 import { Projekt } from '@/lib/db/types'
 import ProjektTabelle from './components/ProjektTabelle'
@@ -17,6 +17,16 @@ import { format, startOfWeek, endOfWeek, startOfDay, endOfDay, startOfMonth, end
 import { de } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import { Calendar as CalendarComponent } from '@/components/ui/calendar'
+import { toast } from 'sonner'
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function ProjektePage() {
   const [projekte, setProjekte] = useState<Projekt[]>([])
@@ -28,6 +38,12 @@ export default function ProjektePage() {
   const [filterTyp, setFilterTyp] = useState<'alle' | 'dachdecker' | 'maler' | 'bauunternehmen'>('alle')
   const [filterZeitraum, setFilterZeitraum] = useState<'alle' | 'woche' | 'tag' | 'monat' | 'benutzerdefiniert'>('alle')
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({ from: undefined, to: undefined })
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [projektToDelete, setProjektToDelete] = useState<{ id: string, name: string } | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [showForceDeleteConfirm, setShowForceDeleteConfirm] = useState(false)
+  const [forceDeleteConfirmText, setForceDeleteConfirmText] = useState('')
+  const [relatedData, setRelatedData] = useState<{ rechnungen: number, dokumente: number, mitarbeiter: number, zeiterfassungen: number } | null>(null)
 
   useEffect(() => {
     loadProjekte()
@@ -66,20 +82,70 @@ export default function ProjektePage() {
     }
   }
 
-  const handleLoeschen = async (id: string) => {
-    if (!confirm('Möchten Sie dieses Projekt wirklich löschen?')) return
+  const handleLoeschen = (id: string) => {
+    const projektData = projekte.find(p => p._id === id)
+    
+    if (projektData) {
+      setProjektToDelete({
+        id,
+        name: projektData.projektname || projektData.projektnummer || 'Unbenanntes Projekt'
+      })
+      setDeleteError(null)
+      setShowForceDeleteConfirm(false)
+      setForceDeleteConfirmText('')
+      setRelatedData(null)
+      setDeleteDialogOpen(true)
+    }
+  }
+
+  const confirmLoeschen = async (force: boolean = false) => {
+    if (!projektToDelete) return
     
     try {
-      const response = await fetch(`/api/projekte/${id}`, {
+      const url = force 
+        ? `/api/projekte/${projektToDelete.id}?force=true`
+        : `/api/projekte/${projektToDelete.id}`
+        
+      const response = await fetch(url, {
         method: 'DELETE'
       })
       
+      const data = await response.json()
+      
       if (response.ok) {
+        toast.success(data.message || 'Projekt erfolgreich gelöscht')
         loadProjekte()
+        setDeleteDialogOpen(false)
+        setProjektToDelete(null)
+        setDeleteError(null)
+        setShowForceDeleteConfirm(false)
+        setForceDeleteConfirmText('')
+        setRelatedData(null)
+      } else {
+        if (data.hasRelatedData && data.relatedData) {
+          setDeleteError(data.fehler || 'Projekt hat zugeordnete Daten')
+          setRelatedData(data.relatedData)
+          setShowForceDeleteConfirm(true)
+          setForceDeleteConfirmText('')
+        } else {
+          setDeleteError(data.fehler || 'Fehler beim Löschen des Projekts')
+          setRelatedData(null)
+        }
       }
     } catch (error) {
       console.error('Fehler beim Löschen:', error)
+      setDeleteError('Ein unerwarteter Fehler ist aufgetreten')
+      setRelatedData(null)
     }
+  }
+
+  const handleForceDeleteConfirm = async () => {
+    if (forceDeleteConfirmText !== 'LÖSCHEN') {
+      toast.error('Bitte geben Sie "LÖSCHEN" ein, um fortzufahren')
+      return
+    }
+    
+    await confirmLoeschen(true)
   }
 
   const getZeitraumRange = () => {
@@ -322,6 +388,141 @@ export default function ProjektePage() {
         projekt={selectedProjekt}
         onClose={handleDialogClose}
       />
+
+      {/* Lösch-Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="bg-white max-w-lg">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-red-100 rounded-full">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <div>
+                <AlertDialogTitle className="text-xl text-gray-900">
+                  Projekt löschen?
+                </AlertDialogTitle>
+              </div>
+            </div>
+            <AlertDialogDescription asChild>
+              <div className="text-gray-700 space-y-3 pt-2">
+                {!showForceDeleteConfirm && !deleteError && (
+                  <>
+                    <div>
+                      Möchten Sie das Projekt <span className="font-semibold text-gray-900">{projektToDelete?.name}</span> wirklich löschen?
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      Diese Aktion kann nicht rückgängig gemacht werden.
+                    </div>
+                  </>
+                )}
+
+                {deleteError && !showForceDeleteConfirm && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="text-red-800 font-medium mb-2">{deleteError}</div>
+                    {relatedData && (
+                      <div className="space-y-2 text-sm text-red-700">
+                        <div className="font-medium">Folgende Daten sind mit diesem Projekt verknüpft:</div>
+                        <ul className="list-disc list-inside space-y-1 ml-2">
+                          {relatedData.rechnungen > 0 && (
+                            <li>{relatedData.rechnungen} Rechnung{relatedData.rechnungen !== 1 ? 'en' : ''}</li>
+                          )}
+                          {relatedData.dokumente > 0 && (
+                            <li>{relatedData.dokumente} Dokument{relatedData.dokumente !== 1 ? 'e' : ''}</li>
+                          )}
+                          {relatedData.mitarbeiter > 0 && (
+                            <li>{relatedData.mitarbeiter} zugewiesene{relatedData.mitarbeiter !== 1 ? '' : 'r'} Mitarbeiter</li>
+                          )}
+                          {relatedData.zeiterfassungen > 0 && (
+                            <li>{relatedData.zeiterfassungen} Zeiterfassung{relatedData.zeiterfassungen !== 1 ? 'en' : ''}</li>
+                          )}
+                        </ul>
+                        <div className="mt-3 p-3 bg-red-100 rounded border border-red-300">
+                          <div className="font-semibold text-red-900">Trotzdem löschen?</div>
+                          <div className="text-xs mt-1">Alle verknüpften Daten werden ebenfalls gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {showForceDeleteConfirm && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="text-red-800 font-semibold mb-3">⚠️ Endgültige Bestätigung erforderlich</div>
+                    <div className="text-sm text-red-700 mb-3">
+                      Das Löschen des Projekts <span className="font-semibold">{projektToDelete?.name}</span> und aller zugehörigen Daten ist unwiderruflich.
+                    </div>
+                    {relatedData && (
+                      <div className="bg-white rounded p-3 mb-3 border border-red-300">
+                        <div className="text-xs font-semibold text-red-900 mb-2">Es werden gelöscht:</div>
+                        <ul className="text-xs text-red-800 space-y-1">
+                          <li>• Das Projekt</li>
+                          {relatedData.rechnungen > 0 && <li>• {relatedData.rechnungen} Rechnung{relatedData.rechnungen !== 1 ? 'en' : ''}</li>}
+                          {relatedData.dokumente > 0 && <li>• {relatedData.dokumente} Dokument{relatedData.dokumente !== 1 ? 'e' : ''}</li>}
+                          {relatedData.mitarbeiter > 0 && <li>• Zuweisung von {relatedData.mitarbeiter} Mitarbeiter{relatedData.mitarbeiter !== 1 ? 'n' : ''}</li>}
+                          {relatedData.zeiterfassungen > 0 && <li>• {relatedData.zeiterfassungen} Zeiterfassung{relatedData.zeiterfassungen !== 1 ? 'en' : ''}</li>}
+                        </ul>
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <Label htmlFor="confirm-delete" className="text-sm font-medium text-red-900">
+                        Geben Sie zur Bestätigung <span className="font-bold">LÖSCHEN</span> ein:
+                      </Label>
+                      <Input
+                        id="confirm-delete"
+                        value={forceDeleteConfirmText}
+                        onChange={(e) => setForceDeleteConfirmText(e.target.value)}
+                        className="border-red-300 focus:border-red-500 focus:ring-red-500"
+                        placeholder="LÖSCHEN"
+                        autoComplete="off"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => {
+                setDeleteDialogOpen(false)
+                setProjektToDelete(null)
+                setDeleteError(null)
+                setShowForceDeleteConfirm(false)
+                setForceDeleteConfirmText('')
+                setRelatedData(null)
+              }}
+              className="border-gray-300 text-gray-900 hover:bg-gray-50"
+            >
+              Abbrechen
+            </AlertDialogCancel>
+            {!showForceDeleteConfirm && !deleteError && (
+              <Button 
+                onClick={() => confirmLoeschen(false)}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                Projekt löschen
+              </Button>
+            )}
+            {deleteError && !showForceDeleteConfirm && relatedData && (
+              <Button 
+                onClick={() => setShowForceDeleteConfirm(true)}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                Trotzdem löschen
+              </Button>
+            )}
+            {showForceDeleteConfirm && (
+              <Button 
+                onClick={handleForceDeleteConfirm}
+                disabled={forceDeleteConfirmText !== 'LÖSCHEN'}
+                className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Endgültig löschen
+              </Button>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

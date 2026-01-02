@@ -54,9 +54,9 @@ export default function EinheitspreisPositionen({
       const data = await response.json()
       
       if (data.erfolg && data.angebot) {
-        // Filtere nur Positionen mit preisTyp='einheitspreis'
+        // E.P. = preisTyp 'einheitspreis' ODER Miet-Positionen (typ='miete')
         const epPositionen = data.angebot.positionen.filter(
-          (pos: Position) => pos.preisTyp === 'einheitspreis'
+          (pos: Position) => pos.preisTyp === 'einheitspreis' || pos.typ === 'miete'
         )
         setPositionen(epPositionen)
         
@@ -174,7 +174,7 @@ export default function EinheitspreisPositionen({
       <Alert className="bg-blue-50 border-blue-300">
         <AlertCircle className="h-4 w-4 text-blue-600" />
         <AlertDescription className="text-blue-900">
-          <strong>Keine E.P. Positionen:</strong> Das zugewiesene Angebot enthält keine Positionen mit Einheitspreisen (E.P.).
+          <strong>Keine E.P. Positionen:</strong> Das zugewiesene Angebot enthält keine Positionen mit Einheitspreisen oder Miet-Positionen (E.P.).
         </AlertDescription>
       </Alert>
     )

@@ -69,16 +69,18 @@ export default function VorkalkulationEditor({
     }
     
     // Setze Mitarbeiter-Anzahl SEPARAT für Aufbau und Abbau
-    const mitarbeiterAufbau = zugewieseneMitarbeiter?.filter(m => 
-      (m.stundenAufbau !== undefined && m.stundenAufbau !== null && m.stundenAufbau > 0)
-    ).length || 1
+    const gesamtMitarbeiter = zugewieseneMitarbeiter?.length || 0
+    const mitarbeiterAufbau = zugewieseneMitarbeiter
+      ?.filter(m => (m.stundenAufbau !== undefined && m.stundenAufbau !== null && m.stundenAufbau > 0))
+      .length || 0
+    const mitarbeiterAbbau = zugewieseneMitarbeiter
+      ?.filter(m => (m.stundenAbbau !== undefined && m.stundenAbbau !== null && m.stundenAbbau > 0))
+      .length || 0
+    const aufbauCount = mitarbeiterAufbau || gesamtMitarbeiter || 0
+    const abbauCount = mitarbeiterAbbau || gesamtMitarbeiter || 0
     
-    const mitarbeiterAbbau = zugewieseneMitarbeiter?.filter(m => 
-      (m.stundenAbbau !== undefined && m.stundenAbbau !== null && m.stundenAbbau > 0)
-    ).length || 1
-    
-    setAnzahlMitarbeiterAufbau(mitarbeiterAufbau)
-    setAnzahlMitarbeiterAbbau(mitarbeiterAbbau)
+    setAnzahlMitarbeiterAufbau(aufbauCount)
+    setAnzahlMitarbeiterAbbau(abbauCount)
     
     // PRIORITÄT 1: Wenn Vorkalkulation existiert, lade die Werte (HÖCHSTE PRIORITÄT)
     if (vorkalkulation) {
@@ -86,8 +88,8 @@ export default function VorkalkulationEditor({
       setStundensatz(vorkalkulation.stundensatz || 72)
       
       // Teile durch Anzahl Mitarbeiter um Pro-MA zu bekommen
-      const aufbauProMA = vorkalkulation.sollStundenAufbau / mitarbeiterAufbau
-      const abbauProMA = vorkalkulation.sollStundenAbbau / mitarbeiterAbbau
+      const aufbauProMA = aufbauCount > 0 ? vorkalkulation.sollStundenAufbau / aufbauCount : 0
+      const abbauProMA = abbauCount > 0 ? vorkalkulation.sollStundenAbbau / abbauCount : 0
       setSollStundenAufbauProMA(Math.round(aufbauProMA * 100) / 100)
       setSollStundenAbbauProMA(Math.round(abbauProMA * 100) / 100)
       
@@ -109,13 +111,13 @@ export default function VorkalkulationEditor({
       if (mitarbeiterHabenStunden) {
         console.log('✓ Keine Vorkalkulation - Lade Stunden aus zugewiesenen Mitarbeitern')
         // Berechne Gesamt-Stunden aus zugewiesenen Mitarbeitern
-        const gesamtAufbau = zugewieseneMitarbeiter?.reduce((sum: number, m: any) => 
+        const gesamtAufbau = zugewieseneMitarbeiter?.reduce((sum: number, m: any) =>
           sum + (m.stundenAufbau || 0), 0) || 0
-        const gesamtAbbau = zugewieseneMitarbeiter?.reduce((sum: number, m: any) => 
+        const gesamtAbbau = zugewieseneMitarbeiter?.reduce((sum: number, m: any) =>
           sum + (m.stundenAbbau || 0), 0) || 0
         
-        const aufbauProMA = mitarbeiterAufbau > 0 ? gesamtAufbau / mitarbeiterAufbau : 0
-        const abbauProMA = mitarbeiterAbbau > 0 ? gesamtAbbau / mitarbeiterAbbau : 0
+        const aufbauProMA = aufbauCount > 0 ? gesamtAufbau / aufbauCount : 0
+        const abbauProMA = abbauCount > 0 ? gesamtAbbau / abbauCount : 0
         
         setSollStundenAufbauProMA(Math.round(aufbauProMA * 100) / 100)
         setSollStundenAbbauProMA(Math.round(abbauProMA * 100) / 100)
@@ -136,8 +138,8 @@ export default function VorkalkulationEditor({
         const gesamtStunden = angebotssumme / tempStundensatz
         const aufbauStundenKolonne = gesamtStunden * 0.70
         const abbauStundenKolonne = gesamtStunden * 0.30
-        const aufbauStundenProMA = aufbauStundenKolonne / mitarbeiterAufbau
-        const abbauStundenProMA = abbauStundenKolonne / mitarbeiterAbbau
+        const aufbauStundenProMA = aufbauCount > 0 ? aufbauStundenKolonne / aufbauCount : 0
+        const abbauStundenProMA = abbauCount > 0 ? abbauStundenKolonne / abbauCount : 0
         
         setSollStundenAufbauProMA(Math.round(aufbauStundenProMA * 100) / 100)
         setSollStundenAbbauProMA(Math.round(abbauStundenProMA * 100) / 100)
@@ -379,6 +381,17 @@ export default function VorkalkulationEditor({
             <AlertDescription className="text-green-800">
               <strong>Werte aus Angebot automatisch geladen:</strong> Netto-Umsatz und Sollstunden wurden aus dem zugewiesenen Angebot berechnet (70% Aufbau / 30% Abbau).
               Klicken Sie auf <strong>"Vorkalkulation speichern"</strong> um die Werte zu übernehmen.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Warnung wenn keine Mitarbeiter zugewiesen */}
+        {(!zugewieseneMitarbeiter || zugewieseneMitarbeiter.length === 0) && (
+          <Alert className="bg-yellow-50 border-yellow-200">
+            <Info className="h-4 w-4 text-yellow-600" />
+            <AlertDescription className="text-yellow-900">
+              <strong>Keine Mitarbeiter zugewiesen:</strong> Bitte weisen Sie im Tab <strong>"Mitarbeiter"</strong> die tatsächliche Teamgröße zu. 
+              Die automatische Berechnung nutzt sonst 0 Mitarbeiter und setzt Stunden pro MA auf 0.
             </AlertDescription>
           </Alert>
         )}

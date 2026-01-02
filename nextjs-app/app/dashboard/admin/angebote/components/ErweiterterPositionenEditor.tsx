@@ -240,13 +240,13 @@ export default function ErweiterterPositionenEditor({ positionen, onChange }: Er
       {/* Vorlagen-Schnellzugriff */}
       <Card className="bg-white border-gray-200">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <CardTitle className="text-gray-900 font-semibold">Vorlagen einfügen</CardTitle>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <PositionsVorlageVerwaltungDialog onVorlageEinfuegen={handleVorlageEinfuegen} />
               <Dialog open={vorlagenDialogOpen} onOpenChange={setVorlagenDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" className="border-gray-300 text-gray-900 hover:bg-gray-50">
+                  <Button variant="outline" className="border-gray-300 text-gray-900 hover:bg-gray-50 w-full sm:w-auto">
                     <Search className="h-4 w-4 mr-2 text-gray-700" />
                     <span className="font-medium">Schnellsuche</span>
                   </Button>
@@ -297,61 +297,135 @@ export default function ErweiterterPositionenEditor({ positionen, onChange }: Er
         </CardHeader>
         <CardContent>
           {positionen.length > 0 ? (
-            <div className="rounded-md border border-gray-200 bg-white">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-gray-200 hover:bg-gray-50">
-                    <TableHead className="w-12 text-gray-900 font-semibold">Pos.</TableHead>
-                    <TableHead className="text-gray-900 font-semibold">Beschreibung</TableHead>
-                    <TableHead className="w-24 text-gray-900 font-semibold">Menge</TableHead>
-                    <TableHead className="w-24 text-gray-900 font-semibold">Einheit</TableHead>
-                    <TableHead className="w-32 text-gray-900 font-semibold">Einzelpreis</TableHead>
-                    <TableHead className="w-24 text-gray-900 font-semibold">Prozent</TableHead>
-                    <TableHead className="w-32 text-gray-900 font-semibold">Gesamtpreis</TableHead>
-                    <TableHead className="w-32 text-gray-900 font-semibold">Verknüpfung</TableHead>
-                    <TableHead className="w-24 text-gray-900 font-semibold"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {positionen.map((pos, index) => (
-                    <TableRow key={index} className="border-gray-200 hover:bg-gray-50">
-                      <TableCell className="font-medium text-gray-900">{pos.position}</TableCell>
-                      <TableCell>
-                        <div 
-                          className="text-gray-900 prose prose-sm max-w-none [&_h1]:text-lg [&_h1]:font-bold [&_h1]:mb-1 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mb-1 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mb-1 [&_ul]:list-disc [&_ul]:ml-4 [&_ol]:list-decimal [&_ol]:ml-4 [&_strong]:font-bold [&_em]:italic [&_u]:underline"
-                          dangerouslySetInnerHTML={{ __html: pos.beschreibung }}
-                        />
-                        {pos.verknuepftMitPosition && (
-                          <div className="flex items-center gap-1 text-xs text-blue-600 mt-1">
-                            <Link2 className="h-3 w-3" />
-                            <span className="font-medium">→ Pos. {pos.verknuepftMitPosition}</span>
+            <>
+              {/* Desktop-Tabelle (versteckt auf Mobil) */}
+              <div className="hidden lg:block rounded-md border border-gray-200 bg-white overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-gray-200 hover:bg-gray-50">
+                      <TableHead className="w-12 text-gray-900 font-semibold">Pos.</TableHead>
+                      <TableHead className="text-gray-900 font-semibold">Beschreibung</TableHead>
+                      <TableHead className="w-24 text-gray-900 font-semibold">Menge</TableHead>
+                      <TableHead className="w-24 text-gray-900 font-semibold">Einheit</TableHead>
+                      <TableHead className="w-32 text-gray-900 font-semibold">Einzelpreis</TableHead>
+                      <TableHead className="w-24 text-gray-900 font-semibold">Prozent</TableHead>
+                      <TableHead className="w-32 text-gray-900 font-semibold">Gesamtpreis</TableHead>
+                      <TableHead className="w-32 text-gray-900 font-semibold">Verknüpfung</TableHead>
+                      <TableHead className="w-24 text-gray-900 font-semibold"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {positionen.map((pos, index) => (
+                      <TableRow key={index} className="border-gray-200 hover:bg-gray-50">
+                        <TableCell className="font-medium text-gray-900">{pos.position}</TableCell>
+                        <TableCell>
+                          <div 
+                            className="text-gray-900 prose prose-sm max-w-none [&_h1]:text-lg [&_h1]:font-bold [&_h1]:mb-1 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mb-1 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mb-1 [&_ul]:list-disc [&_ul]:ml-4 [&_ol]:list-decimal [&_ol]:ml-4 [&_strong]:font-bold [&_em]:italic [&_u]:underline"
+                            dangerouslySetInnerHTML={{ __html: pos.beschreibung }}
+                          />
+                          {pos.verknuepftMitPosition && (
+                            <div className="flex items-center gap-1 text-xs text-blue-600 mt-1">
+                              <Link2 className="h-3 w-3" />
+                              <span className="font-medium">→ Pos. {pos.verknuepftMitPosition}</span>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-gray-900">{pos.menge}</TableCell>
+                        <TableCell className="text-gray-700">
+                          {pos.einheit && pos.einheit.includes('%') ? 'St.' : (pos.einheit || 'St.')}
+                        </TableCell>
+                        <TableCell className="text-gray-900">{pos.einzelpreis.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</TableCell>
+                        <TableCell className="text-gray-900">
+                          {pos.prozentsatz ? (
+                            <Badge variant="outline" className="border-green-400 text-green-700 font-semibold">
+                              {pos.prozentsatz}%
+                            </Badge>
+                          ) : (
+                            <span className="text-gray-500">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-semibold text-gray-900">{pos.gesamtpreis.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</TableCell>
+                        <TableCell>
+                          {pos.verknuepfungsTyp && (
+                            <Badge variant="outline" className="text-xs border-gray-400 text-gray-900">
+                              {pos.verknuepfungsTyp === 'basis' ? 'Basis' : 'Abhängig'}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handlePositionVerschieben(index, 'up')}
+                              disabled={index === 0}
+                              className="p-1 hover:bg-gray-100"
+                              title="Nach oben"
+                            >
+                              <ChevronUp className="h-4 w-4 text-gray-700" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handlePositionVerschieben(index, 'down')}
+                              disabled={index === positionen.length - 1}
+                              className="p-1 hover:bg-gray-100"
+                              title="Nach unten"
+                            >
+                              <ChevronDown className="h-4 w-4 text-gray-700" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handlePositionBearbeitenOeffnen(index)}
+                              className="p-1 hover:bg-gray-100"
+                              title="Bearbeiten"
+                            >
+                              <Pencil className="h-4 w-4 text-blue-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handlePositionLoeschen(index)}
+                              className="p-1 hover:bg-gray-100"
+                              title="Löschen"
+                            >
+                              <Trash2 className="h-4 w-4 text-red-600" />
+                            </Button>
                           </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-gray-900">{pos.menge}</TableCell>
-                      <TableCell className="text-gray-700">
-                        {/* Stelle sicher, dass keine Prozentangabe in der Einheit angezeigt wird */}
-                        {pos.einheit && pos.einheit.includes('%') ? 'St.' : (pos.einheit || 'St.')}
-                      </TableCell>
-                      <TableCell className="text-gray-900">{pos.einzelpreis.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</TableCell>
-                      <TableCell className="text-gray-900">
-                        {pos.prozentsatz ? (
-                          <Badge variant="outline" className="border-green-400 text-green-700 font-semibold">
-                            {pos.prozentsatz}%
-                          </Badge>
-                        ) : (
-                          <span className="text-gray-500">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-semibold text-gray-900">{pos.gesamtpreis.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</TableCell>
-                      <TableCell>
-                        {pos.verknuepfungsTyp && (
-                          <Badge variant="outline" className="text-xs border-gray-400 text-gray-900">
-                            {pos.verknuepfungsTyp === 'basis' ? 'Basis' : 'Abhängig'}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobil-Card-Layout (sichtbar auf kleinen Bildschirmen) */}
+              <div className="lg:hidden space-y-3">
+                {positionen.map((pos, index) => (
+                  <Card key={index} className="bg-gray-50 border-gray-300">
+                    <CardContent className="p-4 space-y-3">
+                      {/* Header mit Position und Aktionen */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-blue-600 text-white">Pos. {pos.position}</Badge>
+                            <Badge variant="outline" className="border-gray-400 text-gray-700">
+                              {pos.typ}
+                            </Badge>
+                            {pos.verknuepfungsTyp && (
+                              <Badge variant="outline" className="text-xs border-gray-400 text-gray-900">
+                                {pos.verknuepfungsTyp === 'basis' ? 'Basis' : 'Abhängig'}
+                              </Badge>
+                            )}
+                          </div>
+                          {pos.verknuepftMitPosition && (
+                            <div className="flex items-center gap-1 text-xs text-blue-600 mt-1">
+                              <Link2 className="h-3 w-3" />
+                              <span className="font-medium">→ Pos. {pos.verknuepftMitPosition}</span>
+                            </div>
+                          )}
+                        </div>
                         <div className="flex gap-1">
                           <Button
                             variant="ghost"
@@ -359,7 +433,6 @@ export default function ErweiterterPositionenEditor({ positionen, onChange }: Er
                             onClick={() => handlePositionVerschieben(index, 'up')}
                             disabled={index === 0}
                             className="p-1 hover:bg-gray-100"
-                            title="Nach oben"
                           >
                             <ChevronUp className="h-4 w-4 text-gray-700" />
                           </Button>
@@ -369,35 +442,68 @@ export default function ErweiterterPositionenEditor({ positionen, onChange }: Er
                             onClick={() => handlePositionVerschieben(index, 'down')}
                             disabled={index === positionen.length - 1}
                             className="p-1 hover:bg-gray-100"
-                            title="Nach unten"
                           >
                             <ChevronDown className="h-4 w-4 text-gray-700" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handlePositionBearbeitenOeffnen(index)}
-                            className="p-1 hover:bg-gray-100"
-                            title="Bearbeiten"
-                          >
-                            <Pencil className="h-4 w-4 text-blue-600" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handlePositionLoeschen(index)}
-                            className="p-1 hover:bg-gray-100"
-                            title="Löschen"
-                          >
-                            <Trash2 className="h-4 w-4 text-red-600" />
-                          </Button>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                      </div>
+
+                      {/* Beschreibung */}
+                      <div 
+                        className="text-gray-900 prose prose-sm max-w-none [&_h1]:text-base [&_h1]:font-bold [&_h1]:mb-1 [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mb-1 [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:mb-1 [&_ul]:list-disc [&_ul]:ml-4 [&_ol]:list-decimal [&_ol]:ml-4 [&_strong]:font-bold [&_em]:italic [&_u]:underline"
+                        dangerouslySetInnerHTML={{ __html: pos.beschreibung }}
+                      />
+
+                      {/* Details Grid */}
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-gray-600">Menge:</span>
+                          <span className="ml-1 font-medium text-gray-900">{pos.menge} {pos.einheit && pos.einheit.includes('%') ? 'St.' : (pos.einheit || 'St.')}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Einzelpreis:</span>
+                          <span className="ml-1 font-medium text-gray-900">{pos.einzelpreis.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</span>
+                        </div>
+                        {pos.prozentsatz && (
+                          <div>
+                            <span className="text-gray-600">Prozentsatz:</span>
+                            <Badge variant="outline" className="ml-1 border-green-400 text-green-700 font-semibold">
+                              {pos.prozentsatz}%
+                            </Badge>
+                          </div>
+                        )}
+                        <div className="col-span-2">
+                          <span className="text-gray-600">Gesamtpreis:</span>
+                          <span className="ml-1 font-bold text-gray-900 text-base">{pos.gesamtpreis.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</span>
+                        </div>
+                      </div>
+
+                      {/* Aktionen */}
+                      <div className="flex gap-2 pt-2 border-t border-gray-300">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePositionBearbeitenOeffnen(index)}
+                          className="flex-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+                        >
+                          <Pencil className="h-3 w-3 mr-1" />
+                          Bearbeiten
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePositionLoeschen(index)}
+                          className="flex-1 border-red-300 text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Löschen
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
           ) : (
             <p className="text-center py-8 text-gray-600">Keine Positionen vorhanden. Fügen Sie unten eine Position hinzu.</p>
           )}
@@ -407,12 +513,12 @@ export default function ErweiterterPositionenEditor({ positionen, onChange }: Er
       {/* Neue Position hinzufügen */}
       <Card className="bg-white border-gray-200">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <CardTitle className="text-gray-900 font-semibold">Neue Position hinzufügen</CardTitle>
             <PositionsVorlageVerwaltungDialog 
               onVorlageEinfuegen={handleVorlageEinfuegen}
               trigger={
-                <Button variant="default" className="bg-blue-600 hover:bg-blue-700 text-white">
+                <Button variant="default" className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto">
                   <Search className="h-4 w-4 mr-2" />
                   <span className="font-medium">Aus Vorlage wählen</span>
                 </Button>
@@ -422,8 +528,9 @@ export default function ErweiterterPositionenEditor({ positionen, onChange }: Er
         </CardHeader>
         <CardContent>
           <div className="grid gap-4">
-            <div className="grid grid-cols-7 gap-4">
-              <div className="space-y-2">
+            {/* Responsives Grid: 1 Spalte auf Mobil, 2 auf Tablet, mehrere auf Desktop */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4">
+              <div className="space-y-2 sm:col-span-2 lg:col-span-1">
                 <Label className="text-gray-900 font-medium">Typ</Label>
                 <Select value={neuePosition.typ} onValueChange={(v) => handleNeuePositionChange('typ', v)}>
                   <SelectTrigger className="bg-white border-gray-300 text-gray-900">
@@ -439,7 +546,7 @@ export default function ErweiterterPositionenEditor({ positionen, onChange }: Er
                 </Select>
               </div>
 
-              <div className="col-span-2 space-y-2">
+              <div className="sm:col-span-2 lg:col-span-2 space-y-2">
                 <Label className="text-gray-900 font-medium">Beschreibung *</Label>
                 <RichTextEditor
                   value={neuePosition.beschreibung || ''}
@@ -496,7 +603,7 @@ export default function ErweiterterPositionenEditor({ positionen, onChange }: Er
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 sm:col-span-2 lg:col-span-1">
                 <Label className="text-gray-900 font-medium">Prozentsatz (%)</Label>
                 <Input
                   type="number"
@@ -508,7 +615,7 @@ export default function ErweiterterPositionenEditor({ positionen, onChange }: Er
                     const val = parseFloat(e.target.value)
                     handleNeuePositionChange('prozentsatz', isNaN(val) ? undefined : val)
                   }}
-                  placeholder="z.B. 50 für 50%"
+                  placeholder="z.B. 50"
                   className="bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"
                 />
                 <p className="text-xs text-gray-600">
@@ -543,7 +650,7 @@ export default function ErweiterterPositionenEditor({ positionen, onChange }: Er
               )}
             </div>
 
-            <div className="flex items-center justify-between border-t border-gray-300 pt-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-gray-300 pt-4">
               <div className="space-y-1">
                 {neuePosition.prozentsatz && neuePosition.prozentsatz > 0 ? (
                   <>
@@ -560,7 +667,7 @@ export default function ErweiterterPositionenEditor({ positionen, onChange }: Er
                   </div>
                 )}
               </div>
-              <Button onClick={handlePositionHinzufuegen} className="bg-green-600 hover:bg-green-700 text-white">
+              <Button onClick={handlePositionHinzufuegen} className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 <span className="font-medium">Position hinzufügen</span>
               </Button>
@@ -701,7 +808,7 @@ export default function ErweiterterPositionenEditor({ positionen, onChange }: Er
               </div>
 
               <div className="border-t border-gray-300 pt-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="space-y-1">
                     {zuBearbeitendePosition.position.prozentsatz && zuBearbeitendePosition.position.prozentsatz > 0 ? (
                       <>
@@ -718,17 +825,17 @@ export default function ErweiterterPositionenEditor({ positionen, onChange }: Er
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                     <Button 
                       variant="outline" 
                       onClick={() => setBearbeitenDialogOpen(false)}
-                      className="border-gray-300 text-gray-900 hover:bg-gray-50"
+                      className="border-gray-300 text-gray-900 hover:bg-gray-50 w-full sm:w-auto"
                     >
                       Abbrechen
                     </Button>
                     <Button 
                       onClick={handlePositionBearbeitenSpeichern} 
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
                     >
                       <span className="font-medium">Änderungen speichern</span>
                     </Button>

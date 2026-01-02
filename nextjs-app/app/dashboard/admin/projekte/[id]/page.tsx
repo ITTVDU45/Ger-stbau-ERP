@@ -115,6 +115,71 @@ export default function ProjektDetailPage() {
     )
   }
 
+  // TabsList JSX zur Wiederverwendung
+  const tabsList = (
+    <TabsList className="inline-flex w-full h-auto flex-wrap bg-gray-100 p-1 gap-1">
+      <TabsTrigger value="uebersicht" className="data-[state=active]:bg-white flex-shrink-0">Übersicht</TabsTrigger>
+      <TabsTrigger value="kunde" className="data-[state=active]:bg-white flex-shrink-0">Kunde</TabsTrigger>
+      <TabsTrigger value="kalkulation" className="data-[state=active]:bg-white flex-shrink-0">Kalkulation</TabsTrigger>
+      <TabsTrigger value="anfragen" className="data-[state=active]:bg-white flex-shrink-0">
+        Anfragen ({anfragenCount})
+      </TabsTrigger>
+      <TabsTrigger value="angebote" className="data-[state=active]:bg-white flex-shrink-0">
+        Angebote
+      </TabsTrigger>
+      <TabsTrigger value="rechnungen" className="data-[state=active]:bg-white flex-shrink-0">
+        Rechnungen
+      </TabsTrigger>
+      <TabsTrigger value="mitarbeiter" className="data-[state=active]:bg-white flex-shrink-0">
+        Mitarbeiter ({projekt.zugewieseneMitarbeiter?.length || 0})
+      </TabsTrigger>
+      <TabsTrigger value="dokumente" className="data-[state=active]:bg-white flex-shrink-0">
+        Dokumente ({projekt.dokumente?.length || 0})
+      </TabsTrigger>
+    </TabsList>
+  )
+
+  // Alle TabsContent zur Wiederverwendung
+  const tabsContent = (
+    <>
+      <TabsContent value="uebersicht">
+        <ProjektUebersichtTab projekt={projekt} />
+      </TabsContent>
+
+      <TabsContent value="kunde">
+        <ProjektKundeTab projekt={projekt} />
+      </TabsContent>
+
+      <TabsContent value="kalkulation">
+        <ProjektKalkulationTab projekt={projekt} onProjektUpdated={loadProjekt} />
+      </TabsContent>
+
+      <TabsContent value="anfragen">
+        <ProjektAnfragenTab 
+          projekt={projekt} 
+          onProjektUpdated={loadProjekt}
+          onAnfragenCountChange={setAnfragenCount}
+        />
+      </TabsContent>
+
+      <TabsContent value="angebote">
+        <ProjektAngeboteTab projekt={projekt} onProjektUpdated={loadProjekt} />
+      </TabsContent>
+
+      <TabsContent value="rechnungen">
+        <ProjektRechnungenTab projekt={projekt} onProjektUpdated={loadProjekt} />
+      </TabsContent>
+
+      <TabsContent value="mitarbeiter">
+        <ProjektMitarbeiterTab projekt={projekt} onProjektUpdated={loadProjekt} />
+      </TabsContent>
+
+      <TabsContent value="dokumente">
+        <ProjektDokumenteTab projekt={projekt} onProjektUpdated={loadProjekt} />
+      </TabsContent>
+    </>
+  )
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -203,74 +268,35 @@ export default function ProjektDetailPage() {
         </Card>
       </div>
 
-      {/* Main Layout: Tabs (links) + Aktivitäten-Sidebar (rechts) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+      {/* Main Layout: Conditional basierend auf activeTab */}
+      {activeTab === 'kalkulation' ? (
+        // Volle Breite für Kalkulation + Sidebar unten
+        <div className="space-y-6">
+          {/* Kalkulations-Tabs in voller Breite */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="inline-flex w-full h-auto flex-wrap bg-gray-100 p-1 gap-1">
-              <TabsTrigger value="uebersicht" className="data-[state=active]:bg-white flex-shrink-0">Übersicht</TabsTrigger>
-              <TabsTrigger value="kunde" className="data-[state=active]:bg-white flex-shrink-0">Kunde</TabsTrigger>
-              <TabsTrigger value="kalkulation" className="data-[state=active]:bg-white flex-shrink-0">Kalkulation</TabsTrigger>
-              <TabsTrigger value="anfragen" className="data-[state=active]:bg-white flex-shrink-0">
-                Anfragen ({anfragenCount})
-              </TabsTrigger>
-              <TabsTrigger value="angebote" className="data-[state=active]:bg-white flex-shrink-0">
-                Angebote
-              </TabsTrigger>
-              <TabsTrigger value="rechnungen" className="data-[state=active]:bg-white flex-shrink-0">
-                Rechnungen
-              </TabsTrigger>
-              <TabsTrigger value="mitarbeiter" className="data-[state=active]:bg-white flex-shrink-0">
-                Mitarbeiter ({projekt.zugewieseneMitarbeiter?.length || 0})
-              </TabsTrigger>
-              <TabsTrigger value="dokumente" className="data-[state=active]:bg-white flex-shrink-0">
-                Dokumente ({projekt.dokumente?.length || 0})
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="uebersicht">
-              <ProjektUebersichtTab projekt={projekt} />
-            </TabsContent>
-
-            <TabsContent value="kunde">
-              <ProjektKundeTab projekt={projekt} />
-            </TabsContent>
-
-            <TabsContent value="kalkulation">
-              <ProjektKalkulationTab projekt={projekt} onProjektUpdated={loadProjekt} />
-            </TabsContent>
-
-            <TabsContent value="anfragen">
-              <ProjektAnfragenTab 
-                projekt={projekt} 
-                onProjektUpdated={loadProjekt}
-                onAnfragenCountChange={setAnfragenCount}
-              />
-            </TabsContent>
-
-            <TabsContent value="angebote">
-              <ProjektAngeboteTab projekt={projekt} onProjektUpdated={loadProjekt} />
-            </TabsContent>
-
-            <TabsContent value="rechnungen">
-              <ProjektRechnungenTab projekt={projekt} onProjektUpdated={loadProjekt} />
-            </TabsContent>
-
-            <TabsContent value="mitarbeiter">
-              <ProjektMitarbeiterTab projekt={projekt} onProjektUpdated={loadProjekt} />
-            </TabsContent>
-
-            <TabsContent value="dokumente">
-              <ProjektDokumenteTab projekt={projekt} onProjektUpdated={loadProjekt} />
-            </TabsContent>
+            {tabsList}
+            {tabsContent}
           </Tabs>
-        </div>
-
-        {/* Aktivitäten-Sidebar */}
-        <div className="lg:col-span-1">
+          
+          {/* Aktivitäten-Sidebar unten */}
           <ProjektAktivitaetenSidebar projekt={projekt} />
         </div>
-      </div>
+      ) : (
+        // Grid-Layout für alle anderen Tabs
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              {tabsList}
+              {tabsContent}
+            </Tabs>
+          </div>
+
+          {/* Aktivitäten-Sidebar rechts */}
+          <div className="lg:col-span-1">
+            <ProjektAktivitaetenSidebar projekt={projekt} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

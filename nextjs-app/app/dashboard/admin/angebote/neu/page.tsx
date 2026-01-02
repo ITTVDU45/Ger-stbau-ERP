@@ -23,6 +23,26 @@ import BetreffDialog from '../components/BetreffDialog'
 import NeuesProjektDialog from '../components/NeuesProjektDialog'
 import { toast } from 'sonner'
 
+const calculateTotals = (
+  positionen: AngebotPosition[] = [],
+  rabattProzent?: number,
+  rabattFix?: number,
+  mwstSatz?: number
+) => {
+  const steuerbarePositionen = positionen.filter((p) => p.typ !== 'miete')
+  const zwischensumme = steuerbarePositionen.reduce((sum, p) => sum + (p.gesamtpreis || 0), 0)
+  const rabattBetrag =
+    rabattProzent && rabattProzent > 0
+      ? (zwischensumme * rabattProzent) / 100
+      : rabattFix || 0
+  const netto = Math.max(0, zwischensumme - rabattBetrag)
+  const effektiverMwstSatz = mwstSatz ?? 19
+  const mwstBetrag = netto * effektiverMwstSatz / 100
+  const brutto = netto + mwstBetrag
+
+  return { zwischensumme, rabatt: rabattBetrag, netto, mwstBetrag, brutto }
+}
+
 export default function NeuesAngebotPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -114,12 +134,20 @@ export default function NeuesAngebotPage() {
         const angebot = data.angebot
         
         // Konvertiere Datum-Strings zu Date-Objekten
+        const berechnet = calculateTotals(
+          angebot.positionen || [],
+          angebot.rabattProzent,
+          angebot.rabatt,
+          angebot.mwstSatz
+        )
+
         setFormData({
           ...angebot,
           datum: new Date(angebot.datum),
           gueltigBis: angebot.gueltigBis ? new Date(angebot.gueltigBis) : undefined,
           positionen: angebot.positionen || [],
-          projektId: angebot.projektId || undefined // Explizit setzen
+          projektId: angebot.projektId || undefined, // Explizit setzen
+          ...berechnet
         })
         
         // Projekte für den Kunden laden, damit das zugewiesene Projekt angezeigt wird
@@ -213,21 +241,18 @@ export default function NeuesAngebotPage() {
   }
 
   const handlePositionenChange = (positionen: AngebotPosition[]) => {
-    // Kalkulation durchführen
-    const zwischensumme = positionen.reduce((sum, p) => sum + p.gesamtpreis, 0)
-    const rabattBetrag = formData.rabattProzent ? (zwischensumme * formData.rabattProzent / 100) : (formData.rabatt || 0)
-    const netto = zwischensumme - rabattBetrag
-    const mwstBetrag = netto * (formData.mwstSatz || 19) / 100
-    const brutto = netto + mwstBetrag
+    // Kalkulation durchführen (Miet-Positionen NICHT in Summe)
+    const summen = calculateTotals(
+      positionen,
+      formData.rabattProzent,
+      formData.rabatt,
+      formData.mwstSatz
+    )
 
     setFormData(prev => ({
       ...prev,
       positionen,
-      zwischensumme,
-      rabatt: rabattBetrag,
-      netto,
-      mwstBetrag,
-      brutto
+      ...summen
     }))
   }
 
@@ -397,7 +422,7 @@ export default function NeuesAngebotPage() {
 
       {/* Hauptinhalt */}
       <Tabs defaultValue="allgemein" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-1">
           <TabsTrigger value="allgemein">Allgemein</TabsTrigger>
           <TabsTrigger value="positionen">Positionen ({formData.positionen?.length || 0})</TabsTrigger>
           <TabsTrigger value="kalkulation">Kalkulation</TabsTrigger>
@@ -632,18 +657,17 @@ export default function NeuesAngebotPage() {
             <AngebotKalkulation
               formData={formData}
               onRabattChange={(prozent) => {
-                const rabattBetrag = formData.zwischensumme * prozent / 100
-                const netto = formData.zwischensumme - rabattBetrag
-                const mwstBetrag = netto * (formData.mwstSatz || 19) / 100
-                const brutto = netto + mwstBetrag
+                const summen = calculateTotals(
+                  formData.positionen || [],
+                  prozent,
+                  undefined,
+                  formData.mwstSatz
+                )
 
                 setFormData(prev => ({
                   ...prev,
                   rabattProzent: prozent,
-                  rabatt: rabattBetrag,
-                  netto,
-                  mwstBetrag,
-                  brutto
+                  ...summen
                 }))
               }}
             />

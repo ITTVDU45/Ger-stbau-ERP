@@ -12,6 +12,26 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import PositionenEditor from './PositionenEditor'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
+const calculateTotals = (
+  positionen: AngebotPosition[] = [],
+  rabattProzent?: number,
+  rabattFix?: number,
+  mwstSatz?: number
+) => {
+  const steuerbarePositionen = positionen.filter((p) => p.typ !== 'miete')
+  const zwischensumme = steuerbarePositionen.reduce((sum, p) => sum + (p.gesamtpreis || 0), 0)
+  const rabattBetrag =
+    rabattProzent && rabattProzent > 0
+      ? (zwischensumme * rabattProzent) / 100
+      : rabattFix || 0
+  const netto = Math.max(0, zwischensumme - rabattBetrag)
+  const effektiverMwstSatz = mwstSatz ?? 19
+  const mwstBetrag = netto * effektiverMwstSatz / 100
+  const brutto = netto + mwstBetrag
+
+  return { zwischensumme, rabatt: rabattBetrag, netto, mwstBetrag, brutto }
+}
+
 interface AngebotDialogProps {
   open: boolean
   angebot?: Angebot
@@ -47,7 +67,16 @@ export default function AngebotDialog({ open, angebot, onClose }: AngebotDialogP
 
   useEffect(() => {
     if (angebot) {
-      setFormData(angebot)
+    const summen = calculateTotals(
+      angebot.positionen || [],
+      angebot.rabattProzent,
+      angebot.rabatt,
+      angebot.mwstSatz
+    )
+    setFormData({
+      ...angebot,
+      ...summen
+    })
     } else {
       // Angebotsnummer automatisch generieren
       const jahr = new Date().getFullYear()
@@ -104,37 +133,32 @@ export default function AngebotDialog({ open, angebot, onClose }: AngebotDialogP
   }
 
   const handlePositionenChange = (positionen: AngebotPosition[]) => {
-    // Kalkulation durchführen
-    const zwischensumme = positionen.reduce((sum, p) => sum + p.gesamtpreis, 0)
-    const rabattBetrag = formData.rabattProzent ? (zwischensumme * formData.rabattProzent / 100) : (formData.rabatt || 0)
-    const netto = zwischensumme - rabattBetrag
-    const mwstBetrag = netto * (formData.mwstSatz || 19) / 100
-    const brutto = netto + mwstBetrag
+    const summen = calculateTotals(
+      positionen,
+      formData.rabattProzent,
+      formData.rabatt,
+      formData.mwstSatz
+    )
 
     setFormData(prev => ({
       ...prev,
       positionen,
-      zwischensumme,
-      rabatt: rabattBetrag,
-      netto,
-      mwstBetrag,
-      brutto
+      ...summen
     }))
   }
 
   const handleRabattChange = (prozent: number) => {
-    const rabattBetrag = formData.zwischensumme * prozent / 100
-    const netto = formData.zwischensumme - rabattBetrag
-    const mwstBetrag = netto * (formData.mwstSatz || 19) / 100
-    const brutto = netto + mwstBetrag
+    const summen = calculateTotals(
+      formData.positionen || [],
+      prozent,
+      undefined,
+      formData.mwstSatz
+    )
 
     setFormData(prev => ({
       ...prev,
       rabattProzent: prozent,
-      rabatt: rabattBetrag,
-      netto,
-      mwstBetrag,
-      brutto
+      ...summen
     }))
   }
 

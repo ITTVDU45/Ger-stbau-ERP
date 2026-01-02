@@ -156,6 +156,8 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
+    const { searchParams } = new URL(request.url)
+    const force = searchParams.get('force') === 'true'
     const db = await getDatabase()
     
     if (!ObjectId.isValid(id)) {
@@ -165,18 +167,73 @@ export async function DELETE(
       )
     }
 
-    const result = await db.collection('projekte').deleteOne({ _id: new ObjectId(id) })
+    const projektId = new ObjectId(id)
 
-    if (result.deletedCount === 0) {
+    // Prüfe, ob das Projekt existiert
+    const projekt = await db.collection('projekte').findOne({ _id: projektId })
+    if (!projekt) {
       return NextResponse.json(
         { erfolg: false, fehler: 'Projekt nicht gefunden' },
         { status: 404 }
       )
     }
 
+    // Prüfe verwandte Daten
+    const rechnungenCount = await db.collection('rechnungen').countDocuments({ projektId: id })
+    const dokumenteCount = projekt.dokumente?.length || 0
+    const mitarbeiterCount = projekt.zugewieseneMitarbeiter?.length || 0
+    const zeiterfassungenCount = await db.collection('zeiterfassungen').countDocuments({ projektId: id })
+
+    const hasRelatedData = rechnungenCount > 0 || dokumenteCount > 0 || mitarbeiterCount > 0 || zeiterfassungenCount > 0
+
+    // Wenn verwandte Daten existieren und nicht force=true, gebe Warnung zurück
+    if (hasRelatedData && !force) {
+      return NextResponse.json(
+        {
+          erfolg: false,
+          fehler: 'Projekt hat zugeordnete Daten und kann nicht gelöscht werden',
+          hasRelatedData: true,
+          relatedData: {
+            rechnungen: rechnungenCount,
+            dokumente: dokumenteCount,
+            mitarbeiter: mitarbeiterCount,
+            zeiterfassungen: zeiterfassungenCount
+          }
+        },
+        { status: 400 }
+      )
+    }
+
+    // Wenn force=true, lösche alle verwandten Daten
+    if (force && hasRelatedData) {
+      // Lösche Rechnungen
+      if (rechnungenCount > 0) {
+        await db.collection('rechnungen').deleteMany({ projektId: id })
+      }
+
+      // Lösche Zeiterfassungen
+      if (zeiterfassungenCount > 0) {
+        await db.collection('zeiterfassungen').deleteMany({ projektId: id })
+      }
+
+      // Dokumente und Mitarbeiter-Zuweisungen werden mit dem Projekt gelöscht (sind Teil des Projekts)
+    }
+
+    // Lösche das Projekt
+    const result = await db.collection('projekte').deleteOne({ _id: projektId })
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json(
+        { erfolg: false, fehler: 'Projekt konnte nicht gelöscht werden' },
+        { status: 500 }
+      )
+    }
+
     return NextResponse.json({
       erfolg: true,
-      nachricht: 'Projekt erfolgreich gelöscht'
+      message: force 
+        ? `Projekt und alle zugeordneten Daten (${rechnungenCount} Rechnungen, ${zeiterfassungenCount} Zeiterfassungen) erfolgreich gelöscht`
+        : 'Projekt erfolgreich gelöscht'
     })
   } catch (error) {
     console.error('Fehler beim Löschen des Projekts:', error)

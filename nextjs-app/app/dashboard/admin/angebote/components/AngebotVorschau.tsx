@@ -23,6 +23,7 @@ export default function AngebotVorschau({ angebot, positionen, kalkulation }: An
   const [loading, setLoading] = useState(false)
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null)
   const [loadingSettings, setLoadingSettings] = useState(true)
+  const hasMiete = positionen.some((pos) => pos.typ === 'miete')
 
   useEffect(() => {
     loadCompanySettings()
@@ -265,6 +266,11 @@ export default function AngebotVorschau({ angebot, positionen, kalkulation }: An
                       <span className="font-bold text-gray-900 text-lg">Bruttosumme:</span>
                       <span className="font-bold text-blue-600 text-lg">{formatCurrency(kalkulation.bruttosumme)}</span>
                     </div>
+                  {hasMiete && (
+                    <p className="text-xs text-amber-700 mt-2">
+                      Hinweis: Mietpositionen sind in der Summe nicht enthalten und werden später separat nach tatsächlicher Mietdauer berechnet.
+                    </p>
+                  )}
                   </div>
                 </div>
               </div>

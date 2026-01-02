@@ -31,22 +31,16 @@ export default function ProjektKalkulationTab({ projekt, onProjektUpdated }: Pro
     console.log('Budget (Projekt):', projekt.budget)
     console.log('Angebotssumme (Projekt):', projekt.angebotssumme)
     console.log('Vollständiges Projekt:', projekt)
-    
-    // DIAGNOSE: Prüfe ob angebotId vorhanden aber falsch getypt
-    if (!projekt.angebotId) {
-      console.error('❌ FEHLER: projekt.angebotId ist undefined/null!')
-      console.log('→ Aber Angebotsnummer ist:', projekt.angebotsnummer)
-      console.log('→ Projekt sollte neu geladen werden')
-    }
-    
+
     loadKalkulation()
-    
+
     if (projekt.angebotId) {
       console.log('→ Lade Angebot:', projekt.angebotId)
       loadAngebot()
     } else {
-      console.log('⚠ Kein Angebot zugewiesen - verwende Projekt-Budget:', projekt.budget)
-      setAngebotNetto(projekt.budget)
+      const fallback = projekt.angebotssumme || projekt.budget
+      console.warn('⚠ Kein Angebot zugewiesen - fallback auf Projekt-angebotssumme/Budget:', fallback)
+      setAngebotNetto(fallback)
     }
   }, [projekt._id, projekt.angebotId])
 
