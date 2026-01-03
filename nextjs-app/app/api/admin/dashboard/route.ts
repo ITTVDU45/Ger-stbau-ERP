@@ -155,6 +155,20 @@ export async function GET() {
             ausstehend: [
               { $match: { status: { $in: ['ausstehend', 'offen', 'warten'] } } },
               { $count: 'count' }
+            ],
+            gesamtstundenMonat: [
+              {
+                $match: {
+                  datum: { $gte: ersterTagDieserMonat },
+                  stunden: { $exists: true, $ne: null }
+                }
+              },
+              {
+                $group: {
+                  _id: null,
+                  gesamtStunden: { $sum: { $ifNull: ['$stunden', 0] } }
+                }
+              }
             ]
           }
         }
@@ -182,6 +196,7 @@ export async function GET() {
     
     const zeiterfassungen = zeiterfassungStats[0] || {}
     const offeneZeiteintraege = zeiterfassungen.ausstehend?.[0]?.count || 0
+    const gesamtstundenMonat = zeiterfassungen.gesamtstundenMonat?.[0]?.gesamtStunden || 0
     
     // Berechne Wachstumstrends
     const projekteWachstum = projekteVormonat > 0
@@ -203,6 +218,7 @@ export async function GET() {
         // Mitarbeiter
         aktiveMitarbeiter,
         offeneZeiteintraege,
+        gesamtstundenMonat,
         
         // Finanzen
         offeneAngebote,
@@ -238,6 +254,7 @@ export async function GET() {
           abgeschlosseneProjekte: 0,
           aktiveMitarbeiter: 0,
           offeneZeiteintraege: 0,
+          gesamtstundenMonat: 0,
           offeneAngebote: 0,
           ueberfaelligeRechnungen: 0,
           monatsumsatz: 0,

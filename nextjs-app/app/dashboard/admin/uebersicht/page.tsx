@@ -68,6 +68,7 @@ const defaultKPIs = {
   aktiveMitarbeiter: 0,
   urlaubsantraege: 0,
   offeneZeiteintraege: 0,
+  gesamtstundenMonat: 0,
   
   // Finanzen
   offeneAngebote: 0,
@@ -315,8 +316,10 @@ export default function AdminUebersichtPage() {
             <Clock className="h-4 w-4 text-gray-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-900">{kpis.offeneZeiteintraege || 0}</div>
-            <p className="text-xs text-gray-600 mt-1">Warten auf Freigabe</p>
+            <div className="text-2xl font-bold text-gray-900">
+              {(kpis.gesamtstundenMonat || 0).toLocaleString('de-DE', { maximumFractionDigits: 1 })} h
+            </div>
+            <p className="text-xs text-gray-600 mt-1">Gesamtstunden diesen Monat</p>
           </CardContent>
         </Card>
 

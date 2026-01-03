@@ -22,9 +22,10 @@ import {
 } from "@/components/ui/select"
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
-import { X } from 'lucide-react'
+import { X, AlertCircle } from 'lucide-react'
 import { Mitarbeiter } from '@/lib/db/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { toast } from 'sonner'
 
 interface MitarbeiterDialogProps {
   open: boolean
@@ -53,6 +54,8 @@ export default function MitarbeiterDialog({ open, mitarbeiter, onClose }: Mitarb
   const [neueQualifikation, setNeueQualifikation] = useState('')
   const [saving, setSaving] = useState(false)
   const [loadingPersonalnummer, setLoadingPersonalnummer] = useState(false)
+  const [personalnummerFehler, setPersonalnummerFehler] = useState('')
+  const [checkingPersonalnummer, setCheckingPersonalnummer] = useState(false)
 
   // Nächste Personalnummer laden, wenn neuer Mitarbeiter erstellt wird
   useEffect(() => {
@@ -127,10 +130,83 @@ export default function MitarbeiterDialog({ open, mitarbeiter, onClose }: Mitarb
     }))
   }
 
+  // Personalnummer prüfen (Duplikat-Check)
+  const pruefePersonalnummer = async (personalnummer: string) => {
+    if (!personalnummer || personalnummer.trim() === '') {
+      setPersonalnummerFehler('')
+      return true
+    }
+
+    // Wenn wir einen existierenden Mitarbeiter bearbeiten und die Nummer gleich bleibt
+    if (mitarbeiter && mitarbeiter.personalnummer === personalnummer) {
+      setPersonalnummerFehler('')
+      return true
+    }
+
+    setCheckingPersonalnummer(true)
+    setPersonalnummerFehler('')
+
+    try {
+      const response = await fetch(`/api/mitarbeiter/check-personalnummer?personalnummer=${encodeURIComponent(personalnummer)}`)
+      const data = await response.json()
+
+      if (!response.ok || !data.erfolg) {
+        setPersonalnummerFehler('Fehler bei der Prüfung')
+        return false
+      }
+
+      if (!data.verfuegbar) {
+        setPersonalnummerFehler(`⚠️ Personalnummer "${personalnummer}" ist bereits vergeben`)
+        toast.error('Personalnummer bereits vergeben', {
+          description: `Die Personalnummer "${personalnummer}" wird bereits von einem anderen Mitarbeiter verwendet.`
+        })
+        return false
+      }
+
+      setPersonalnummerFehler('')
+      return true
+    } catch (error) {
+      console.error('Fehler beim Prüfen der Personalnummer:', error)
+      setPersonalnummerFehler('Fehler bei der Prüfung')
+      return false
+    } finally {
+      setCheckingPersonalnummer(false)
+    }
+  }
+
+  const handlePersonalnummerChange = async (value: string) => {
+    handleChange('personalnummer', value)
+    
+    // Debounce: Prüfe erst nach kurzem Delay
+    const timer = setTimeout(() => {
+      pruefePersonalnummer(value)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }
+
   const handleSubmit = async () => {
     // Validierung vor dem Absenden
     if (!formData.vorname || !formData.nachname || !formData.email) {
-      alert('Bitte füllen Sie alle Pflichtfelder aus (Vorname, Nachname, E-Mail)')
+      toast.error('Pflichtfelder fehlen', {
+        description: 'Bitte füllen Sie Vorname, Nachname und E-Mail aus'
+      })
+      return
+    }
+
+    if (!formData.personalnummer || formData.personalnummer.trim() === '') {
+      toast.error('Personalnummer fehlt', {
+        description: 'Bitte geben Sie eine Personalnummer ein'
+      })
+      return
+    }
+
+    // Prüfe Personalnummer nochmal vor dem Speichern
+    const personalnummerGueltig = await pruefePersonalnummer(formData.personalnummer)
+    if (!personalnummerGueltig) {
+      toast.error('Personalnummer ungültig', {
+        description: 'Die eingegebene Personalnummer ist bereits vergeben'
+      })
       return
     }
 
@@ -207,14 +283,31 @@ export default function MitarbeiterDialog({ open, mitarbeiter, onClose }: Mitarb
           <TabsContent value="allgemein" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="personalnummer">Personalnummer (automatisch)</Label>
+                <Label htmlFor="personalnummer" className="flex items-center gap-2">
+                  Personalnummer *
+                  {checkingPersonalnummer && (
+                    <span className="text-xs text-gray-500">(wird geprüft...)</span>
+                  )}
+                </Label>
                 <Input
                   id="personalnummer"
-                  value={loadingPersonalnummer ? 'Wird generiert...' : (formData.personalnummer || '')}
-                  disabled
+                  value={formData.personalnummer || ''}
+                  onChange={(e) => handlePersonalnummerChange(e.target.value)}
                   placeholder="z.B. M-001"
-                  className="bg-gray-100 text-gray-700"
+                  className={personalnummerFehler ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}
+                  disabled={loadingPersonalnummer}
                 />
+                {personalnummerFehler && (
+                  <div className="flex items-start gap-2 text-xs text-red-600 mt-1">
+                    <AlertCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                    <span>{personalnummerFehler}</span>
+                  </div>
+                )}
+                {!personalnummerFehler && formData.personalnummer && !checkingPersonalnummer && (
+                  <div className="text-xs text-green-600 mt-1">
+                    ✓ Personalnummer verfügbar
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="beschaeftigungsart">Beschäftigungsart *</Label>
