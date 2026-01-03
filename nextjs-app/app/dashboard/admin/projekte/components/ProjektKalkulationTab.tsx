@@ -38,9 +38,9 @@ export default function ProjektKalkulationTab({ projekt, onProjektUpdated }: Pro
       console.log('→ Lade Angebot:', projekt.angebotId)
       loadAngebot()
     } else {
-      const fallback = projekt.angebotssumme || projekt.budget
-      console.warn('⚠ Kein Angebot zugewiesen - fallback auf Projekt-angebotssumme/Budget:', fallback)
-      setAngebotNetto(fallback)
+      // Kein Angebot zugewiesen - versuche automatisch zuzuweisen
+      console.log('⚠ Kein Angebot zugewiesen - prüfe ob automatische Zuweisung möglich ist')
+      autoZuweiseAngebot()
     }
   }, [projekt._id, projekt.angebotId])
 
@@ -59,6 +59,68 @@ export default function ProjektKalkulationTab({ projekt, onProjektUpdated }: Pro
       toast.error('Fehler beim Laden der Kalkulation')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const autoZuweiseAngebot = async () => {
+    try {
+      console.log('🔍 Suche nach angenommenen Angeboten für automatische Zuweisung...')
+      
+      // Lade angenommene Angebote für diesen Kunden
+      const response = await fetch(`/api/projekte/${projekt._id}/angebote`)
+      const data = await response.json()
+      
+      if (data.erfolg && data.angebote && data.angebote.length > 0) {
+        // Filter: Nur angenommene Angebote ohne Projekt
+        const verfuegbareAngebote = data.angebote.filter((a: any) => 
+          a.status === 'angenommen' && !a.projektId
+        )
+        
+        console.log(`→ ${verfuegbareAngebote.length} verfügbare Angebot(e) gefunden`)
+        
+        if (verfuegbareAngebote.length === 1) {
+          // Genau 1 Angebot gefunden → automatisch zuweisen
+          const angebot = verfuegbareAngebote[0]
+          console.log(`✓ Weise Angebot ${angebot.angebotsnummer} automatisch zu`)
+          
+          const zuweisungResponse = await fetch(`/api/projekte/${projekt._id}/angebot-zuweisen`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              angebotId: angebot._id,
+              benutzer: 'auto'
+            })
+          })
+          
+          const zuweisungData = await zuweisungResponse.json()
+          
+          if (zuweisungData.erfolg) {
+            toast.success('Angebot automatisch zugewiesen', {
+              description: `Angebot ${angebot.angebotsnummer} wurde automatisch mit diesem Projekt verknüpft`
+            })
+            
+            // Projekt neu laden
+            if (onProjektUpdated) {
+              onProjektUpdated()
+            }
+          } else {
+            console.warn('⚠ Automatische Zuweisung fehlgeschlagen:', zuweisungData.fehler)
+            setAngebotNetto(projekt.budget || projekt.angebotssumme)
+          }
+        } else if (verfuegbareAngebote.length > 1) {
+          console.log('ℹ Mehrere Angebote verfügbar - keine automatische Zuweisung')
+          setAngebotNetto(projekt.budget || projekt.angebotssumme)
+        } else {
+          console.log('ℹ Keine verfügbaren Angebote für automatische Zuweisung')
+          setAngebotNetto(projekt.budget || projekt.angebotssumme)
+        }
+      } else {
+        console.log('ℹ Keine Angebote gefunden')
+        setAngebotNetto(projekt.budget || projekt.angebotssumme)
+      }
+    } catch (error) {
+      console.error('❌ Fehler bei automatischer Angebotszuweisung:', error)
+      setAngebotNetto(projekt.budget || projekt.angebotssumme)
     }
   }
 
