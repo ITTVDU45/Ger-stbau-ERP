@@ -1,18 +1,24 @@
 'use client'
 
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Projekt } from '@/lib/db/types'
-import { Home, Building2, Layers, Package, RefreshCw } from 'lucide-react'
+import { Home, Building2, Layers, Package, RefreshCw, Edit } from 'lucide-react'
 import { toast } from 'sonner'
+import BauvorhabenBearbeitenDialog from './BauvorhabenBearbeitenDialog'
+import ProjektstatusBearbeitenDialog from './ProjektstatusBearbeitenDialog'
 
 interface ProjektUebersichtTabProps {
   projekt: Projekt
+  onProjektUpdated?: () => void
 }
 
-export default function ProjektUebersichtTab({ projekt }: ProjektUebersichtTabProps) {
+export default function ProjektUebersichtTab({ projekt, onProjektUpdated }: ProjektUebersichtTabProps) {
+  const [bauvorhabenDialogOpen, setBauvorhabenDialogOpen] = useState(false)
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false)
   const arbeitstypenBadges = []
   
   // Defensive checks für Legacy-Daten
@@ -65,33 +71,44 @@ export default function ProjektUebersichtTab({ projekt }: ProjektUebersichtTabPr
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-gray-900">Bauvorhabeninformationen</CardTitle>
-            {(!projekt.bauvorhaben?.adresse || projekt.bauvorhaben.adresse === '') && projekt.angebotId && (
+            <div className="flex items-center gap-2">
+              {(!projekt.bauvorhaben?.adresse || projekt.bauvorhaben.adresse === '') && projekt.angebotId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const response = await fetch(`/api/projekte/${projekt._id}/bauvorhaben-aktualisieren`, {
+                        method: 'POST'
+                      })
+                      const data = await response.json()
+                      if (data.erfolg) {
+                        toast.success('Bauvorhabeninformationen wurden aktualisiert')
+                        if (onProjektUpdated) onProjektUpdated()
+                      } else {
+                        toast.error(data.fehler || 'Fehler beim Aktualisieren')
+                      }
+                    } catch (error) {
+                      console.error('Fehler:', error)
+                      toast.error('Fehler beim Aktualisieren')
+                    }
+                  }}
+                  className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Aus Anfrage laden
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
-                onClick={async () => {
-                  try {
-                    const response = await fetch(`/api/projekte/${projekt._id}/bauvorhaben-aktualisieren`, {
-                      method: 'POST'
-                    })
-                    const data = await response.json()
-                    if (data.erfolg) {
-                      toast.success('Bauvorhabeninformationen wurden aktualisiert')
-                      window.location.reload()
-                    } else {
-                      toast.error(data.fehler || 'Fehler beim Aktualisieren')
-                    }
-                  } catch (error) {
-                    console.error('Fehler:', error)
-                    toast.error('Fehler beim Aktualisieren')
-                  }
-                }}
-                className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                onClick={() => setBauvorhabenDialogOpen(true)}
+                className="border-gray-300 text-gray-700 hover:bg-gray-50"
               >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Aus Anfrage laden
+                <Edit className="h-4 w-4 mr-2" />
+                Bearbeiten
               </Button>
-            )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -219,7 +236,18 @@ export default function ProjektUebersichtTab({ projekt }: ProjektUebersichtTabPr
       {/* Projektstatus & Termine */}
       <Card className="bg-white border-gray-200">
         <CardHeader>
-          <CardTitle className="text-gray-900">Projektstatus & Termine</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-gray-900">Projektstatus & Termine</CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setStatusDialogOpen(true)}
+              className="border-gray-300 text-gray-700 hover:bg-gray-50"
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Bearbeiten
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -258,6 +286,24 @@ export default function ProjektUebersichtTab({ projekt }: ProjektUebersichtTabPr
           )}
         </CardContent>
       </Card>
+
+      {/* Dialoge */}
+      <BauvorhabenBearbeitenDialog
+        open={bauvorhabenDialogOpen}
+        onOpenChange={setBauvorhabenDialogOpen}
+        projekt={projekt}
+        onSuccess={() => {
+          if (onProjektUpdated) onProjektUpdated()
+        }}
+      />
+      <ProjektstatusBearbeitenDialog
+        open={statusDialogOpen}
+        onOpenChange={setStatusDialogOpen}
+        projekt={projekt}
+        onSuccess={() => {
+          if (onProjektUpdated) onProjektUpdated()
+        }}
+      />
     </div>
   )
 }

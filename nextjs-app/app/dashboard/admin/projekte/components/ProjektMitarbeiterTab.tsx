@@ -60,7 +60,13 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
       const response = await fetch(`/api/zeiterfassung?projektId=${projekt._id}`)
       if (response.ok) {
         const data = await response.json()
-        setZeiterfassungen(data.zeiterfassungen || [])
+        const zeiterfassungenData = data.zeiterfassungen || []
+        console.log('[ProjektMitarbeiterTab] Zeiterfassungen geladen:', {
+          anzahl: zeiterfassungenData.length,
+          mitarbeiterIds: [...new Set(zeiterfassungenData.map((z: any) => z.mitarbeiterId))],
+          beispiel: zeiterfassungenData[0]
+        })
+        setZeiterfassungen(zeiterfassungenData)
       }
     } catch (error) {
       console.error('Fehler beim Laden der Zeiterfassungen:', error)
@@ -94,9 +100,23 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
       ? new Date(Math.max(...kandidatenBis.map(d => d.getTime())))
       : (vonDatum ? new Date(vonDatum) : null)
     
+    // Normalisiere beide IDs zu Strings für den Vergleich
+    const normalizedMitarbeiterId = String(mitarbeiterId || '').trim()
+    
     // Filtere Zeiterfassungen für diesen Mitarbeiter im angegebenen Zeitraum
     const mitarbeiterZeiten = zeiterfassungen.filter(z => {
-      if (z.mitarbeiterId !== mitarbeiterId) return false
+      const normalizedZeitId = String(z.mitarbeiterId || '').trim()
+      
+      // Debug: Log nur beim ersten Durchlauf
+      if (zeiterfassungen.indexOf(z) === 0) {
+        console.log('[getErfassteStunden] Vergleiche IDs:', {
+          sucheMitarbeiter: normalizedMitarbeiterId,
+          zeitMitarbeiter: normalizedZeitId,
+          matches: normalizedZeitId === normalizedMitarbeiterId
+        })
+      }
+      
+      if (normalizedZeitId !== normalizedMitarbeiterId) return false
       
       const zeitDatum = new Date(z.datum)
       // Setze Zeit auf 00:00:00 für Vergleich
@@ -465,6 +485,16 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
               </TableHeader>
               <TableBody>
                 {projekt.zugewieseneMitarbeiter.map((mitarbeiter, index) => {
+                  // Debug: Log Mitarbeiter-IDs
+                  if (index === 0) {
+                    console.log('[ProjektMitarbeiterTab] Zugewiesene Mitarbeiter IDs:', 
+                      projekt.zugewieseneMitarbeiter?.map(m => ({ 
+                        name: m.mitarbeiterName, 
+                        id: m.mitarbeiterId 
+                      }))
+                    )
+                  }
+                  
                   const stundenInfo = getErfassteStunden(mitarbeiter.mitarbeiterId, mitarbeiter.von, mitarbeiter.bis, mitarbeiter)
                   
                   // Verwende manuell gesetzte Werte aus der Mitarbeiter-Zuweisung, falls vorhanden
@@ -511,7 +541,14 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
                               <span className="text-red-600" title="Abgelehnt">✕ {stundenInfo.abgelehnt.toFixed(1)}</span>
                             )}
                           </div>
-                          <span className="text-xs text-gray-500">({stundenInfo.eintraege} Einträge)</span>
+                          <span className="text-xs text-gray-500">
+                            {stundenInfo.eintraege > 0 ? `(${stundenInfo.eintraege} Einträge)` : '(Keine Einträge)'}
+                          </span>
+                          {stundenInfo.eintraege === 0 && ((mitarbeiter as any).stundenAufbau > 0 || (mitarbeiter as any).stundenAbbau > 0) && (
+                            <span className="text-xs text-purple-600 font-medium">
+                              ⚡ {(Number((mitarbeiter as any).stundenAufbau || 0) + Number((mitarbeiter as any).stundenAbbau || 0)).toFixed(1)}h geplant
+                            </span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -773,25 +810,143 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
               Zeiterfassungen - {projekt.zugewieseneMitarbeiter?.find(m => m.mitarbeiterId === selectedMitarbeiterId)?.mitarbeiterName}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-auto">
-            <div className="rounded-md border border-gray-200">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-gray-200 hover:bg-gray-50">
-                    <TableHead className="text-gray-900 font-semibold">Datum</TableHead>
-                    <TableHead className="text-gray-900 font-semibold">Typ</TableHead>
-                    <TableHead className="text-gray-900 font-semibold text-right">Stunden</TableHead>
-                    <TableHead className="text-gray-900 font-semibold">Von - Bis</TableHead>
-                    <TableHead className="text-gray-900 font-semibold">Pause</TableHead>
-                    <TableHead className="text-gray-900 font-semibold">Status</TableHead>
-                    <TableHead className="text-gray-900 font-semibold">Beschreibung</TableHead>
-                    <TableHead className="text-gray-900 font-semibold text-right">Aktionen</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {zeiterfassungen
-                    .filter(z => z.mitarbeiterId === selectedMitarbeiterId)
-                    .map((eintrag) => (
+          <div className="flex-1 overflow-auto space-y-4">
+            {(() => {
+              const mitarbeiter = projekt.zugewieseneMitarbeiter?.find(m => m.mitarbeiterId === selectedMitarbeiterId)
+              const geplantAufbau = Number((mitarbeiter as any)?.stundenAufbau || 0)
+              const geplantAbbau = Number((mitarbeiter as any)?.stundenAbbau || 0)
+              const hatGeplant = geplantAufbau > 0 || geplantAbbau > 0
+              const zeiterfassungenFuerMitarbeiter = zeiterfassungen.filter(z => z.mitarbeiterId === selectedMitarbeiterId)
+              const hatZeiterfassungen = zeiterfassungenFuerMitarbeiter.length > 0
+
+              return (
+                <>
+                  {/* Geplante Stunden Hinweis */}
+                  {hatGeplant && !hatZeiterfassungen && (
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mx-1">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 mt-0.5">
+                          <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                            <span className="text-purple-600 text-xl">⚡</span>
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-sm font-semibold text-purple-900 mb-1">
+                            Geplante Stunden vorhanden
+                          </h4>
+                          <p className="text-sm text-purple-800 mb-3">
+                            Für diesen Mitarbeiter wurden <span className="font-bold">{geplantAufbau.toFixed(1)}h Aufbau</span> und <span className="font-bold">{geplantAbbau.toFixed(1)}h Abbau</span> geplant,
+                            aber noch keine Zeiterfassungen zum Freigeben erstellt.
+                          </p>
+                          <Button
+                            onClick={async () => {
+                              if (!mitarbeiter) return
+                              
+                              try {
+                                const zeiterfassungenZuErstellen = []
+                                
+                                // Aufbau-Eintrag erstellen
+                                if (geplantAufbau > 0 && mitarbeiter.von) {
+                                  zeiterfassungenZuErstellen.push({
+                                    mitarbeiterId: mitarbeiter.mitarbeiterId,
+                                    mitarbeiterName: mitarbeiter.mitarbeiterName,
+                                    projektId: projekt._id,
+                                    projektName: projekt.projektname,
+                                    datum: new Date(mitarbeiter.von).toISOString(),
+                                    stunden: geplantAufbau,
+                                    taetigkeitstyp: 'aufbau',
+                                    status: 'offen',
+                                    beschreibung: 'Aufbau - aus Planung übernommen',
+                                    von: '08:00',
+                                    bis: `${8 + Math.floor(geplantAufbau)}:${String((geplantAufbau % 1) * 60).padStart(2, '0')}`,
+                                    pause: 0
+                                  })
+                                }
+                                
+                                // Abbau-Eintrag erstellen
+                                if (geplantAbbau > 0 && mitarbeiter.bis) {
+                                  zeiterfassungenZuErstellen.push({
+                                    mitarbeiterId: mitarbeiter.mitarbeiterId,
+                                    mitarbeiterName: mitarbeiter.mitarbeiterName,
+                                    projektId: projekt._id,
+                                    projektName: projekt.projektname,
+                                    datum: new Date(mitarbeiter.bis).toISOString(),
+                                    stunden: geplantAbbau,
+                                    taetigkeitstyp: 'abbau',
+                                    status: 'offen',
+                                    beschreibung: 'Abbau - aus Planung übernommen',
+                                    von: '08:00',
+                                    bis: `${8 + Math.floor(geplantAbbau)}:${String((geplantAbbau % 1) * 60).padStart(2, '0')}`,
+                                    pause: 0
+                                  })
+                                }
+                                
+                                // Erstelle alle Zeiterfassungen
+                                for (const eintrag of zeiterfassungenZuErstellen) {
+                                  const response = await fetch('/api/zeiterfassung', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(eintrag)
+                                  })
+                                  
+                                  if (!response.ok) {
+                                    throw new Error('Fehler beim Erstellen der Zeiterfassung')
+                                  }
+                                }
+                                
+                                toast.success('Zeiterfassungen erfolgreich erstellt', {
+                                  description: `${zeiterfassungenZuErstellen.length} Einträge können nun freigegeben werden`
+                                })
+                                
+                                // Lade Zeiterfassungen neu
+                                await loadZeiterfassungen()
+                              } catch (error) {
+                                console.error('Fehler:', error)
+                                toast.error('Fehler beim Erstellen der Zeiterfassungen')
+                              }
+                            }}
+                            className="bg-purple-600 hover:bg-purple-700 text-white"
+                          >
+                            🚀 Zeiterfassungen erstellen und freigeben
+                          </Button>
+                          <div className="text-xs text-purple-700 bg-purple-100 rounded p-2 mt-2">
+                            💡 <span className="font-medium">Info:</span> Dies erstellt Zeiterfassungen basierend auf den geplanten Stunden. 
+                            Du kannst sie dann direkt hier im Dialog freigeben.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {!hatZeiterfassungen && !hatGeplant && (
+                    <div className="text-center py-12 text-gray-500">
+                      <p className="text-lg font-medium mb-2">Keine Zeiterfassungen vorhanden</p>
+                      <p className="text-sm">Für diesen Mitarbeiter wurden noch keine Stunden erfasst.</p>
+                    </div>
+                  )}
+                </>
+              )
+            })()}
+
+            {zeiterfassungen.filter(z => z.mitarbeiterId === selectedMitarbeiterId).length > 0 && (
+              <div className="rounded-md border border-gray-200 mx-1">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-gray-200 hover:bg-gray-50">
+                      <TableHead className="text-gray-900 font-semibold">Datum</TableHead>
+                      <TableHead className="text-gray-900 font-semibold">Typ</TableHead>
+                      <TableHead className="text-gray-900 font-semibold text-right">Stunden</TableHead>
+                      <TableHead className="text-gray-900 font-semibold">Von - Bis</TableHead>
+                      <TableHead className="text-gray-900 font-semibold">Pause</TableHead>
+                      <TableHead className="text-gray-900 font-semibold">Status</TableHead>
+                      <TableHead className="text-gray-900 font-semibold">Beschreibung</TableHead>
+                      <TableHead className="text-gray-900 font-semibold text-right">Aktionen</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {zeiterfassungen
+                      .filter(z => z.mitarbeiterId === selectedMitarbeiterId)
+                      .map((eintrag) => (
                       <TableRow key={eintrag._id} className="border-gray-200 hover:bg-gray-50">
                         <TableCell className="font-medium text-gray-900">
                           {format(new Date(eintrag.datum), 'dd.MM.yyyy', { locale: de })}
@@ -865,9 +1020,10 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
                         </TableCell>
                       </TableRow>
                     ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

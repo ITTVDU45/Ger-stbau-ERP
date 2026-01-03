@@ -143,7 +143,7 @@ export default function ProjektDetailPage() {
   const tabsContent = (
     <>
       <TabsContent value="uebersicht">
-        <ProjektUebersichtTab projekt={projekt} />
+        <ProjektUebersichtTab projekt={projekt} onProjektUpdated={loadProjekt} />
       </TabsContent>
 
       <TabsContent value="kunde">

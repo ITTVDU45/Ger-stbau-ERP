@@ -401,23 +401,42 @@ export default function VorkalkulationEditor({
           <Alert className="bg-orange-50 border-orange-300">
             <Info className="h-4 w-4 text-orange-600" />
             <AlertDescription className="text-orange-900">
-              <div className="flex items-start justify-between">
+              <div className="space-y-3">
                 <div>
-                  <strong>Kein Angebot zugewiesen:</strong> Diesem Projekt ist noch kein Angebot zugewiesen. 
-                  Gehen Sie zum Tab <strong>"Angebote"</strong> um ein Angebot zuzuweisen, damit die Werte automatisch übernommen werden können.
-                  <br />
-                  <span className="text-xs mt-1 block">
-                    Falls Sie bereits ein Angebot zugewiesen haben, laden Sie die Seite bitte neu (F5) oder klicken Sie auf den Button rechts.
+                  <strong className="text-base">⚠️ Kein Angebot zugewiesen</strong>
+                  <p className="mt-1">
+                    Diesem Projekt ist noch kein Angebot zugewiesen. Die Werte können daher nicht automatisch berechnet werden.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 pt-2 border-t border-orange-200">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => {
+                      // Navigiere zum Angebote-Tab
+                      const angeboteTab = document.querySelector('button[value="angebote"]') as HTMLElement
+                      if (angeboteTab) {
+                        angeboteTab.click()
+                        // Warte kurz und scrolle zum Dialog-Button
+                        setTimeout(() => {
+                          const zuweisungButton = document.querySelector('button:has-text("Angebot zuweisen")') as HTMLElement
+                          if (zuweisungButton) {
+                            zuweisungButton.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                          }
+                        }, 300)
+                        toast.success('Zum Angebote-Tab gewechselt', {
+                          description: 'Klicken Sie auf "Angebot zuweisen", um ein bestehendes Angebot zu verknüpfen.'
+                        })
+                      }
+                    }}
+                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                  >
+                    📋 Jetzt Angebot zuweisen
+                  </Button>
+                  <span className="text-xs text-orange-700">
+                    Oder geben Sie die Werte manuell ein →
                   </span>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.location.reload()}
-                  className="ml-4 whitespace-nowrap border-orange-400 text-orange-800 hover:bg-orange-100"
-                >
-                  Seite neu laden
-                </Button>
               </div>
             </AlertDescription>
           </Alert>
