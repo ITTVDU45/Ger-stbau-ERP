@@ -13,6 +13,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle 
+} from '@/components/ui/alert-dialog'
+import { toast } from 'sonner'
 
 export default function AngebotePage() {
   const router = useRouter()
@@ -21,6 +32,14 @@ export default function AngebotePage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<'alle' | 'entwurf' | 'gesendet'>('alle')
   const [filterTyp, setFilterTyp] = useState<'alle' | 'dachdecker' | 'maler' | 'bauunternehmen'>('alle')
+  
+  // Lösch-Dialog State
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteStep, setDeleteStep] = useState<'initial' | 'confirm' | 'force'>('initial')
+  const [angebotToDelete, setAngebotToDelete] = useState<Angebot | null>(null)
+  const [verknuepfteDaten, setVerknuepfteDaten] = useState<any>(null)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     loadAngebote()
@@ -41,19 +60,91 @@ export default function AngebotePage() {
     }
   }
 
-  const handleLoeschen = async (id: string) => {
-    if (!confirm('Möchten Sie dieses Angebot wirklich löschen?')) return
-    
+  const handleLoeschen = async (angebot: Angebot) => {
+    setAngebotToDelete(angebot)
+    setDeleteStep('initial')
+    setVerknuepfteDaten(null)
+    setDeleteConfirmText('')
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!angebotToDelete) return
+
+    setIsDeleting(true)
     try {
-      const response = await fetch(`/api/angebote/${id}`, {
+      const response = await fetch(`/api/angebote/${angebotToDelete._id}`, {
         method: 'DELETE'
       })
-      
-      if (response.ok) {
+
+      const data = await response.json()
+
+      if (response.ok && data.erfolg) {
+        toast.success('Angebot gelöscht', {
+          description: `Angebot ${angebotToDelete.angebotsnummer} wurde erfolgreich gelöscht`
+        })
+        setDeleteDialogOpen(false)
         loadAngebote()
+      } else if (data.requiresForce) {
+        // Verknüpfte Daten gefunden
+        setVerknuepfteDaten(data.verknuepfteDaten)
+        setDeleteStep('confirm')
+      } else {
+        toast.error('Fehler beim Löschen', {
+          description: data.fehler || 'Ein unbekannter Fehler ist aufgetreten'
+        })
       }
     } catch (error) {
       console.error('Fehler beim Löschen:', error)
+      toast.error('Fehler beim Löschen des Angebots')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleForceDelete = async () => {
+    if (!angebotToDelete || deleteConfirmText !== 'LÖSCHEN') {
+      toast.error('Bitte geben Sie "LÖSCHEN" ein, um fortzufahren')
+      return
+    }
+
+    setIsDeleting(true)
+    try {
+      const response = await fetch(`/api/angebote/${angebotToDelete._id}?force=true`, {
+        method: 'DELETE'
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.erfolg) {
+        toast.success('Angebot und verknüpfte Daten gelöscht', {
+          description: `Angebot ${angebotToDelete.angebotsnummer} und alle verknüpften Daten wurden gelöscht`
+        })
+        setDeleteDialogOpen(false)
+        setDeleteStep('initial')
+        setDeleteConfirmText('')
+        setVerknuepfteDaten(null)
+        loadAngebote()
+      } else {
+        toast.error('Fehler beim Löschen', {
+          description: data.fehler || 'Ein unbekannter Fehler ist aufgetreten'
+        })
+      }
+    } catch (error) {
+      console.error('Fehler beim Force-Delete:', error)
+      toast.error('Fehler beim Löschen des Angebots')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleDialogClose = () => {
+    if (!isDeleting) {
+      setDeleteDialogOpen(false)
+      setDeleteStep('initial')
+      setAngebotToDelete(null)
+      setVerknuepfteDaten(null)
+      setDeleteConfirmText('')
     }
   }
 
@@ -212,6 +303,160 @@ export default function AngebotePage() {
           />
         </CardContent>
       </Card>
+
+      {/* Lösch-Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={handleDialogClose}>
+        <AlertDialogContent className="bg-white max-w-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900">
+              {deleteStep === 'initial' && 'Angebot löschen?'}
+              {deleteStep === 'confirm' && '⚠️ Verknüpfte Daten gefunden'}
+              {deleteStep === 'force' && '🚨 Endgültig löschen'}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                {deleteStep === 'initial' && angebotToDelete && (
+                  <>
+                    <p className="text-gray-700">
+                      Möchten Sie das Angebot <strong className="text-gray-900">{angebotToDelete.angebotsnummer}</strong> wirklich löschen?
+                    </p>
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                      <p className="text-sm text-gray-700"><strong>Kunde:</strong> {angebotToDelete.kundeName}</p>
+                      <p className="text-sm text-gray-700"><strong>Status:</strong> {angebotToDelete.status}</p>
+                      {angebotToDelete.brutto && (
+                        <p className="text-sm text-gray-700">
+                          <strong>Summe:</strong> {angebotToDelete.brutto.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {deleteStep === 'confirm' && verknuepfteDaten && (
+                  <>
+                    <p className="text-gray-700">
+                      Dieses Angebot ist mit folgenden Daten verknüpft:
+                    </p>
+                    
+                    {verknuepfteDaten.projekte > 0 && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-sm font-semibold text-blue-900 mb-2">
+                          📁 {verknuepfteDaten.projekte} Projekt(e)
+                        </p>
+                        <div className="space-y-1">
+                          {verknuepfteDaten.projekteDetails?.map((p: any) => (
+                            <div key={p.id} className="text-sm text-blue-800">
+                              • {p.nummer} - {p.name}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {verknuepfteDaten.rechnungen > 0 && (
+                      <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                        <p className="text-sm font-semibold text-orange-900 mb-2">
+                          📄 {verknuepfteDaten.rechnungen} Rechnung(en)
+                        </p>
+                        <div className="space-y-1">
+                          {verknuepfteDaten.rechnungenDetails?.map((r: any) => (
+                            <div key={r.id} className="text-sm text-orange-800">
+                              • {r.nummer} - {r.betrag.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-3">
+                      <p className="text-sm text-red-900">
+                        <strong>⚠️ Warnung:</strong> Wenn Sie fortfahren, werden:
+                      </p>
+                      <ul className="list-disc list-inside text-sm text-red-800 mt-2 space-y-1">
+                        {verknuepfteDaten.projekte > 0 && (
+                          <li>Die Angebot-Referenz aus {verknuepfteDaten.projekte} Projekt(en) entfernt</li>
+                        )}
+                        {verknuepfteDaten.rechnungen > 0 && (
+                          <li>{verknuepfteDaten.rechnungen} Rechnung(en) unwiderruflich gelöscht</li>
+                        )}
+                      </ul>
+                    </div>
+                  </>
+                )}
+
+                {deleteStep === 'force' && (
+                  <>
+                    <p className="text-gray-700">
+                      Diese Aktion kann <strong className="text-red-600">nicht rückgängig</strong> gemacht werden!
+                    </p>
+                    <div className="bg-red-50 border border-red-300 rounded-lg p-4">
+                      <Label htmlFor="deleteConfirm" className="text-sm font-medium text-red-900">
+                        Geben Sie <strong>LÖSCHEN</strong> ein, um fortzufahren:
+                      </Label>
+                      <Input
+                        id="deleteConfirm"
+                        value={deleteConfirmText}
+                        onChange={(e) => setDeleteConfirmText(e.target.value)}
+                        placeholder="LÖSCHEN"
+                        className="mt-2 border-red-300 focus:border-red-500 focus:ring-red-500"
+                        autoComplete="off"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            {deleteStep === 'initial' && (
+              <>
+                <AlertDialogCancel disabled={isDeleting} className="border-gray-300 text-gray-700 hover:bg-gray-50">
+                  Abbrechen
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteConfirm}
+                  disabled={isDeleting}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  {isDeleting ? 'Wird gelöscht...' : 'Angebot löschen'}
+                </AlertDialogAction>
+              </>
+            )}
+
+            {deleteStep === 'confirm' && (
+              <>
+                <AlertDialogCancel disabled={isDeleting} className="border-gray-300 text-gray-700 hover:bg-gray-50">
+                  Abbrechen
+                </AlertDialogCancel>
+                <Button
+                  onClick={() => setDeleteStep('force')}
+                  disabled={isDeleting}
+                  variant="destructive"
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  Trotzdem löschen
+                </Button>
+              </>
+            )}
+
+            {deleteStep === 'force' && (
+              <>
+                <AlertDialogCancel disabled={isDeleting} className="border-gray-300 text-gray-700 hover:bg-gray-50">
+                  Abbrechen
+                </AlertDialogCancel>
+                <Button
+                  onClick={handleForceDelete}
+                  disabled={isDeleting || deleteConfirmText !== 'LÖSCHEN'}
+                  variant="destructive"
+                  className="bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                >
+                  {isDeleting ? 'Wird gelöscht...' : 'Endgültig löschen'}
+                </Button>
+              </>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

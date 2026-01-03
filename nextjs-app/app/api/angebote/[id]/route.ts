@@ -133,9 +133,12 @@ export async function DELETE(
       )
     }
 
+    const { searchParams } = new URL(request.url)
+    const force = searchParams.get('force') === 'true'
+
     const db = await getDatabase()
     
-    // Angebot laden, um anfrageId zu prüfen
+    // Angebot laden
     const angebot = await db.collection<Angebot>('angebote').findOne({ _id: new ObjectId(id) })
     
     if (!angebot) {
@@ -143,6 +146,63 @@ export async function DELETE(
         { erfolg: false, fehler: 'Angebot nicht gefunden' },
         { status: 404 }
       )
+    }
+
+    // Prüfe auf verknüpfte Daten
+    const verknuepfteProjekte = await db.collection('projekte')
+      .find({ angebotId: id })
+      .toArray()
+    
+    const verknuepfteRechnungen = await db.collection('rechnungen')
+      .find({ angebotId: id })
+      .toArray()
+
+    // Wenn verknüpfte Daten existieren und kein Force-Delete
+    if (!force && (verknuepfteProjekte.length > 0 || verknuepfteRechnungen.length > 0)) {
+      return NextResponse.json({
+        erfolg: false,
+        requiresForce: true,
+        verknuepfteDaten: {
+          projekte: verknuepfteProjekte.length,
+          rechnungen: verknuepfteRechnungen.length,
+          projekteDetails: verknuepfteProjekte.map((p: any) => ({
+            id: p._id.toString(),
+            name: p.projektname,
+            nummer: p.projektnummer
+          })),
+          rechnungenDetails: verknuepfteRechnungen.map((r: any) => ({
+            id: r._id.toString(),
+            nummer: r.rechnungsnummer,
+            betrag: r.brutto
+          }))
+        },
+        fehler: 'Angebot ist mit anderen Daten verknüpft'
+      }, { status: 409 })
+    }
+
+    // Force Delete: Lösche verknüpfte Rechnungen
+    if (force && verknuepfteRechnungen.length > 0) {
+      await db.collection('rechnungen').deleteMany({ angebotId: id })
+      console.log(`🗑️ ${verknuepfteRechnungen.length} verknüpfte Rechnung(en) gelöscht`)
+    }
+
+    // Force Delete: Entferne Angebot-Referenz aus Projekten
+    if (force && verknuepfteProjekte.length > 0) {
+      await db.collection('projekte').updateMany(
+        { angebotId: id },
+        {
+          $unset: { angebotId: '', angebotsnummer: '' },
+          $push: {
+            aktivitaeten: {
+              aktion: 'Angebot entfernt',
+              benutzer: 'admin',
+              zeitpunkt: new Date(),
+              details: `Angebot ${angebot.angebotsnummer} wurde gelöscht`
+            }
+          }
+        }
+      )
+      console.log(`🔗 Angebot-Referenz aus ${verknuepfteProjekte.length} Projekt(en) entfernt`)
     }
 
     // Angebot löschen
@@ -159,6 +219,14 @@ export async function DELETE(
           },
           $unset: {
             angebotId: ''
+          },
+          $push: {
+            aktivitaeten: {
+              aktion: 'Angebot gelöscht',
+              benutzer: 'admin',
+              zeitpunkt: new Date(),
+              details: `Angebot ${angebot.angebotsnummer} wurde gelöscht`
+            }
           }
         }
       )
@@ -166,7 +234,11 @@ export async function DELETE(
 
     return NextResponse.json({
       erfolg: true,
-      nachricht: 'Angebot erfolgreich gelöscht'
+      nachricht: 'Angebot erfolgreich gelöscht',
+      geloescht: {
+        projekte: force ? verknuepfteProjekte.length : 0,
+        rechnungen: force ? verknuepfteRechnungen.length : 0
+      }
     })
   } catch (error) {
     console.error('Fehler beim Löschen des Angebots:', error)
