@@ -182,7 +182,7 @@ export async function DELETE(
     const rechnungenCount = await db.collection('rechnungen').countDocuments({ projektId: id })
     const dokumenteCount = projekt.dokumente?.length || 0
     const mitarbeiterCount = projekt.zugewieseneMitarbeiter?.length || 0
-    const zeiterfassungenCount = await db.collection('zeiterfassungen').countDocuments({ projektId: id })
+    const zeiterfassungenCount = await db.collection('zeiterfassung').countDocuments({ projektId: id })
 
     const hasRelatedData = rechnungenCount > 0 || dokumenteCount > 0 || mitarbeiterCount > 0 || zeiterfassungenCount > 0
 
@@ -213,7 +213,8 @@ export async function DELETE(
 
       // Lösche Zeiterfassungen
       if (zeiterfassungenCount > 0) {
-        await db.collection('zeiterfassungen').deleteMany({ projektId: id })
+        await db.collection('zeiterfassung').deleteMany({ projektId: id })
+        console.log(`🗑️ ${zeiterfassungenCount} Zeiterfassung(en) für Projekt ${id} gelöscht`)
       }
 
       // Dokumente und Mitarbeiter-Zuweisungen werden mit dem Projekt gelöscht (sind Teil des Projekts)

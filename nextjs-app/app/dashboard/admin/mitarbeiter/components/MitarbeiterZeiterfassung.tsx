@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Zeiterfassung } from '@/lib/db/types'
 import { Clock, Calendar, AlertCircle, Plus, FileText, Download, X, Eye, Check, XCircle, Edit2, Trash2, RefreshCw } from 'lucide-react'
 import { format } from 'date-fns'
@@ -13,6 +15,16 @@ import { de } from 'date-fns/locale'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import ZeiterfassungDialog from '@/components/dialogs/ZeiterfassungDialog'
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle 
+} from '@/components/ui/alert-dialog'
 
 interface MitarbeiterZeiterfassungProps {
   mitarbeiterId: string
@@ -29,6 +41,11 @@ export default function MitarbeiterZeiterfassung({ mitarbeiterId, mitarbeiterNam
   const [projektDetailsOpen, setProjektDetailsOpen] = useState(false)
   const [selectedProjektId, setSelectedProjektId] = useState<string | undefined>(undefined)
   const [editingEintrag, setEditingEintrag] = useState<Zeiterfassung | undefined>(undefined)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteConfirmStep, setDeleteConfirmStep] = useState<'first' | 'second'>('first')
+  const [eintragToDelete, setEintragToDelete] = useState<Zeiterfassung | null>(null)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     loadZeiterfassungen()
@@ -129,26 +146,63 @@ export default function MitarbeiterZeiterfassung({ mitarbeiterId, mitarbeiterNam
     }
   }
 
-  const handleEintragLoeschen = async (eintragId: string, beschreibung: string) => {
-    if (!confirm(`Möchten Sie diesen Zeiteintrag wirklich löschen?\n\n${beschreibung || 'Keine Beschreibung'}`)) {
+  const handleEintragLoeschen = (eintrag: Zeiterfassung) => {
+    setEintragToDelete(eintrag)
+    setDeleteConfirmStep('first')
+    setDeleteConfirmText('')
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!eintragToDelete || !eintragToDelete._id) return
+
+    if (deleteConfirmStep === 'first') {
+      // Erste Bestätigung - gehe zu zweiter
+      setDeleteConfirmStep('second')
       return
     }
 
+    // Zweite Bestätigung - prüfe Text-Eingabe
+    if (deleteConfirmText !== 'LÖSCHEN') {
+      toast.error('Bitte geben Sie "LÖSCHEN" ein, um fortzufahren')
+      return
+    }
+
+    setIsDeleting(true)
     try {
-      const response = await fetch(`/api/zeiterfassung/${eintragId}`, {
+      const response = await fetch(`/api/zeiterfassung/${eintragToDelete._id}`, {
         method: 'DELETE'
       })
       
       if (response.ok) {
-        toast.success('Zeiteintrag erfolgreich gelöscht')
+        toast.success('Zeiteintrag erfolgreich gelöscht', {
+          description: `${eintragToDelete.stunden} Std. vom ${format(new Date(eintragToDelete.datum), 'dd.MM.yyyy', { locale: de })} wurden gelöscht`
+        })
+        setDeleteDialogOpen(false)
+        setDeleteConfirmStep('first')
+        setDeleteConfirmText('')
+        setEintragToDelete(null)
         loadZeiterfassungen()
       } else {
         const data = await response.json()
-        toast.error(data.fehler || 'Fehler beim Löschen')
+        toast.error('Fehler beim Löschen', {
+          description: data.fehler || 'Ein unbekannter Fehler ist aufgetreten'
+        })
       }
     } catch (error) {
       console.error('Fehler:', error)
-      toast.error('Fehler beim Löschen')
+      toast.error('Fehler beim Löschen des Zeiteintrags')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleDeleteDialogClose = () => {
+    if (!isDeleting) {
+      setDeleteDialogOpen(false)
+      setDeleteConfirmStep('first')
+      setDeleteConfirmText('')
+      setEintragToDelete(null)
     }
   }
 
@@ -477,6 +531,7 @@ export default function MitarbeiterZeiterfassung({ mitarbeiterId, mitarbeiterNam
                     <TableHead className="text-gray-900 font-semibold">Von - Bis</TableHead>
                     <TableHead className="text-gray-900 font-semibold">Status</TableHead>
                     <TableHead className="text-gray-900 font-semibold">Beschreibung</TableHead>
+                    <TableHead className="text-gray-900 font-semibold text-right">Aktionen</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -510,6 +565,50 @@ export default function MitarbeiterZeiterfassung({ mitarbeiterId, mitarbeiterNam
                       </TableCell>
                       <TableCell className="text-gray-700 max-w-xs truncate">
                         {zeit.beschreibung || '-'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEintragBearbeiten(zeit)}
+                            className="hover:bg-gray-100"
+                            title="Bearbeiten"
+                          >
+                            <Edit2 className="h-4 w-4 text-gray-700" />
+                          </Button>
+                          {zeit.status !== 'freigegeben' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => zeit._id && handleEintragFreigeben(zeit._id)}
+                              className="hover:bg-green-50"
+                              title="Freigeben"
+                            >
+                              <Check className="h-4 w-4 text-green-600" />
+                            </Button>
+                          )}
+                          {zeit.status !== 'abgelehnt' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => zeit._id && handleEintragAblehnen(zeit._id)}
+                              className="hover:bg-red-50"
+                              title="Ablehnen"
+                            >
+                              <XCircle className="h-4 w-4 text-red-600" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEintragLoeschen(zeit)}
+                            className="hover:bg-red-50"
+                            title="Löschen"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -618,7 +717,7 @@ export default function MitarbeiterZeiterfassung({ mitarbeiterId, mitarbeiterNam
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => eintrag._id && handleEintragLoeschen(eintrag._id, eintrag.beschreibung || '')}
+                              onClick={() => handleEintragLoeschen(eintrag)}
                               className="hover:bg-red-50"
                               title="Löschen"
                             >
@@ -674,6 +773,107 @@ export default function MitarbeiterZeiterfassung({ mitarbeiterId, mitarbeiterNam
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Lösch-Dialog mit 2-facher Bestätigung */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={handleDeleteDialogClose}>
+        <AlertDialogContent className="bg-white max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900">
+              {deleteConfirmStep === 'first' ? 'Zeiteintrag löschen?' : '🚨 Endgültig löschen'}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                {deleteConfirmStep === 'first' && eintragToDelete && (
+                  <>
+                    <p className="text-gray-700">
+                      Möchten Sie diesen Zeiteintrag wirklich löschen?
+                    </p>
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                      <div className="space-y-1 text-sm">
+                        <p className="text-gray-700">
+                          <strong>Datum:</strong> {format(new Date(eintragToDelete.datum), 'dd.MM.yyyy', { locale: de })}
+                        </p>
+                        <p className="text-gray-700">
+                          <strong>Stunden:</strong> {eintragToDelete.stunden} Std.
+                        </p>
+                        <p className="text-gray-700">
+                          <strong>Typ:</strong> {eintragToDelete.taetigkeitstyp === 'abbau' ? 'Abbau' : 'Aufbau'}
+                        </p>
+                        {eintragToDelete.projektName && (
+                          <p className="text-gray-700">
+                            <strong>Projekt:</strong> {eintragToDelete.projektName}
+                          </p>
+                        )}
+                        {eintragToDelete.beschreibung && (
+                          <p className="text-gray-700">
+                            <strong>Beschreibung:</strong> {eintragToDelete.beschreibung}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-2">
+                      Diese Aktion kann nicht rückgängig gemacht werden.
+                    </p>
+                  </>
+                )}
+
+                {deleteConfirmStep === 'second' && (
+                  <>
+                    <p className="text-gray-700">
+                      Diese Aktion kann <strong className="text-red-600">nicht rückgängig</strong> gemacht werden!
+                    </p>
+                    <div className="bg-red-50 border border-red-300 rounded-lg p-4">
+                      <Label htmlFor="deleteConfirm" className="text-sm font-medium text-red-900">
+                        Geben Sie <strong>LÖSCHEN</strong> ein, um fortzufahren:
+                      </Label>
+                      <Input
+                        id="deleteConfirm"
+                        value={deleteConfirmText}
+                        onChange={(e) => setDeleteConfirmText(e.target.value)}
+                        placeholder="LÖSCHEN"
+                        className="mt-2 border-red-300 focus:border-red-500 focus:ring-red-500"
+                        autoComplete="off"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            {deleteConfirmStep === 'first' && (
+              <>
+                <AlertDialogCancel disabled={isDeleting} className="border-gray-300 text-gray-700 hover:bg-gray-50">
+                  Abbrechen
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteConfirm}
+                  disabled={isDeleting}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  Weiter
+                </AlertDialogAction>
+              </>
+            )}
+
+            {deleteConfirmStep === 'second' && (
+              <>
+                <AlertDialogCancel disabled={isDeleting} className="border-gray-300 text-gray-700 hover:bg-gray-50">
+                  Abbrechen
+                </AlertDialogCancel>
+                <Button
+                  onClick={handleDeleteConfirm}
+                  disabled={isDeleting || deleteConfirmText !== 'LÖSCHEN'}
+                  variant="destructive"
+                  className="bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                >
+                  {isDeleting ? 'Wird gelöscht...' : 'Endgültig löschen'}
+                </Button>
+              </>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
