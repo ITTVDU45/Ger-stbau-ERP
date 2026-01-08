@@ -35,7 +35,7 @@ export default function ProjektePage() {
   const [selectedProjekt, setSelectedProjekt] = useState<Projekt | undefined>(undefined)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<'alle' | 'aktiv' | 'in_planung'>('alle')
-  const [filterTyp, setFilterTyp] = useState<'alle' | 'dachdecker' | 'maler' | 'bauunternehmen'>('alle')
+  const [filterTyp, setFilterTyp] = useState<'alle' | 'dachdecker' | 'maler' | 'bauunternehmen' | 'privat'>('alle')
   const [filterZeitraum, setFilterZeitraum] = useState<'alle' | 'woche' | 'tag' | 'monat' | 'benutzerdefiniert'>('alle')
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({ from: undefined, to: undefined })
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -172,8 +172,8 @@ export default function ProjektePage() {
     
     const matchesFilter = filterStatus === 'alle' || p.status === filterStatus
     
-    // Typ-Filter basierend auf angebotTyp (falls vorhanden)
-    const matchesTyp = filterTyp === 'alle' || (p as any).angebotTyp === filterTyp
+    // Typ-Filter basierend auf Kunden-Branche
+    const matchesTyp = filterTyp === 'alle' || (p as any).kundeBranche === filterTyp
     
     // Zeitraum-Filter basierend auf startdatum
     const zeitraumRange = getZeitraumRange()
@@ -306,6 +306,7 @@ export default function ProjektePage() {
                     <SelectItem value="dachdecker">Dachdecker</SelectItem>
                     <SelectItem value="maler">Maler</SelectItem>
                     <SelectItem value="bauunternehmen">Bauunternehmen</SelectItem>
+                    <SelectItem value="privat">Privat</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

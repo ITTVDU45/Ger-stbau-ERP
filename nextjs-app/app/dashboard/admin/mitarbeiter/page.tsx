@@ -7,8 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { 
   UserPlus, 
-  Search, 
-  Filter,
+  Search,
   Users,
   Calendar,
   TrendingUp,
@@ -28,7 +27,6 @@ import { FloatingActionButton } from '@/components/mobile/FloatingActionButton'
 import { Mitarbeiter } from '@/lib/db/types'
 import MitarbeiterTabelle from './components/MitarbeiterTabelle'
 import MitarbeiterDialog from './components/MitarbeiterDialog'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default function MitarbeiterPage() {
   const [mitarbeiter, setMitarbeiter] = useState<Mitarbeiter[]>([])
@@ -36,7 +34,7 @@ export default function MitarbeiterPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedMitarbeiter, setSelectedMitarbeiter] = useState<Mitarbeiter | undefined>(undefined)
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState<'alle' | 'aktiv' | 'inaktiv'>('aktiv')
+  const [kpiFilter, setKpiFilter] = useState<'alle' | 'aktiv' | 'festangestellt' | 'aushilfe' | 'subunternehmer'>('aktiv')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [mitarbeiterToDelete, setMitarbeiterToDelete] = useState<{ id: string, name: string } | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -157,11 +155,14 @@ export default function MitarbeiterPage() {
       m.nachname.toLowerCase().includes(searchTerm.toLowerCase()) ||
       m.email?.toLowerCase().includes(searchTerm.toLowerCase())
     
-    const matchesFilter = filterStatus === 'alle' || 
-      (filterStatus === 'aktiv' && m.aktiv) ||
-      (filterStatus === 'inaktiv' && !m.aktiv)
+    const matchesKpiFilter = 
+      kpiFilter === 'alle' ||
+      (kpiFilter === 'aktiv' && m.aktiv) ||
+      (kpiFilter === 'festangestellt' && m.beschaeftigungsart === 'festangestellt') ||
+      (kpiFilter === 'aushilfe' && m.beschaeftigungsart === 'aushilfe') ||
+      (kpiFilter === 'subunternehmer' && m.beschaeftigungsart === 'subunternehmer')
     
-    return matchesSearch && matchesFilter
+    return matchesSearch && matchesKpiFilter
   })
 
   const stats = {
@@ -201,7 +202,14 @@ export default function MitarbeiterPage() {
 
       {/* Statistiken */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <Card className="bg-white border-gray-200">
+        <Card 
+          className={`cursor-pointer transition-all hover:shadow-md ${
+            kpiFilter === 'alle' 
+              ? 'bg-gray-100 border-gray-400 ring-2 ring-gray-400' 
+              : 'bg-white border-gray-200'
+          }`}
+          onClick={() => setKpiFilter('alle')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-gray-900">Gesamt</CardTitle>
             <Users className="h-4 w-4 text-gray-600" />
@@ -212,7 +220,14 @@ export default function MitarbeiterPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-green-200">
+        <Card 
+          className={`cursor-pointer transition-all hover:shadow-md ${
+            kpiFilter === 'aktiv' 
+              ? 'bg-green-100 border-green-400 ring-2 ring-green-400' 
+              : 'bg-white border-green-200'
+          }`}
+          onClick={() => setKpiFilter('aktiv')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-gray-900">Aktiv</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-600" />
@@ -223,7 +238,14 @@ export default function MitarbeiterPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-blue-200">
+        <Card 
+          className={`cursor-pointer transition-all hover:shadow-md ${
+            kpiFilter === 'festangestellt' 
+              ? 'bg-blue-100 border-blue-400 ring-2 ring-blue-400' 
+              : 'bg-white border-blue-200'
+          }`}
+          onClick={() => setKpiFilter('festangestellt')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-gray-900">Festangestellt</CardTitle>
             <Calendar className="h-4 w-4 text-blue-600" />
@@ -234,7 +256,14 @@ export default function MitarbeiterPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-purple-200">
+        <Card 
+          className={`cursor-pointer transition-all hover:shadow-md ${
+            kpiFilter === 'aushilfe' 
+              ? 'bg-purple-100 border-purple-400 ring-2 ring-purple-400' 
+              : 'bg-white border-purple-200'
+          }`}
+          onClick={() => setKpiFilter('aushilfe')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-gray-900">Aushilfen</CardTitle>
             <Users className="h-4 w-4 text-purple-600" />
@@ -245,7 +274,14 @@ export default function MitarbeiterPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-orange-200">
+        <Card 
+          className={`cursor-pointer transition-all hover:shadow-md ${
+            kpiFilter === 'subunternehmer' 
+              ? 'bg-orange-100 border-orange-400 ring-2 ring-orange-400' 
+              : 'bg-white border-orange-200'
+          }`}
+          onClick={() => setKpiFilter('subunternehmer')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-gray-900">Subunternehmer</CardTitle>
             <Users className="h-4 w-4 text-orange-600" />
@@ -260,8 +296,8 @@ export default function MitarbeiterPage() {
       {/* Filter & Suche */}
       <Card className="bg-white">
         <CardHeader>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
+            <div className="flex-1 w-full relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Mitarbeiter suchen..."
@@ -270,13 +306,9 @@ export default function MitarbeiterPage() {
                 className="pl-10"
               />
             </div>
-            <Tabs value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)} className="w-full sm:w-auto">
-              <TabsList>
-                <TabsTrigger value="alle">Alle</TabsTrigger>
-                <TabsTrigger value="aktiv">Aktiv</TabsTrigger>
-                <TabsTrigger value="inaktiv">Inaktiv</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="text-sm text-gray-600 whitespace-nowrap">
+              {filteredMitarbeiter.length} {filteredMitarbeiter.length === 1 ? 'Mitarbeiter' : 'Mitarbeiter'} gefunden
+            </div>
           </div>
         </CardHeader>
         <CardContent>

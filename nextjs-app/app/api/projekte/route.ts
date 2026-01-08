@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db/client'
 import { Projekt } from '@/lib/db/types'
+import { ObjectId } from 'mongodb'
 
 // GET - Alle Projekte abrufen
 export async function GET(request: NextRequest) {
@@ -8,10 +9,36 @@ export async function GET(request: NextRequest) {
     const db = await getDatabase()
     const projekteCollection = db.collection<Projekt>('projekte')
     
-    const projekte = await projekteCollection
-      .find({})
-      .sort({ beginn: -1 })
-      .toArray()
+    // Aggregation mit Lookup auf Kunden für Branche
+    const projekte = await projekteCollection.aggregate([
+      {
+        $addFields: {
+          kundeIdObject: { $toObjectId: '$kundeId' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'kunden',
+          localField: 'kundeIdObject',
+          foreignField: '_id',
+          as: 'kundeData'
+        }
+      },
+      {
+        $addFields: {
+          kundeBranche: { $arrayElemAt: ['$kundeData.branche', 0] }
+        }
+      },
+      {
+        $project: {
+          kundeData: 0, // Entferne die kundeData aus dem Ergebnis
+          kundeIdObject: 0 // Entferne die temporäre ObjectId
+        }
+      },
+      {
+        $sort: { beginn: -1 }
+      }
+    ]).toArray()
     
     return NextResponse.json({ erfolg: true, projekte })
   } catch (error) {

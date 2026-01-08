@@ -22,10 +22,13 @@ import {
 } from "@/components/ui/select"
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
-import { X, AlertCircle } from 'lucide-react'
-import { Mitarbeiter } from '@/lib/db/types'
+import { X, AlertCircle, Plus, Pencil, Trash2, Calendar } from 'lucide-react'
+import { Mitarbeiter, Urlaub } from '@/lib/db/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { toast } from 'sonner'
+import { format } from 'date-fns'
+import { de } from 'date-fns/locale'
 
 interface MitarbeiterDialogProps {
   open: boolean
@@ -56,6 +59,21 @@ export default function MitarbeiterDialog({ open, mitarbeiter, onClose }: Mitarb
   const [loadingPersonalnummer, setLoadingPersonalnummer] = useState(false)
   const [personalnummerFehler, setPersonalnummerFehler] = useState('')
   const [checkingPersonalnummer, setCheckingPersonalnummer] = useState(false)
+  
+  // Abwesenheiten
+  const [abwesenheiten, setAbwesenheiten] = useState<Urlaub[]>([])
+  const [loadingAbwesenheiten, setLoadingAbwesenheiten] = useState(false)
+  const [editingAbwesenheit, setEditingAbwesenheit] = useState<Urlaub | null>(null)
+  const [showAbwesenheitForm, setShowAbwesenheitForm] = useState(false)
+  const [abwesenheitForm, setAbwesenheitForm] = useState({
+    von: '',
+    bis: '',
+    typ: 'urlaub' as 'urlaub' | 'krankheit' | 'sonderurlaub' | 'unbezahlt' | 'sonstiges',
+    status: 'genehmigt' as 'beantragt' | 'genehmigt' | 'abgelehnt',
+    grund: '',
+    vertretung: ''
+  })
+  const [mitarbeiterListe, setMitarbeiterListe] = useState<Mitarbeiter[]>([])
 
   // Nächste Personalnummer laden, wenn neuer Mitarbeiter erstellt wird
   useEffect(() => {
@@ -185,6 +203,204 @@ export default function MitarbeiterDialog({ open, mitarbeiter, onClose }: Mitarb
     return () => clearTimeout(timer)
   }
 
+  // Abwesenheiten laden
+  const ladeAbwesenheiten = async () => {
+    if (!mitarbeiter?._id) return
+    
+    setLoadingAbwesenheiten(true)
+    try {
+      const response = await fetch(`/api/urlaub?mitarbeiterId=${mitarbeiter._id}`)
+      const data = await response.json()
+      if (data.erfolg) {
+        setAbwesenheiten(data.urlaube || [])
+      }
+    } catch (error) {
+      console.error('Fehler beim Laden der Abwesenheiten:', error)
+      toast.error('Fehler beim Laden der Abwesenheiten')
+    } finally {
+      setLoadingAbwesenheiten(false)
+    }
+  }
+
+  // Mitarbeiterliste für Vertretung laden
+  const ladeMitarbeiterListe = async () => {
+    try {
+      const response = await fetch('/api/mitarbeiter')
+      const data = await response.json()
+      if (data.erfolg) {
+        setMitarbeiterListe(data.mitarbeiter || [])
+      }
+    } catch (error) {
+      console.error('Fehler beim Laden der Mitarbeiter:', error)
+    }
+  }
+
+  // Abwesenheiten beim Öffnen des Dialogs laden
+  useEffect(() => {
+    if (open && mitarbeiter?._id) {
+      ladeAbwesenheiten()
+      ladeMitarbeiterListe()
+    }
+  }, [open, mitarbeiter?._id])
+
+  // Abwesenheit speichern
+  const handleAbwesenheitSpeichern = async () => {
+    if (!abwesenheitForm.von || !abwesenheitForm.bis) {
+      toast.error('Pflichtfelder fehlen', {
+        description: 'Bitte geben Sie Von- und Bis-Datum ein'
+      })
+      return
+    }
+
+    if (new Date(abwesenheitForm.von) > new Date(abwesenheitForm.bis)) {
+      toast.error('Ungültiger Zeitraum', {
+        description: 'Das Von-Datum muss vor dem Bis-Datum liegen'
+      })
+      return
+    }
+
+    try {
+      // Anzahl Tage berechnen
+      const von = new Date(abwesenheitForm.von)
+      const bis = new Date(abwesenheitForm.bis)
+      const diffTime = Math.abs(bis.getTime() - von.getTime())
+      const anzahlTage = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+
+      // Vertretungsname ermitteln
+      const vertretungMitarbeiter = mitarbeiterListe.find(m => m._id === abwesenheitForm.vertretung)
+      const vertretungName = vertretungMitarbeiter 
+        ? `${vertretungMitarbeiter.vorname} ${vertretungMitarbeiter.nachname}`
+        : undefined
+
+      const payload = {
+        mitarbeiterId: mitarbeiter?._id,
+        mitarbeiterName: `${formData.vorname} ${formData.nachname}`,
+        von: abwesenheitForm.von,
+        bis: abwesenheitForm.bis,
+        typ: abwesenheitForm.typ,
+        status: abwesenheitForm.status,
+        grund: abwesenheitForm.grund || undefined,
+        vertretung: abwesenheitForm.vertretung || undefined,
+        vertretungName: vertretungName,
+        anzahlTage
+      }
+
+      const url = editingAbwesenheit?._id
+        ? `/api/urlaub/${editingAbwesenheit._id}`
+        : '/api/urlaub'
+      const method = editingAbwesenheit?._id ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success(
+          editingAbwesenheit ? 'Abwesenheit aktualisiert' : 'Abwesenheit hinzugefügt'
+        )
+        setShowAbwesenheitForm(false)
+        setEditingAbwesenheit(null)
+        setAbwesenheitForm({
+          von: '',
+          bis: '',
+          typ: 'urlaub',
+          status: 'genehmigt',
+          grund: '',
+          vertretung: ''
+        })
+        ladeAbwesenheiten()
+      } else {
+        toast.error('Fehler beim Speichern', {
+          description: data.fehler || 'Unbekannter Fehler'
+        })
+      }
+    } catch (error) {
+      console.error('Fehler beim Speichern der Abwesenheit:', error)
+      toast.error('Fehler beim Speichern der Abwesenheit')
+    }
+  }
+
+  // Abwesenheit bearbeiten
+  const handleAbwesenheitBearbeiten = (abw: Urlaub) => {
+    setEditingAbwesenheit(abw)
+    setAbwesenheitForm({
+      von: new Date(abw.von).toISOString().split('T')[0],
+      bis: new Date(abw.bis).toISOString().split('T')[0],
+      typ: abw.typ,
+      status: abw.status,
+      grund: abw.grund || '',
+      vertretung: abw.vertretung || ''
+    })
+    setShowAbwesenheitForm(true)
+  }
+
+  // Abwesenheit löschen
+  const handleAbwesenheitLoeschen = async (id: string) => {
+    if (!confirm('Möchten Sie diese Abwesenheit wirklich löschen?')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/urlaub/${id}`, {
+        method: 'DELETE'
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('Abwesenheit gelöscht')
+        ladeAbwesenheiten()
+      } else {
+        toast.error('Fehler beim Löschen', {
+          description: data.fehler || 'Unbekannter Fehler'
+        })
+      }
+    } catch (error) {
+      console.error('Fehler beim Löschen der Abwesenheit:', error)
+      toast.error('Fehler beim Löschen der Abwesenheit')
+    }
+  }
+
+  // Formular zurücksetzen
+  const resetAbwesenheitForm = () => {
+    setShowAbwesenheitForm(false)
+    setEditingAbwesenheit(null)
+    setAbwesenheitForm({
+      von: '',
+      bis: '',
+      typ: 'urlaub',
+      status: 'genehmigt',
+      grund: '',
+      vertretung: ''
+    })
+  }
+
+  // Typ-Label Helper
+  const getTypLabel = (typ: string) => {
+    const labels: Record<string, string> = {
+      urlaub: 'Urlaub',
+      krankheit: 'Krankheit',
+      sonderurlaub: 'Sonderurlaub',
+      unbezahlt: 'Unbezahlt',
+      sonstiges: 'Sonstiges'
+    }
+    return labels[typ] || typ
+  }
+
+  // Status-Badge Helper
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, { variant: any; label: string; color: string }> = {
+      genehmigt: { variant: 'default', label: 'Genehmigt', color: 'bg-green-100 text-green-800 border-green-200' },
+      beantragt: { variant: 'secondary', label: 'Beantragt', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+      abgelehnt: { variant: 'destructive', label: 'Abgelehnt', color: 'bg-red-100 text-red-800 border-red-200' }
+    }
+    return variants[status] || variants.genehmigt
+  }
+
   const handleSubmit = async () => {
     // Validierung vor dem Absenden
     if (!formData.vorname || !formData.nachname || !formData.email) {
@@ -274,10 +490,11 @@ export default function MitarbeiterDialog({ open, mitarbeiter, onClose }: Mitarb
         </DialogHeader>
 
         <Tabs defaultValue="allgemein" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="allgemein">Allgemein</TabsTrigger>
             <TabsTrigger value="adresse">Adresse & Kontakt</TabsTrigger>
             <TabsTrigger value="arbeitszeit">Arbeitszeit & Quali.</TabsTrigger>
+            <TabsTrigger value="abwesenheiten">Abwesenheiten</TabsTrigger>
           </TabsList>
 
           <TabsContent value="allgemein" className="space-y-4">
@@ -487,6 +704,212 @@ export default function MitarbeiterDialog({ open, mitarbeiter, onClose }: Mitarb
                 rows={4}
               />
             </div>
+          </TabsContent>
+
+          <TabsContent value="abwesenheiten" className="space-y-4">
+            {!mitarbeiter?._id ? (
+              <div className="text-center py-8 text-gray-500">
+                <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <p>Bitte speichern Sie den Mitarbeiter zuerst, bevor Sie Abwesenheiten hinzufügen können.</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold">Abwesenheiten verwalten</h3>
+                  <Button
+                    onClick={() => setShowAbwesenheitForm(true)}
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Neue Abwesenheit
+                  </Button>
+                </div>
+
+                {showAbwesenheitForm && (
+                  <div className="border rounded-lg p-4 bg-gray-50 space-y-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-semibold">
+                        {editingAbwesenheit ? 'Abwesenheit bearbeiten' : 'Neue Abwesenheit'}
+                      </h4>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={resetAbwesenheitForm}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="abw-von">Von *</Label>
+                        <Input
+                          id="abw-von"
+                          type="date"
+                          value={abwesenheitForm.von}
+                          onChange={(e) => setAbwesenheitForm(prev => ({ ...prev, von: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="abw-bis">Bis *</Label>
+                        <Input
+                          id="abw-bis"
+                          type="date"
+                          value={abwesenheitForm.bis}
+                          onChange={(e) => setAbwesenheitForm(prev => ({ ...prev, bis: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="abw-typ">Typ</Label>
+                        <Select
+                          value={abwesenheitForm.typ}
+                          onValueChange={(v: any) => setAbwesenheitForm(prev => ({ ...prev, typ: v }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="urlaub">Urlaub</SelectItem>
+                            <SelectItem value="krankheit">Krankheit</SelectItem>
+                            <SelectItem value="sonderurlaub">Sonderurlaub</SelectItem>
+                            <SelectItem value="unbezahlt">Unbezahlt</SelectItem>
+                            <SelectItem value="sonstiges">Sonstiges</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="abw-status">Status</Label>
+                        <Select
+                          value={abwesenheitForm.status}
+                          onValueChange={(v: any) => setAbwesenheitForm(prev => ({ ...prev, status: v }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="beantragt">Beantragt</SelectItem>
+                            <SelectItem value="genehmigt">Genehmigt</SelectItem>
+                            <SelectItem value="abgelehnt">Abgelehnt</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="abw-vertretung">Vertretung (optional)</Label>
+                      <Select
+                        value={abwesenheitForm.vertretung || 'none'}
+                        onValueChange={(v) => setAbwesenheitForm(prev => ({ ...prev, vertretung: v === 'none' ? '' : v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Keine Vertretung" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Keine Vertretung</SelectItem>
+                          {mitarbeiterListe
+                            .filter(m => m._id !== mitarbeiter?._id && m.aktiv !== false)
+                            .map(m => (
+                              <SelectItem key={m._id} value={m._id || ''}>
+                                {m.vorname} {m.nachname} {m.personalnummer ? `(${m.personalnummer})` : ''}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="abw-grund">Grund (optional)</Label>
+                      <Textarea
+                        id="abw-grund"
+                        value={abwesenheitForm.grund}
+                        onChange={(e) => setAbwesenheitForm(prev => ({ ...prev, grund: e.target.value }))}
+                        rows={2}
+                        placeholder="z.B. Jahresurlaub, Arzttermin..."
+                      />
+                    </div>
+
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="outline" onClick={resetAbwesenheitForm}>
+                        Abbrechen
+                      </Button>
+                      <Button onClick={handleAbwesenheitSpeichern}>
+                        {editingAbwesenheit ? 'Änderungen speichern' : 'Hinzufügen'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {loadingAbwesenheiten ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">Lade Abwesenheiten...</p>
+                  </div>
+                ) : abwesenheiten.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                    <p>Noch keine Abwesenheiten eingetragen</p>
+                  </div>
+                ) : (
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Von</TableHead>
+                          <TableHead>Bis</TableHead>
+                          <TableHead>Typ</TableHead>
+                          <TableHead>Tage</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Aktionen</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {abwesenheiten.map((abw) => {
+                          const statusInfo = getStatusBadge(abw.status)
+                          return (
+                            <TableRow key={abw._id}>
+                              <TableCell className="font-medium">
+                                {format(new Date(abw.von), 'dd.MM.yyyy', { locale: de })}
+                              </TableCell>
+                              <TableCell>
+                                {format(new Date(abw.bis), 'dd.MM.yyyy', { locale: de })}
+                              </TableCell>
+                              <TableCell>{getTypLabel(abw.typ)}</TableCell>
+                              <TableCell>{abw.anzahlTage}</TableCell>
+                              <TableCell>
+                                <Badge className={statusInfo.color}>
+                                  {statusInfo.label}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleAbwesenheitBearbeiten(abw)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleAbwesenheitLoeschen(abw._id || '')}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </>
+            )}
           </TabsContent>
         </Tabs>
 

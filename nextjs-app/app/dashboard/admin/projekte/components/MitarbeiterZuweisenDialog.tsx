@@ -16,9 +16,13 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Users } from 'lucide-react'
-import { Projekt, Mitarbeiter } from '@/lib/db/types'
+import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Users, AlertCircle } from 'lucide-react'
+import { Projekt, Mitarbeiter, Urlaub } from '@/lib/db/types'
 import { toast } from 'sonner'
+import { format } from 'date-fns'
+import { de } from 'date-fns/locale'
 
 interface MitarbeiterZuweisenDialogProps {
   projekt: Projekt
@@ -31,6 +35,7 @@ export default function MitarbeiterZuweisenDialog({ projekt, onSuccess, children
   const [loading, setLoading] = useState(false)
   const [mitarbeiterListe, setMitarbeiterListe] = useState<Mitarbeiter[]>([])
   const [selectedMitarbeiter, setSelectedMitarbeiter] = useState<Set<string>>(new Set())
+  const [abwesenheiten, setAbwesenheiten] = useState<Urlaub[]>([])
   
   const [formData, setFormData] = useState({
     rolle: 'monteur',
@@ -45,6 +50,7 @@ export default function MitarbeiterZuweisenDialog({ projekt, onSuccess, children
   useEffect(() => {
     if (open) {
       loadMitarbeiter()
+      loadAbwesenheiten()
     }
   }, [open])
 
@@ -63,6 +69,64 @@ export default function MitarbeiterZuweisenDialog({ projekt, onSuccess, children
       console.error('Fehler beim Laden der Mitarbeiter:', error)
       toast.error('Fehler beim Laden der Mitarbeiter')
     }
+  }
+
+  const loadAbwesenheiten = async () => {
+    try {
+      const response = await fetch('/api/urlaub')
+      const data = await response.json()
+      if (data.erfolg) {
+        // Nur genehmigte Abwesenheiten berücksichtigen
+        const genehmigt = (data.urlaube || []).filter((u: Urlaub) => u.status === 'genehmigt')
+        setAbwesenheiten(genehmigt)
+      }
+    } catch (error) {
+      console.error('Fehler beim Laden der Abwesenheiten:', error)
+    }
+  }
+
+  // Prüft, ob ein Mitarbeiter im angegebenen Zeitraum verfügbar ist
+  const istMitarbeiterVerfuegbar = (mitarbeiterId: string) => {
+    // Projekt-Zeitraum bestimmen
+    const projektStart = formData.aufbauVon || formData.abbauVon
+    const projektEnde = formData.abbauBis || formData.aufbauBis || formData.abbauVon || formData.aufbauVon
+
+    if (!projektStart) {
+      return { verfuegbar: true, abwesenheit: null }
+    }
+
+    // Relevante Abwesenheiten für diesen Mitarbeiter
+    const relevante = abwesenheiten.filter(a => a.mitarbeiterId === mitarbeiterId)
+
+    for (const abw of relevante) {
+      const von = new Date(abw.von)
+      const bis = new Date(abw.bis)
+      const start = new Date(projektStart)
+      const ende = projektEnde ? new Date(projektEnde) : start
+
+      // Prüfe Überschneidung: Zeiträume überschneiden sich NICHT wenn:
+      // - Ende des Projekts vor Start der Abwesenheit ODER
+      // - Start des Projekts nach Ende der Abwesenheit
+      const keineUeberschneidung = ende < von || start > bis
+      
+      if (!keineUeberschneidung) {
+        return { verfuegbar: false, abwesenheit: abw }
+      }
+    }
+
+    return { verfuegbar: true, abwesenheit: null }
+  }
+
+  // Typ-Label Helper
+  const getTypLabel = (typ: string) => {
+    const labels: Record<string, string> = {
+      urlaub: 'Urlaub',
+      krankheit: 'Krankheit',
+      sonderurlaub: 'Sonderurlaub',
+      unbezahlt: 'Unbezahlt',
+      sonstiges: 'Sonstiges'
+    }
+    return labels[typ] || typ
   }
 
   const handleToggleMitarbeiter = (mitarbeiterId: string) => {
@@ -182,26 +246,73 @@ export default function MitarbeiterZuweisenDialog({ projekt, onSuccess, children
               </div>
             ) : (
               <ScrollArea className="h-[200px] border border-gray-300 rounded-md p-4 bg-white">
-                <div className="space-y-3">
-                  {mitarbeiterListe.map((mitarbeiter) => (
-                    <div key={mitarbeiter._id} className="flex items-center space-x-3">
-                      <Checkbox
-                        id={mitarbeiter._id}
-                        checked={selectedMitarbeiter.has(mitarbeiter._id || '')}
-                        onCheckedChange={() => handleToggleMitarbeiter(mitarbeiter._id || '')}
-                      />
-                      <label
-                        htmlFor={mitarbeiter._id}
-                        className="flex-1 text-sm font-medium text-gray-900 cursor-pointer"
-                      >
-                        {mitarbeiter.vorname} {mitarbeiter.nachname}
-                        {mitarbeiter.personalnummer && (
-                          <span className="text-gray-600 ml-2">(#{mitarbeiter.personalnummer})</span>
-                        )}
-                      </label>
-                    </div>
-                  ))}
-                </div>
+                <TooltipProvider>
+                  <div className="space-y-3">
+                    {mitarbeiterListe.map((mitarbeiter) => {
+                      const verfuegbarkeit = istMitarbeiterVerfuegbar(mitarbeiter._id || '')
+                      const istVerfuegbar = verfuegbarkeit.verfuegbar
+                      const abwesenheit = verfuegbarkeit.abwesenheit
+
+                      return (
+                        <div 
+                          key={mitarbeiter._id} 
+                          className={`flex items-center space-x-3 ${!istVerfuegbar ? 'opacity-50' : ''}`}
+                        >
+                          <Checkbox
+                            id={mitarbeiter._id}
+                            checked={selectedMitarbeiter.has(mitarbeiter._id || '')}
+                            onCheckedChange={() => handleToggleMitarbeiter(mitarbeiter._id || '')}
+                            disabled={!istVerfuegbar}
+                          />
+                          
+                          {!istVerfuegbar && abwesenheit ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex-1 flex items-center gap-2 cursor-help">
+                                  <label
+                                    className="text-sm font-medium text-gray-900"
+                                  >
+                                    {mitarbeiter.vorname} {mitarbeiter.nachname}
+                                    {mitarbeiter.personalnummer && (
+                                      <span className="text-gray-600 ml-2">(#{mitarbeiter.personalnummer})</span>
+                                    )}
+                                  </label>
+                                  <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800 border-orange-200">
+                                    <AlertCircle className="h-3 w-3 mr-1" />
+                                    Nicht verfügbar
+                                  </Badge>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p className="font-semibold">Nicht verfügbar</p>
+                                <p className="text-sm">{getTypLabel(abwesenheit.typ)}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {format(new Date(abwesenheit.von), 'dd.MM.yyyy', { locale: de })} - 
+                                  {format(new Date(abwesenheit.bis), 'dd.MM.yyyy', { locale: de })}
+                                </p>
+                                {abwesenheit.grund && (
+                                  <p className="text-xs text-gray-500 mt-1 italic">
+                                    {abwesenheit.grund}
+                                  </p>
+                                )}
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <label
+                              htmlFor={mitarbeiter._id}
+                              className="flex-1 text-sm font-medium text-gray-900 cursor-pointer"
+                            >
+                              {mitarbeiter.vorname} {mitarbeiter.nachname}
+                              {mitarbeiter.personalnummer && (
+                                <span className="text-gray-600 ml-2">(#{mitarbeiter.personalnummer})</span>
+                              )}
+                            </label>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </TooltipProvider>
               </ScrollArea>
             )}
             <p className="text-xs text-gray-600">

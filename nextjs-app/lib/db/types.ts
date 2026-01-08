@@ -372,6 +372,9 @@ export interface Projekt {
   erstelltVon: string
   tags?: string[]
   
+  // Erweitert durch API (nicht in DB gespeichert)
+  kundeBranche?: 'dachdecker' | 'maler' | 'bauunternehmen' | 'privat' | 'sonstige' // Wird aus Kunden-Branche geladen
+  
   // Kalkulation
   vorkalkulation?: Vorkalkulation
   nachkalkulation?: Nachkalkulation

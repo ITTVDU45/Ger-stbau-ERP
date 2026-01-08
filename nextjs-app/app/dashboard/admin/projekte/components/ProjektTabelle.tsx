@@ -54,7 +54,7 @@ export default function ProjektTabelle({
             <TableHead className="text-gray-900">Kunde</TableHead>
             <TableHead className="text-gray-900">Standort</TableHead>
             <TableHead className="text-gray-900">Zeitraum</TableHead>
-            <TableHead className="text-gray-900">Budget</TableHead>
+            <TableHead className="text-gray-900">Budget (Netto)</TableHead>
             <TableHead className="text-gray-900">Fortschritt</TableHead>
             <TableHead className="text-gray-900">Status</TableHead>
             <TableHead className="text-right text-gray-900">Aktionen</TableHead>

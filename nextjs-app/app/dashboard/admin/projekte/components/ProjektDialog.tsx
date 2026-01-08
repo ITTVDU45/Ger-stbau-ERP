@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,10 +9,13 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Check, ChevronsUpDown } from "lucide-react"
+import { Check, ChevronsUpDown, Upload, X, FileText } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Projekt } from '@/lib/db/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
 
 interface ProjektDialogProps {
   open: boolean
@@ -45,6 +48,12 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
   const [saving, setSaving] = useState(false)
   const [kundeSearchOpen, setKundeSearchOpen] = useState(false)
   const [kundeSearchQuery, setKundeSearchQuery] = useState('')
+  const [dokumenteFiles, setDokumenteFiles] = useState<Array<{ file: File, kategorie: string, kommentar: string }>>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [budgetBrutto, setBudgetBrutto] = useState<number>(0)
+  const [budgetNetto, setBudgetNetto] = useState<number>(0)
+  const [lastEditedBudget, setLastEditedBudget] = useState<'netto' | 'brutto'>('netto')
+  const MWST_SATZ = 0.19 // 19% MwSt
 
   useEffect(() => {
     loadKunden()
@@ -53,6 +62,10 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
   useEffect(() => {
     if (projekt) {
       setFormData(projekt)
+      // Budget-Werte initialisieren
+      const netto = projekt.budget || 0
+      setBudgetNetto(netto)
+      setBudgetBrutto(netto * (1 + MWST_SATZ))
     } else {
       // Projektnummer automatisch generieren
       const jahr = new Date().getFullYear()
@@ -77,6 +90,8 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
         notizen: '',
         tags: []
       })
+      setBudgetNetto(0)
+      setBudgetBrutto(0)
     }
   }, [projekt, open])
 
@@ -135,6 +150,85 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
     }
   }
 
+  const handleBudgetNettoChange = (value: number) => {
+    setBudgetNetto(value)
+    setBudgetBrutto(value * (1 + MWST_SATZ))
+    setLastEditedBudget('netto')
+    setFormData(prev => ({ ...prev, budget: value }))
+  }
+
+  const handleBudgetBruttoChange = (value: number) => {
+    setBudgetBrutto(value)
+    const netto = value / (1 + MWST_SATZ)
+    setBudgetNetto(netto)
+    setLastEditedBudget('brutto')
+    setFormData(prev => ({ ...prev, budget: netto }))
+  }
+
+  const handleDokumentHinzufuegen = () => {
+    if (!fileInputRef.current?.files?.length) return
+
+    const files = Array.from(fileInputRef.current.files)
+    const newDokumente = files.map(file => ({
+      file,
+      kategorie: 'sonstiges' as const,
+      kommentar: ''
+    }))
+
+    setDokumenteFiles(prev => [...prev, ...newDokumente])
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const handleDokumentEntfernen = (index: number) => {
+    setDokumenteFiles(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleDokumentKategorieAendern = (index: number, kategorie: string) => {
+    setDokumenteFiles(prev => prev.map((doc, i) => 
+      i === index ? { ...doc, kategorie } : doc
+    ))
+  }
+
+  const handleDokumentKommentarAendern = (index: number, kommentar: string) => {
+    setDokumenteFiles(prev => prev.map((doc, i) => 
+      i === index ? { ...doc, kommentar } : doc
+    ))
+  }
+
+  const uploadDokumente = async (projektId: string) => {
+    if (dokumenteFiles.length === 0) return
+
+    const uploadPromises = dokumenteFiles.map(async ({ file, kategorie, kommentar }) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('projektId', projektId)
+      formData.append('kategorie', kategorie)
+      formData.append('kommentar', kommentar)
+      formData.append('benutzer', 'admin')
+
+      const response = await fetch(`/api/projekte/${projektId}/dokumente`, {
+        method: 'POST',
+        body: formData
+      })
+
+      return response.json()
+    })
+
+    const results = await Promise.all(uploadPromises)
+    const erfolgreiche = results.filter(r => r.erfolg).length
+    const fehlgeschlagene = results.length - erfolgreiche
+
+    if (erfolgreiche > 0) {
+      toast.success(`${erfolgreiche} Dokument(e) hochgeladen`)
+    }
+    if (fehlgeschlagene > 0) {
+      toast.error(`${fehlgeschlagene} Dokument(e) konnten nicht hochgeladen werden`)
+    }
+  }
+
   const handleSubmit = async () => {
     if (!formData.projektname || !formData.kundeId || !formData.standort) {
       alert('Bitte füllen Sie alle Pflichtfelder aus')
@@ -159,20 +253,43 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
       })
 
       if (response.ok) {
+        const data = await response.json()
+        const projektId = projekt?._id || data.projektId || data.projekt?._id
+        
+        // Dokumente hochladen, falls vorhanden
+        if (projektId && dokumenteFiles.length > 0) {
+          await uploadDokumente(projektId)
+        }
+        
+        // State zurücksetzen
+        setDokumenteFiles([])
+        setBudgetNetto(0)
+        setBudgetBrutto(0)
+        setLastEditedBudget('netto')
+        
+        toast.success(projekt ? 'Projekt aktualisiert' : 'Projekt erstellt')
         onClose(true)
       } else {
-        alert('Fehler beim Speichern')
+        toast.error('Fehler beim Speichern')
       }
     } catch (error) {
       console.error('Fehler:', error)
-      alert('Fehler beim Speichern')
+      toast.error('Fehler beim Speichern')
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={() => onClose(false)}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      if (!isOpen) {
+        setDokumenteFiles([])
+        setBudgetNetto(0)
+        setBudgetBrutto(0)
+        setLastEditedBudget('netto')
+      }
+      onClose(false)
+    }}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{projekt ? 'Projekt bearbeiten' : 'Neues Projekt'}</DialogTitle>
@@ -180,10 +297,13 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
         </DialogHeader>
 
         <Tabs defaultValue="allgemein" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="allgemein">Allgemein</TabsTrigger>
             <TabsTrigger value="zeitraum">Zeitraum & Budget</TabsTrigger>
             <TabsTrigger value="kontakt">Ansprechpartner</TabsTrigger>
+            <TabsTrigger value="dokumente">
+              Dokumente {dokumenteFiles.length > 0 && `(${dokumenteFiles.length})`}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="allgemein" className="space-y-4">
@@ -440,18 +560,57 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="budget">Budget (€)</Label>
-                <Input
-                  id="budget"
-                  type="number"
-                  step="0.01"
-                  value={formData.budget || 0}
-                  onChange={(e) => handleChange('budget', parseFloat(e.target.value))}
-                />
+            <div className="space-y-4">
+              {/* Budget Netto/Brutto */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="budgetNetto" className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                    Budget Netto (€)
+                    {lastEditedBudget === 'netto' && (
+                      <Badge variant="secondary" className="text-xs">Eingegeben</Badge>
+                    )}
+                  </Label>
+                  <Input
+                    id="budgetNetto"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={budgetNetto.toFixed(2)}
+                    onChange={(e) => handleBudgetNettoChange(parseFloat(e.target.value) || 0)}
+                    disabled={lastEditedBudget === 'brutto'}
+                    placeholder="0,00"
+                    className={lastEditedBudget === 'brutto' ? 'bg-gray-100 text-gray-600' : 'bg-white'}
+                  />
+                  <p className="text-xs text-gray-600">
+                    {lastEditedBudget === 'brutto' ? 'Automatisch berechnet' : 'Netto-Betrag für Vor- und Nachkalkulation'}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="budgetBrutto" className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                    Budget Brutto (€)
+                    {lastEditedBudget === 'brutto' && (
+                      <Badge variant="secondary" className="text-xs">Eingegeben</Badge>
+                    )}
+                  </Label>
+                  <Input
+                    id="budgetBrutto"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={budgetBrutto.toFixed(2)}
+                    onChange={(e) => handleBudgetBruttoChange(parseFloat(e.target.value) || 0)}
+                    disabled={lastEditedBudget === 'netto'}
+                    placeholder="0,00"
+                    className={lastEditedBudget === 'netto' ? 'bg-gray-100 text-gray-600' : 'bg-white'}
+                  />
+                  <p className="text-xs text-gray-600">
+                    {lastEditedBudget === 'netto' ? 'Automatisch berechnet (inkl. 19% MwSt)' : 'Brutto-Betrag inkl. 19% MwSt'}
+                  </p>
+                </div>
               </div>
 
+              {/* Fortschritt */}
               <div className="space-y-2">
                 <Label htmlFor="fortschritt">Fortschritt (%)</Label>
                 <Input
@@ -461,6 +620,7 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
                   max="100"
                   value={formData.fortschritt || 0}
                   onChange={(e) => handleChange('fortschritt', parseInt(e.target.value))}
+                  className="bg-white"
                 />
               </div>
             </div>
@@ -506,6 +666,130 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
                 onChange={(e) => handleChange('notizen', e.target.value)}
                 rows={4}
               />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="dokumente" className="space-y-4">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">Dokumente hinzufügen</h3>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Diese Dokumente werden nach dem Speichern des Projekts hochgeladen
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-gray-300 text-gray-900 hover:bg-gray-50"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Dateien auswählen
+                </Button>
+              </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                className="hidden"
+                onChange={handleDokumentHinzufuegen}
+              />
+
+              {dokumenteFiles.length === 0 ? (
+                <Card className="p-8 text-center border-2 border-dashed border-gray-300 bg-gray-50">
+                  <FileText className="h-12 w-12 mx-auto text-gray-400 mb-3" />
+                  <p className="text-sm text-gray-600">
+                    Noch keine Dokumente ausgewählt
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    PDF, Bilder, Dokumente bis 10MB
+                  </p>
+                </Card>
+              ) : (
+                <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                  {dokumenteFiles.map((doc, index) => (
+                    <Card key={index} className="p-4 bg-white border-gray-200">
+                      <div className="flex items-start gap-3">
+                        <FileText className="h-5 w-5 text-blue-600 flex-shrink-0 mt-1" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {doc.file.name}
+                            </p>
+                            <Badge variant="secondary" className="text-xs">
+                              {(doc.file.size / 1024).toFixed(1)} KB
+                            </Badge>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs text-gray-600">Kategorie</Label>
+                              <Select
+                                value={doc.kategorie}
+                                onValueChange={(value) => handleDokumentKategorieAendern(index, value)}
+                              >
+                                <SelectTrigger className="h-8 text-xs bg-white border-gray-300">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="bauplan">Bauplan</SelectItem>
+                                  <SelectItem value="lieferschein">Lieferschein</SelectItem>
+                                  <SelectItem value="aufmass">Aufmaß</SelectItem>
+                                  <SelectItem value="sicherheit">Sicherheit</SelectItem>
+                                  <SelectItem value="foto">Foto</SelectItem>
+                                  <SelectItem value="sonstiges">Sonstiges</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-gray-600">Kommentar (optional)</Label>
+                              <Input
+                                value={doc.kommentar}
+                                onChange={(e) => handleDokumentKommentarAendern(index, e.target.value)}
+                                placeholder="z.B. Seite 1-3"
+                                className="h-8 text-xs bg-white border-gray-300"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDokumentEntfernen(index)}
+                          className="flex-shrink-0 h-8 w-8 hover:bg-red-50 hover:text-red-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {dokumenteFiles.length > 0 && (
+                <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-sm text-blue-900">
+                    <FileText className="h-4 w-4" />
+                    <span className="font-medium">
+                      {dokumenteFiles.length} Dokument(e) bereit zum Hochladen
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDokumenteFiles([])}
+                    className="text-blue-700 hover:text-blue-900 hover:bg-blue-100"
+                  >
+                    Alle entfernen
+                  </Button>
+                </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>
