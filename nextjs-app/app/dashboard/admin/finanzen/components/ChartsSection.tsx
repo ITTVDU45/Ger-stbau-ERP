@@ -26,18 +26,33 @@ export default function ChartsSection({ zeitraum, mandantId, refreshTrigger }: C
       const params = new URLSearchParams({
         von: zeitraum.von?.toISOString() || '',
         bis: zeitraum.bis?.toISOString() || '',
-        intervall: 'monat'
+        intervall: 'tag'
       })
       if (mandantId) params.append('mandantId', mandantId)
+
+      console.log('📊 Lade Chart-Daten mit Parametern:', {
+        von: zeitraum.von?.toISOString(),
+        bis: zeitraum.bis?.toISOString(),
+        mandantId
+      })
 
       const res = await fetch(`/api/finanzen/charts?${params}`)
       const data = await res.json()
 
+      console.log('📊 Chart-Daten erhalten:', {
+        erfolg: data.erfolg,
+        zeitreiheAnzahl: data.charts?.zeitreihe?.length || 0,
+        zeitreiheBeispiel: data.charts?.zeitreihe?.slice(0, 3),
+        kategorienAnzahl: data.charts?.kategorienAusgaben?.length || 0
+      })
+
       if (data.erfolg) {
         setChartData(data.charts)
+      } else {
+        console.error('❌ Chart-Daten Fehler:', data.fehler)
       }
     } catch (error) {
-      console.error('Fehler beim Laden der Chart-Daten:', error)
+      console.error('❌ Fehler beim Laden der Chart-Daten:', error)
     } finally {
       setLoading(false)
     }
@@ -100,13 +115,64 @@ export default function ChartsSection({ zeitraum, mandantId, refreshTrigger }: C
           </div>
           {chartData.zeitreihe && chartData.zeitreihe.length > 0 ? (
           <ResponsiveContainer width="100%" height={400}>
-            <LineChart data={chartData.zeitreihe}>
+            <LineChart data={chartData.zeitreihe} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="periode" />
-              <YAxis tickFormatter={(value) => formatCurrency(value)} />
+              <XAxis 
+                dataKey="periode" 
+                tickFormatter={(value) => {
+                  if (!value) return ''
+                  
+                  // Format: "2026-01-15" -> "15. Jan"
+                  if (value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    const [jahr, monat, tag] = value.split('-')
+                    const monatNamen = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
+                    const monatIndex = parseInt(monat) - 1
+                    return `${tag}. ${monatNamen[monatIndex]}`
+                  }
+                  
+                  // Format: "2026-01" -> "Jan 2026" (Fallback für Monate)
+                  if (value.match(/^\d{4}-\d{2}$/)) {
+                    const [jahr, monat] = value.split('-')
+                    const monatNamen = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
+                    const monatIndex = parseInt(monat) - 1
+                    return `${monatNamen[monatIndex]} ${jahr}`
+                  }
+                  
+                  return value
+                }}
+                angle={-45}
+                textAnchor="end"
+                height={80}
+                interval={chartData.zeitreihe && chartData.zeitreihe.length > 30 ? Math.floor(chartData.zeitreihe.length / 15) : 0}
+              />
+              <YAxis 
+                tickFormatter={(value) => formatCurrency(value)}
+                domain={['auto', 'auto']}
+              />
               <Tooltip 
                 formatter={(value: any) => formatCurrency(value)}
                 labelStyle={{ color: '#000' }}
+                labelFormatter={(label) => {
+                  if (!label) return ''
+                  
+                  // Format: "2026-01-15" -> "15. Januar 2026"
+                  if (label.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    const [jahr, monat, tag] = label.split('-')
+                    const monatNamen = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
+                    const monatIndex = parseInt(monat) - 1
+                    return `${tag}. ${monatNamen[monatIndex]} ${jahr}`
+                  }
+                  
+                  // Format: "2026-01" -> "Januar 2026" (Fallback für Monate)
+                  if (label.match(/^\d{4}-\d{2}$/)) {
+                    const [jahr, monat] = label.split('-')
+                    const monatNamen = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
+                    const monatIndex = parseInt(monat) - 1
+                    return `${monatNamen[monatIndex]} ${jahr}`
+                  }
+                  
+                  return label
+                }}
               />
               <Legend />
               <Line 
@@ -116,6 +182,7 @@ export default function ChartsSection({ zeitraum, mandantId, refreshTrigger }: C
                 strokeWidth={2}
                 name="Einnahmen"
                 activeDot={{ r: 8 }}
+                dot={{ r: 4 }}
               />
               <Line 
                 type="monotone" 
@@ -124,6 +191,7 @@ export default function ChartsSection({ zeitraum, mandantId, refreshTrigger }: C
                 strokeWidth={2}
                 name="Ausgaben"
                 activeDot={{ r: 8 }}
+                dot={{ r: 4 }}
               />
               <Line 
                 type="monotone" 
@@ -131,7 +199,9 @@ export default function ChartsSection({ zeitraum, mandantId, refreshTrigger }: C
                 stroke="#3B82F6" 
                 strokeWidth={2}
                 strokeDasharray="5 5"
-                name="Saldo"
+                name="Differenz"
+                activeDot={{ r: 8 }}
+                dot={{ r: 4 }}
               />
             </LineChart>
           </ResponsiveContainer>

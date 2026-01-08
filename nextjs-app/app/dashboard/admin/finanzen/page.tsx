@@ -22,10 +22,14 @@ import { ZeitraumFilter as ZeitraumFilterType } from '@/lib/db/types'
 import { toast } from 'sonner'
 
 export default function FinanzenPage() {
-  const [zeitraum, setZeitraum] = useState<ZeitraumFilterType>({
-    typ: 'aktuelles_jahr',
-    von: new Date(new Date().getFullYear(), 0, 1),
-    bis: new Date(new Date().getFullYear(), 11, 31)
+  const [zeitraum, setZeitraum] = useState<ZeitraumFilterType>(() => {
+    const heute = new Date()
+    const vor30Tagen = new Date(heute.getTime() - 30 * 24 * 60 * 60 * 1000)
+    return {
+      typ: 'letzte_30_tage',
+      von: vor30Tagen,
+      bis: heute
+    }
   })
   
   const [mandantId, setMandantId] = useState<string | null>(null)

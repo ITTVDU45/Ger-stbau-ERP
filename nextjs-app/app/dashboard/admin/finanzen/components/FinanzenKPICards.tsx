@@ -74,7 +74,7 @@ export default function FinanzenKPICards({ stats, onCardClick, activeFilter }: F
     },
     {
       id: 'saldo',
-      label: 'Saldo (Gewinn/Verlust)',
+      label: 'Differenz',
       value: formatCurrency(stats.saldo),
       icon: stats.saldo >= 0 ? Wallet : CreditCard,
       color: stats.saldo >= 0 ? 'text-blue-600' : 'text-orange-600',

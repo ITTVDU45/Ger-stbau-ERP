@@ -100,7 +100,25 @@ export default function BudgetVerwaltung({ mandantId, zeitraum, refreshTrigger }
     return <Badge variant="default" className="bg-green-100 text-green-800">OK</Badge>
   }
 
-  const handleEdit = (budget: any) => {
+  const handleEdit = async (budget: any) => {
+    // Wenn das Budget nur budgetId hat (aus budgetStatus), lade das vollständige Budget
+    if (budget.budgetId && !budget._id) {
+      try {
+        const res = await fetch(`/api/finanzen/budgets/${budget.budgetId}`)
+        const data = await res.json()
+        if (data.erfolg) {
+          setSelectedBudget(data.budget)
+          setDialogOpen(true)
+          return
+        }
+      } catch (error) {
+        console.error('Fehler beim Laden des Budgets:', error)
+        toast.error('Fehler beim Laden des Budgets')
+        return
+      }
+    }
+    
+    // Falls bereits vollständiges Budget vorhanden
     setSelectedBudget(budget)
     setDialogOpen(true)
   }

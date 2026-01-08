@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from '@/components/ui/badge'
 import { PositionsVorlage, AngebotPosition } from '@/lib/db/types'
-import { Search, Plus, Check, Trash2 } from 'lucide-react'
+import { Search, Plus, Check, Trash2, Edit, Save } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface PositionsVorlageVerwaltungDialogProps {
@@ -24,8 +24,9 @@ export default function PositionsVorlageVerwaltungDialog({ onVorlageEinfuegen, t
   const [vorlagen, setVorlagen] = useState<PositionsVorlage[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null) // ID der zu bearbeitenden Vorlage
 
-  // Neue Vorlage State
+  // Neue/Bearbeiten Vorlage State
   const [neueVorlage, setNeueVorlage] = useState<Partial<PositionsVorlage>>({
     shortcode: '',
     name: '',
@@ -77,6 +78,39 @@ export default function PositionsVorlageVerwaltungDialog({ onVorlageEinfuegen, t
     setNeueVorlage(prev => ({ ...prev, [field]: value }))
   }
 
+  const handleVorlageBearbeiten = (vorlage: PositionsVorlage) => {
+    setEditingId(vorlage._id || null)
+    setNeueVorlage({
+      shortcode: vorlage.shortcode,
+      name: vorlage.name,
+      beschreibung: vorlage.beschreibung,
+      typ: vorlage.typ,
+      einheit: vorlage.einheit,
+      standardPreis: vorlage.standardPreis,
+      standardMenge: vorlage.standardMenge,
+      standardProzentsatz: vorlage.standardProzentsatz,
+      kategorie: vorlage.kategorie,
+      aktiv: vorlage.aktiv
+    })
+    setActiveTab('erstellen')
+  }
+
+  const resetForm = () => {
+    setEditingId(null)
+    setNeueVorlage({
+      shortcode: '',
+      name: '',
+      beschreibung: '',
+      typ: 'material',
+      einheit: 'Stk',
+      standardPreis: 0,
+      standardMenge: 1,
+      standardProzentsatz: undefined,
+      kategorie: '',
+      aktiv: true
+    })
+  }
+
   const handleVorlageSpeichern = async () => {
     // Validierung
     if (!neueVorlage.shortcode || !neueVorlage.name || !neueVorlage.beschreibung) {
@@ -91,35 +125,30 @@ export default function PositionsVorlageVerwaltungDialog({ onVorlageEinfuegen, t
 
     setLoading(true)
     try {
-      const response = await fetch('/api/positionen-vorlagen', {
-        method: 'POST',
+      const isEditing = !!editingId
+      const url = isEditing 
+        ? `/api/positionen-vorlagen/${editingId}` 
+        : '/api/positionen-vorlagen'
+      const method = isEditing ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...neueVorlage,
           shortcode: cleanedShortcode,
-          erstelltAm: new Date(),
-          zuletztGeaendert: new Date()
+          zuletztGeaendert: new Date(),
+          ...(isEditing ? {} : { erstelltAm: new Date() })
         })
       })
 
       if (response.ok) {
-        toast.success('Vorlage gespeichert', {
-          description: `${cleanedShortcode} wurde erfolgreich erstellt`
+        toast.success(isEditing ? 'Vorlage aktualisiert' : 'Vorlage gespeichert', {
+          description: `${cleanedShortcode} wurde erfolgreich ${isEditing ? 'aktualisiert' : 'erstellt'}`
         })
         
         // Reset Form
-        setNeueVorlage({
-          shortcode: '',
-          name: '',
-          beschreibung: '',
-          typ: 'material',
-          einheit: 'Stk',
-          standardPreis: 0,
-          standardMenge: 1,
-          standardProzentsatz: undefined,
-          kategorie: '',
-          aktiv: true
-        })
+        resetForm()
         
         // Vorlagen neu laden
         await loadVorlagen()
@@ -201,8 +230,12 @@ export default function PositionsVorlageVerwaltungDialog({ onVorlageEinfuegen, t
             <TabsTrigger value="auswahl" className="data-[state=active]:bg-white data-[state=active]:text-gray-900">
               Vorlage auswählen
             </TabsTrigger>
-            <TabsTrigger value="erstellen" className="data-[state=active]:bg-white data-[state=active]:text-gray-900">
-              Neue Vorlage erstellen
+            <TabsTrigger 
+              value="erstellen" 
+              className="data-[state=active]:bg-white data-[state=active]:text-gray-900"
+              onClick={() => { if (activeTab !== 'erstellen') resetForm() }}
+            >
+              {editingId ? 'Vorlage bearbeiten' : 'Neue Vorlage erstellen'}
             </TabsTrigger>
           </TabsList>
 
@@ -294,6 +327,15 @@ export default function PositionsVorlageVerwaltungDialog({ onVorlageEinfuegen, t
                           >
                             <Check className="h-4 w-4 mr-1" />
                             Auswählen
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleVorlageBearbeiten(vorlage)}
+                            className="border-amber-400 text-amber-600 hover:bg-amber-50"
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Bearbeiten
                           </Button>
                           <Button
                             size="sm"
@@ -459,14 +501,34 @@ export default function PositionsVorlageVerwaltungDialog({ onVorlageEinfuegen, t
                         <span className="text-gray-500">Füllen Sie die Felder aus, um eine Vorschau zu sehen</span>
                       )}
                     </div>
-                    <Button
-                      onClick={handleVorlageSpeichern}
-                      disabled={loading}
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      <span className="font-medium">Vorlage speichern</span>
-                    </Button>
+                    <div className="flex gap-2">
+                      {editingId && (
+                        <Button
+                          variant="outline"
+                          onClick={resetForm}
+                          className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                        >
+                          Abbrechen
+                        </Button>
+                      )}
+                      <Button
+                        onClick={handleVorlageSpeichern}
+                        disabled={loading}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        {editingId ? (
+                          <>
+                            <Save className="h-4 w-4 mr-2" />
+                            <span className="font-medium">Änderungen speichern</span>
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-4 w-4 mr-2" />
+                            <span className="font-medium">Vorlage speichern</span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>

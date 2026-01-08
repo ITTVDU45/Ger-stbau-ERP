@@ -34,6 +34,26 @@ export default function KundeTabelle({
     return <Badge variant={config.variant as any} className={config.class}>{config.label}</Badge>
   }
 
+  const getBrancheColor = (branche?: string) => {
+    switch (branche) {
+      case 'dachdecker': return 'bg-blue-500'
+      case 'maler': return 'bg-green-500'
+      case 'bauunternehmen': return 'bg-purple-500'
+      case 'privat': return 'bg-yellow-500'
+      default: return 'bg-gray-400'
+    }
+  }
+
+  const getBrancheLabel = (branche?: string) => {
+    switch (branche) {
+      case 'dachdecker': return 'Dachdecker'
+      case 'maler': return 'Maler'
+      case 'bauunternehmen': return 'Bauunternehmen'
+      case 'privat': return 'Privat'
+      default: return null
+    }
+  }
+
   if (loading) {
     return <div className="text-center py-12"><p className="text-gray-500">Lade Kunden...</p></div>
   }
@@ -64,12 +84,17 @@ export default function KundeTabelle({
             <TableRow key={k._id} className="border-gray-200 hover:bg-gray-50">
               <TableCell className="font-medium text-gray-900">{k.kundennummer || '-'}</TableCell>
               <TableCell>
-                <div className="font-medium text-gray-900">
-                  {k.firma || `${k.vorname} ${k.nachname}`}
+                <div className="flex items-center gap-2">
+                  <span className={`w-3 h-3 rounded-full flex-shrink-0 ${getBrancheColor(k.branche)}`} title={getBrancheLabel(k.branche) || 'Keine Branche'} />
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      {k.firma || `${k.vorname} ${k.nachname}`}
+                    </div>
+                    {k.adresse?.ort && (
+                      <div className="text-sm text-gray-600">{k.adresse.ort}</div>
+                    )}
+                  </div>
                 </div>
-                {k.adresse?.ort && (
-                  <div className="text-sm text-gray-600">{k.adresse.ort}</div>
-                )}
               </TableCell>
               <TableCell>
                 {k.ansprechpartner ? (

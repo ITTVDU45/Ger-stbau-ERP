@@ -206,6 +206,47 @@ export default function KundeDialog({ open, kunde, onClose }: KundeDialogProps) 
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="branche">Branche</Label>
+                <Select value={formData.branche || ''} onValueChange={(v) => handleChange('branche', v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Branche wählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="dachdecker">
+                      <span className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full bg-blue-500" />
+                        Dachdecker
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="maler">
+                      <span className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full bg-green-500" />
+                        Maler
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="bauunternehmen">
+                      <span className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full bg-purple-500" />
+                        Bauunternehmen
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="privat">
+                      <span className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full bg-yellow-500" />
+                        Privat
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="sonstige">
+                      <span className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full bg-gray-400" />
+                        Sonstige
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-2">

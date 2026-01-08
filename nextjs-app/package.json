@@ -14,6 +14,7 @@
     "db:setup-notifications": "node scripts/setup-notifications.js",
     "db:setup-gutachter": "node scripts/setup-gutachter.js",
     "seed:superadmin": "node scripts/seed-superadmin.js",
+    "update:superadmin-password": "node scripts/update-superadmin-password.js",
     "auth:indexes": "node scripts/create-auth-indexes.js"
   },
   "dependencies": {

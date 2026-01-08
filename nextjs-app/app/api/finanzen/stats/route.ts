@@ -15,9 +15,22 @@ export async function GET(request: NextRequest) {
     if (mandantId) filter.mandantId = mandantId
     if (von || bis) {
       filter.datum = {}
-      if (von) filter.datum.$gte = new Date(von)
-      if (bis) filter.datum.$lte = new Date(bis)
+      if (von) {
+        const vonDate = new Date(von)
+        // Stelle sicher, dass der Tag auf 00:00:00 gesetzt ist
+        vonDate.setHours(0, 0, 0, 0)
+        filter.datum.$gte = vonDate
+      }
+      if (bis) {
+        const bisDate = new Date(bis)
+        // Stelle sicher, dass der Tag auf 23:59:59 gesetzt ist
+        bisDate.setHours(23, 59, 59, 999)
+        filter.datum.$lte = bisDate
+      }
     }
+    
+    console.log('📊 Stats-API Filter:', JSON.stringify(filter, null, 2))
+    console.log('📊 Stats-API Zeitraum:', { von, bis, mandantId })
     
     // Aggregation für Stats nach Typ
     const stats = await collection.aggregate([

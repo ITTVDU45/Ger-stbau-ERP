@@ -44,7 +44,7 @@ export default function BudgetDialog({
           betrag: budget.betrag?.toString() || '',
           zeitraum: budget.zeitraum || 'monat',
           warnungAktiviert: budget.warnungAktiviert !== false,
-          warnschwelle: budget.warnschwelle?.toString() || '80'
+          warnschwelle: (budget.warnschwelle || budget.warnungBeiProzent || 80).toString()
         })
       }
     }
@@ -93,11 +93,14 @@ export default function BudgetDialog({
         mandantId: mandantId || undefined
       }
 
-      const url = budget 
-        ? `/api/finanzen/budgets/${budget._id}`
+      // Unterstütze sowohl _id als auch budgetId (aus budgetStatus)
+      const budgetId = budget?._id || budget?.budgetId
+      
+      const url = budgetId
+        ? `/api/finanzen/budgets/${budgetId}`
         : '/api/finanzen/budgets'
       
-      const method = budget ? 'PUT' : 'POST'
+      const method = budgetId ? 'PUT' : 'POST'
       
       const res = await fetch(url, {
         method,

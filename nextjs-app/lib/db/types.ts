@@ -406,6 +406,7 @@ export interface Kunde {
   }
   // Erweiterte Felder
   kundentyp: 'privat' | 'gewerblich' | 'oeffentlich'
+  branche?: 'dachdecker' | 'maler' | 'bauunternehmen' | 'privat' | 'sonstige' // Branche für farbliche Kennzeichnung
   ansprechpartner?: {
     vorname?: string
     nachname?: string
