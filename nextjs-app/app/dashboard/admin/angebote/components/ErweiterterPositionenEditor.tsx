@@ -64,10 +64,27 @@ export default function ErweiterterPositionenEditor({ positionen, onChange }: Er
   }
 
   const handleNeuePositionChange = (field: string, value: any) => {
-    const updated = { ...neuePosition, [field]: value }
+    let updated = { ...neuePosition, [field]: value }
+    
+    // Wenn Verknüpfung geändert wird, Werte aus verknüpfter Position übernehmen
+    if (field === 'verknuepftMitPosition' && value !== undefined) {
+      const verknuepftePosition = positionen.find(p => p.position === value.toString().padStart(2, '0') || parseInt(p.position) === value)
+      if (verknuepftePosition) {
+        updated = {
+          ...updated,
+          menge: verknuepftePosition.menge,
+          einheit: verknuepftePosition.einheit,
+          einzelpreis: verknuepftePosition.einzelpreis,
+          prozentsatz: verknuepftePosition.prozentsatz
+        }
+        toast.info('Werte übernommen', {
+          description: `Menge, Einheit, Einzelpreis und Prozentsatz von Position ${verknuepftePosition.position} übernommen`
+        })
+      }
+    }
     
     // Gesamtpreis automatisch berechnen
-    if (field === 'menge' || field === 'einzelpreis' || field === 'prozentsatz') {
+    if (field === 'menge' || field === 'einzelpreis' || field === 'prozentsatz' || field === 'verknuepftMitPosition') {
       const zwischensumme = (updated.menge || 0) * (updated.einzelpreis || 0)
       
       // Wenn Prozentsatz angegeben, wird dieser von der Zwischensumme berechnet
@@ -170,10 +187,27 @@ export default function ErweiterterPositionenEditor({ positionen, onChange }: Er
   const handlePositionBearbeitenChange = (field: string, value: any) => {
     if (!zuBearbeitendePosition) return
     
-    const updated = { ...zuBearbeitendePosition.position, [field]: value }
+    let updated = { ...zuBearbeitendePosition.position, [field]: value }
+    
+    // Wenn Verknüpfung geändert wird, Werte aus verknüpfter Position übernehmen
+    if (field === 'verknuepftMitPosition' && value !== undefined) {
+      const verknuepftePosition = positionen.find(p => p.position === value.toString().padStart(2, '0') || parseInt(p.position) === value)
+      if (verknuepftePosition) {
+        updated = {
+          ...updated,
+          menge: verknuepftePosition.menge,
+          einheit: verknuepftePosition.einheit,
+          einzelpreis: verknuepftePosition.einzelpreis,
+          prozentsatz: verknuepftePosition.prozentsatz
+        }
+        toast.info('Werte übernommen', {
+          description: `Menge, Einheit, Einzelpreis und Prozentsatz von Position ${verknuepftePosition.position} übernommen`
+        })
+      }
+    }
     
     // Gesamtpreis automatisch berechnen
-    if (field === 'menge' || field === 'einzelpreis' || field === 'prozentsatz') {
+    if (field === 'menge' || field === 'einzelpreis' || field === 'prozentsatz' || field === 'verknuepftMitPosition') {
       const zwischensumme = (updated.menge || 0) * (updated.einzelpreis || 0)
       
       if (updated.prozentsatz && updated.prozentsatz > 0) {
