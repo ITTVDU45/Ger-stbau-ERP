@@ -27,11 +27,21 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { Eye, Edit, Trash2, MoreVertical, Search, CheckCircle, Send, XCircle, FileWarning } from 'lucide-react'
+import { Eye, Edit, Trash2, MoreVertical, Search, CheckCircle, Send, XCircle, FileWarning, AlertTriangle } from 'lucide-react'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { toast } from 'sonner'
 import FolgemahnungErstellenDialog from './FolgemahnungErstellenDialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 
 interface Mahnung {
   _id: string
@@ -72,6 +82,14 @@ export default function MahnungenTabelle({
   const [processing, setProcessing] = useState(false)
   const [folgemahnungDialogOpen, setFolgemahnungDialogOpen] = useState(false)
   const [selectedMahnungForFolge, setSelectedMahnungForFolge] = useState<Mahnung | null>(null)
+  
+  // Lösch-Dialog States
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [mahnungToDelete, setMahnungToDelete] = useState<{ id: string; nummer: string } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  
+  // Massen-Lösch-Dialog States
+  const [batchDeleteDialogOpen, setBatchDeleteDialogOpen] = useState(false)
 
   // Filterung
   const gefilterteMahnungen = mahnungen.filter((mahnung) => {
@@ -105,19 +123,27 @@ export default function MahnungenTabelle({
     }
   })
 
-  const handleDelete = async (id: string, mahnungsnummer: string) => {
-    if (!confirm(`Mahnung ${mahnungsnummer} wirklich löschen?`)) return
+  // Dialog öffnen für Einzellöschung
+  const handleDelete = (id: string, mahnungsnummer: string) => {
+    setMahnungToDelete({ id, nummer: mahnungsnummer })
+    setDeleteDialogOpen(true)
+  }
 
+  // Bestätigte Löschung ausführen
+  const confirmDelete = async () => {
+    if (!mahnungToDelete) return
+
+    setIsDeleting(true)
     try {
-      const response = await fetch(`/api/mahnwesen/${id}`, {
+      const response = await fetch(`/api/mahnwesen/${mahnungToDelete.id}`, {
         method: 'DELETE'
       })
 
       const data = await response.json()
 
       if (data.erfolg) {
-        toast.success('Mahnung gelöscht')
-        onDelete?.(id)
+        toast.success(`Mahnung ${mahnungToDelete.nummer} erfolgreich gelöscht`)
+        onDelete?.(mahnungToDelete.id)
         onRefresh?.()
       } else {
         toast.error(data.fehler || 'Fehler beim Löschen')
@@ -125,6 +151,10 @@ export default function MahnungenTabelle({
     } catch (error) {
       console.error('Fehler beim Löschen:', error)
       toast.error('Fehler beim Löschen der Mahnung')
+    } finally {
+      setIsDeleting(false)
+      setDeleteDialogOpen(false)
+      setMahnungToDelete(null)
     }
   }
 
@@ -202,26 +232,19 @@ export default function MahnungenTabelle({
     setSelectedIds(newSet)
   }
 
-  const handleBatchAction = async (aktion: string) => {
+  const handleBatchAction = async (aktion: string, skipConfirm = false) => {
     if (selectedIds.size === 0) {
       toast.error('Bitte wählen Sie mindestens eine Mahnung aus')
       return
     }
 
-    const mahnungIds = Array.from(selectedIds)
-
-    const aktionText = aktion === 'genehmigen' ? 'genehmigen' 
-      : aktion === 'ablehnen' ? 'ablehnen' 
-      : aktion === 'versenden' ? 'versenden'
-      : 'löschen'
-
-    if (
-      !confirm(
-        `Möchten Sie wirklich ${mahnungIds.length} Mahnung(en) ${aktionText}?`
-      )
-    ) {
+    // Bei Lösch-Aktion Dialog öffnen
+    if (aktion === 'loeschen' && !skipConfirm) {
+      setBatchDeleteDialogOpen(true)
       return
     }
+
+    const mahnungIds = Array.from(selectedIds)
 
     try {
       setProcessing(true)
@@ -583,6 +606,105 @@ export default function MahnungenTabelle({
           onSuccess={handleFolgemahnungSuccess}
         />
       )}
+
+      {/* Einzelne Mahnung löschen - AlertDialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <AlertDialogTitle className="text-xl text-gray-900">
+                Mahnung löschen?
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-gray-600 mt-2">
+              Möchten Sie die Mahnung <strong className="text-gray-900">{mahnungToDelete?.nummer}</strong> wirklich löschen?
+              <br />
+              <span className="text-red-600 text-sm mt-2 block">
+                Diese Aktion kann nicht rückgängig gemacht werden.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 mt-4">
+            <AlertDialogCancel 
+              disabled={isDeleting}
+              className="border-gray-300 text-gray-700 hover:bg-gray-50"
+            >
+              Abbrechen
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isDeleting ? (
+                <>
+                  <span className="animate-spin mr-2">⏳</span>
+                  Lösche...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Löschen
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Massen-Löschung - AlertDialog */}
+      <AlertDialog open={batchDeleteDialogOpen} onOpenChange={setBatchDeleteDialogOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <AlertDialogTitle className="text-xl text-gray-900">
+                {selectedIds.size} Mahnung(en) löschen?
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-gray-600 mt-2">
+              Möchten Sie wirklich <strong className="text-gray-900">{selectedIds.size} Mahnung(en)</strong> löschen?
+              <br />
+              <span className="text-red-600 text-sm mt-2 block">
+                Diese Aktion kann nicht rückgängig gemacht werden.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 mt-4">
+            <AlertDialogCancel 
+              disabled={processing}
+              className="border-gray-300 text-gray-700 hover:bg-gray-50"
+            >
+              Abbrechen
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setBatchDeleteDialogOpen(false)
+                handleBatchAction('loeschen', true)
+              }}
+              disabled={processing}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {processing ? (
+                <>
+                  <span className="animate-spin mr-2">⏳</span>
+                  Lösche...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Alle löschen
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
