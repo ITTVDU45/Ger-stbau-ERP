@@ -271,7 +271,10 @@ export default function ErweiterterPositionenEditor({ positionen, onChange }: Er
                               <Badge variant="outline" className="border-blue-400 text-blue-700 font-medium">{v.shortcode}</Badge>
                               <span className="font-semibold text-gray-900">{v.name}</span>
                             </div>
-                            <p className="text-sm text-gray-700 mt-1">{v.beschreibung}</p>
+                            <div 
+                              className="text-sm text-gray-700 mt-1 prose prose-sm max-w-none [&_p]:mb-1 [&_p:last-child]:mb-0 [&_h1]:text-sm [&_h1]:font-bold [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:text-xs [&_strong]:font-bold [&_em]:italic [&_u]:underline"
+                              dangerouslySetInnerHTML={{ __html: v.beschreibung }}
+                            />
                             <p className="text-xs text-gray-600 mt-1 font-medium">
                               {v.standardMenge} {v.einheit} × {v.standardPreis?.toLocaleString('de-DE')} €
                             </p>
@@ -320,7 +323,7 @@ export default function ErweiterterPositionenEditor({ positionen, onChange }: Er
                         <TableCell className="font-medium text-gray-900">{pos.position}</TableCell>
                         <TableCell>
                           <div 
-                            className="text-gray-900 prose prose-sm max-w-none [&_h1]:text-lg [&_h1]:font-bold [&_h1]:mb-1 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mb-1 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mb-1 [&_ul]:list-disc [&_ul]:ml-4 [&_ol]:list-decimal [&_ol]:ml-4 [&_strong]:font-bold [&_em]:italic [&_u]:underline"
+                            className="text-gray-900 prose prose-sm max-w-none [&_p]:mb-2 [&_p:last-child]:mb-0 [&_h1]:text-lg [&_h1]:font-bold [&_h1]:mb-2 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mb-2 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mb-1 [&_ul]:list-disc [&_ul]:ml-4 [&_ul]:mb-2 [&_ol]:list-decimal [&_ol]:ml-4 [&_ol]:mb-2 [&_li]:mb-1 [&_strong]:font-bold [&_em]:italic [&_u]:underline"
                             dangerouslySetInnerHTML={{ __html: pos.beschreibung }}
                           />
                           {pos.verknuepftMitPosition && (
@@ -450,7 +453,7 @@ export default function ErweiterterPositionenEditor({ positionen, onChange }: Er
 
                       {/* Beschreibung */}
                       <div 
-                        className="text-gray-900 prose prose-sm max-w-none [&_h1]:text-base [&_h1]:font-bold [&_h1]:mb-1 [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mb-1 [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:mb-1 [&_ul]:list-disc [&_ul]:ml-4 [&_ol]:list-decimal [&_ol]:ml-4 [&_strong]:font-bold [&_em]:italic [&_u]:underline"
+                        className="text-gray-900 prose prose-sm max-w-none [&_p]:mb-2 [&_p:last-child]:mb-0 [&_h1]:text-base [&_h1]:font-bold [&_h1]:mb-2 [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mb-2 [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:mb-1 [&_ul]:list-disc [&_ul]:ml-4 [&_ul]:mb-2 [&_ol]:list-decimal [&_ol]:ml-4 [&_ol]:mb-2 [&_li]:mb-1 [&_strong]:font-bold [&_em]:italic [&_u]:underline"
                         dangerouslySetInnerHTML={{ __html: pos.beschreibung }}
                       />
 
