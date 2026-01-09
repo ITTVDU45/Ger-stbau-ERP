@@ -6,10 +6,10 @@ import { ObjectId } from 'mongodb'
 // GET - Einzelnen Urlaubseintrag abrufen
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
     
     if (!ObjectId.isValid(id)) {
       return NextResponse.json(
@@ -43,10 +43,10 @@ export async function GET(
 // PUT - Urlaubseintrag aktualisieren
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
     
     if (!ObjectId.isValid(id)) {
       return NextResponse.json(
@@ -107,10 +107,10 @@ export async function PUT(
 // DELETE - Urlaubseintrag löschen
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
     
     if (!ObjectId.isValid(id)) {
       return NextResponse.json(
