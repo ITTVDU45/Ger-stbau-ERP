@@ -12,8 +12,11 @@ import RechnungDialog from './components/RechnungDialog'
 import RechnungenKPICards from './components/RechnungenKPICards'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 export default function RechnungenPage() {
+  const router = useRouter()
   const [rechnungen, setRechnungen] = useState<Rechnung[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -57,13 +60,12 @@ export default function RechnungenPage() {
   }
 
   const handleNeueRechnung = () => {
-    setSelectedRechnung(undefined)
-    setDialogOpen(true)
+    router.push('/dashboard/admin/rechnungen/neu')
   }
 
   const handleBearbeiten = (rechnung: Rechnung) => {
-    setSelectedRechnung(rechnung)
-    setDialogOpen(true)
+    // Zur neuen Bearbeitungsseite navigieren
+    router.push(`/dashboard/admin/rechnungen/neu?id=${rechnung._id}`)
   }
 
   const handleDialogClose = (updated: boolean) => {

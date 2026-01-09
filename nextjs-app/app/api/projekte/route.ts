@@ -6,11 +6,23 @@ import { ObjectId } from 'mongodb'
 // GET - Alle Projekte abrufen
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const kundeId = searchParams.get('kundeId')
+    
     const db = await getDatabase()
     const projekteCollection = db.collection<Projekt>('projekte')
     
+    // Filter für kundeId wenn angegeben
+    const matchStage = kundeId ? { $match: { kundeId } } : null
+    
     // Aggregation mit Lookup auf Kunden für Branche
-    const projekte = await projekteCollection.aggregate([
+    const pipeline: any[] = []
+    
+    if (matchStage) {
+      pipeline.push(matchStage)
+    }
+    
+    pipeline.push(
       {
         $addFields: {
           kundeIdObject: { $toObjectId: '$kundeId' }
@@ -31,14 +43,16 @@ export async function GET(request: NextRequest) {
       },
       {
         $project: {
-          kundeData: 0, // Entferne die kundeData aus dem Ergebnis
-          kundeIdObject: 0 // Entferne die temporäre ObjectId
+          kundeData: 0,
+          kundeIdObject: 0
         }
       },
       {
-        $sort: { beginn: -1 }
+        $sort: { beginn: -1 } as any
       }
-    ]).toArray()
+    )
+    
+    const projekte = await projekteCollection.aggregate(pipeline).toArray()
     
     return NextResponse.json({ erfolg: true, projekte })
   } catch (error) {

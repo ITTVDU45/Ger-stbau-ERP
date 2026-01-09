@@ -5,11 +5,19 @@ import { Angebot } from '@/lib/db/types'
 // GET - Alle Angebote abrufen
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const kundeId = searchParams.get('kundeId')
+    
     const db = await getDatabase()
     const angeboteCollection = db.collection<Angebot>('angebote')
     
+    const filter: Record<string, unknown> = {}
+    if (kundeId) {
+      filter.kundeId = kundeId
+    }
+    
     const angebote = await angeboteCollection
-      .find({})
+      .find(filter)
       .sort({ datum: -1 })
       .toArray()
     
