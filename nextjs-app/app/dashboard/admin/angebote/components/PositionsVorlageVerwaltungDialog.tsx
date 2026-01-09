@@ -292,7 +292,7 @@ export default function PositionsVorlageVerwaltungDialog({ onVorlageEinfuegen, t
                           </div>
                           <h4 className="font-semibold text-gray-900 text-lg">{vorlage.name}</h4>
                           <div 
-                            className="text-sm text-gray-700 mt-1 prose prose-sm max-w-none [&_h1]:text-base [&_h1]:font-bold [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-medium [&_p]:mb-0.5 [&_ul]:my-0.5 [&_ol]:my-0.5 [&_li]:mb-0"
+                            className="text-sm text-gray-700 mt-1 rich-text-content"
                             dangerouslySetInnerHTML={{ __html: vorlage.beschreibung }}
                           />
                           <div className="flex items-center gap-4 mt-3 text-sm text-gray-700">

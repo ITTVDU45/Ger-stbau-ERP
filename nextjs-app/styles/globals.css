@@ -294,14 +294,30 @@
 /* Rich Text Content Styling für formatierte Beschreibungen */
 .rich-text-content {
   line-height: 1.6;
+  white-space: pre-wrap;
 }
 
 .rich-text-content p {
-  margin-bottom: 0.5em;
+  margin-bottom: 0.75em;
+  min-height: 1em;
 }
 
 .rich-text-content p:last-child {
   margin-bottom: 0;
+}
+
+/* Leere Absätze (Leerzeilen) sichtbar machen */
+.rich-text-content p:empty,
+.rich-text-content p br:only-child {
+  min-height: 1.2em;
+  display: block;
+}
+
+/* Zeilenumbrüche */
+.rich-text-content br {
+  display: block;
+  content: "";
+  margin-top: 0.5em;
 }
 
 .rich-text-content h1,
@@ -309,7 +325,13 @@
 .rich-text-content h3 {
   font-weight: 600;
   margin-bottom: 0.5em;
-  margin-top: 0.5em;
+  margin-top: 0.75em;
+}
+
+.rich-text-content h1:first-child,
+.rich-text-content h2:first-child,
+.rich-text-content h3:first-child {
+  margin-top: 0;
 }
 
 .rich-text-content h1 {
@@ -327,7 +349,7 @@
 .rich-text-content ul,
 .rich-text-content ol {
   margin-left: 1.5em;
-  margin-bottom: 0.5em;
+  margin-bottom: 0.75em;
 }
 
 .rich-text-content ul {
