@@ -8,11 +8,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Projekt } from '@/lib/db/types'
-import { Upload, FileText, Image as ImageIcon, File, Trash2, Download, CloudUpload } from 'lucide-react'
+import { Upload, FileText, Image as ImageIcon, File, Trash2, Download, CloudUpload, Eye, X, ZoomIn, ZoomOut } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
+import Image from 'next/image'
 
 interface ProjektDokumenteTabProps {
   projekt: Projekt
@@ -28,6 +30,26 @@ export default function ProjektDokumenteTab({ projekt, onProjektUpdated }: Proje
   const [kommentar, setKommentar] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // Lightbox State
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxDokument, setLightboxDokument] = useState<any>(null)
+  const [lightboxZoom, setLightboxZoom] = useState(1)
+
+  const openLightbox = (dok: any) => {
+    setLightboxDokument(dok)
+    setLightboxZoom(1)
+    setLightboxOpen(true)
+  }
+
+  const closeLightbox = () => {
+    setLightboxOpen(false)
+    setLightboxDokument(null)
+    setLightboxZoom(1)
+  }
+
+  const isImage = (typ: string) => typ?.startsWith('image/')
+  const isPdf = (typ: string) => typ === 'application/pdf'
 
   useEffect(() => {
     loadDokumente()
@@ -302,20 +324,76 @@ export default function ProjektDokumenteTab({ projekt, onProjektUpdated }: Proje
                     {getKategorieBadge(kategorie)}
                     <span>({docs.length})</span>
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {docs.map((dok: any) => (
                       <div
                         key={dok._id}
-                        className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow"
+                        className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all group"
                       >
-                        <div className="flex items-start justify-between mb-2">
-                          {getFileIcon(dok.typ)}
-                          <div className="flex gap-1">
+                        {/* Thumbnail-Vorschau für Bilder */}
+                        {isImage(dok.typ) ? (
+                          <div 
+                            className="relative aspect-video bg-gray-100 cursor-pointer overflow-hidden"
+                            onClick={() => openLightbox(dok)}
+                          >
+                            <img
+                              src={dok.url}
+                              alt={dok.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                              <Eye className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          </div>
+                        ) : isPdf(dok.typ) ? (
+                          <div 
+                            className="relative aspect-video bg-red-50 cursor-pointer flex items-center justify-center"
+                            onClick={() => openLightbox(dok)}
+                          >
+                            <FileText className="h-12 w-12 text-red-500" />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                              <Eye className="h-8 w-8 text-red-700 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="aspect-video bg-gray-50 flex items-center justify-center">
+                            <File className="h-12 w-12 text-gray-400" />
+                          </div>
+                        )}
+                        
+                        {/* Dokument-Infos */}
+                        <div className="p-3">
+                          <p className="font-medium text-gray-900 text-sm mb-1 line-clamp-2" title={dok.name}>
+                            {dok.name}
+                          </p>
+                          {dok.kommentar && (
+                            <p className="text-xs text-gray-600 mb-2 line-clamp-2">
+                              {dok.kommentar}
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-500 mb-2">
+                            {dok.hochgeladenAm ? format(new Date(dok.hochgeladenAm), 'dd.MM.yyyy HH:mm', { locale: de }) : '-'}
+                            {dok.hochgeladenVon && ` · ${dok.hochgeladenVon}`}
+                          </p>
+                          
+                          {/* Aktions-Buttons */}
+                          <div className="flex gap-1 pt-2 border-t border-gray-100">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openLightbox(dok)}
+                              className="h-8 flex-1 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                              title="Vorschau"
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              <span className="text-xs">Ansehen</span>
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => window.open(dok.url, '_blank')}
-                              className="h-7 w-7 p-0 text-gray-600 hover:text-gray-900"
+                              className="h-8 px-2 text-gray-600 hover:text-gray-900"
+                              title="Herunterladen"
                             >
                               <Download className="h-4 w-4" />
                             </Button>
@@ -323,26 +401,13 @@ export default function ProjektDokumenteTab({ projekt, onProjektUpdated }: Proje
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDelete(dok)}
-                              className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
+                              className="h-8 px-2 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              title="Löschen"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         </div>
-                        <p className="font-medium text-gray-900 text-sm mb-1 line-clamp-2">
-                          {dok.name}
-                        </p>
-                        {dok.kommentar && (
-                          <p className="text-xs text-gray-600 mb-2 line-clamp-2">
-                            {dok.kommentar}
-                          </p>
-                        )}
-                        <p className="text-xs text-gray-500">
-                          {dok.hochgeladenAm ? format(new Date(dok.hochgeladenAm), 'dd.MM.yyyy HH:mm', { locale: de }) : '-'}
-                        </p>
-                        {dok.hochgeladenVon && (
-                          <p className="text-xs text-gray-500">von {dok.hochgeladenVon}</p>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -352,6 +417,100 @@ export default function ProjektDokumenteTab({ projekt, onProjektUpdated }: Proje
           )}
         </CardContent>
       </Card>
+
+      {/* Lightbox / Vorschau-Modal */}
+      <Dialog open={lightboxOpen} onOpenChange={closeLightbox}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none overflow-hidden">
+          <DialogHeader className="absolute top-0 left-0 right-0 z-10 p-4 bg-gradient-to-b from-black/80 to-transparent">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-white font-medium truncate pr-4">
+                {lightboxDokument?.name}
+              </DialogTitle>
+              <div className="flex items-center gap-2">
+                {/* Zoom-Steuerung für Bilder */}
+                {lightboxDokument && isImage(lightboxDokument.typ) && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setLightboxZoom(prev => Math.max(0.5, prev - 0.25))}
+                      className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                      title="Verkleinern"
+                    >
+                      <ZoomOut className="h-4 w-4" />
+                    </Button>
+                    <span className="text-white text-sm min-w-[50px] text-center">
+                      {Math.round(lightboxZoom * 100)}%
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setLightboxZoom(prev => Math.min(3, prev + 0.25))}
+                      className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                      title="Vergrößern"
+                    >
+                      <ZoomIn className="h-4 w-4" />
+                    </Button>
+                    <div className="w-px h-6 bg-white/30 mx-2" />
+                  </>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => lightboxDokument && window.open(lightboxDokument.url, '_blank')}
+                  className="h-8 px-3 text-white hover:bg-white/20"
+                  title="Herunterladen"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={closeLightbox}
+                  className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                  title="Schließen"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          {/* Vorschau-Inhalt */}
+          <div className="w-full h-[90vh] flex items-center justify-center overflow-auto p-8 pt-20">
+            {lightboxDokument && isImage(lightboxDokument.typ) ? (
+              <img
+                src={lightboxDokument.url}
+                alt={lightboxDokument.name}
+                className="max-w-full max-h-full object-contain transition-transform duration-200"
+                style={{ transform: `scale(${lightboxZoom})` }}
+              />
+            ) : lightboxDokument && isPdf(lightboxDokument.typ) ? (
+              <iframe
+                src={lightboxDokument.url}
+                className="w-full h-full bg-white rounded-lg"
+                title={lightboxDokument.name}
+              />
+            ) : lightboxDokument ? (
+              <div className="text-center text-white">
+                <File className="h-24 w-24 mx-auto mb-4 text-gray-400" />
+                <p className="text-lg mb-4">{lightboxDokument.name}</p>
+                <p className="text-gray-400 mb-6">
+                  Keine Vorschau verfügbar für diesen Dateityp
+                </p>
+                <Button
+                  onClick={() => window.open(lightboxDokument.url, '_blank')}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Datei herunterladen
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
