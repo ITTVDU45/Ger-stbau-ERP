@@ -1,24 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth/session'
 import { requireRole } from '@/lib/auth/rbac'
 import { getDatabase } from '@/lib/db/client'
 import { uploadCompanyLogo, deleteSettingsFile } from '@/lib/storage/minioClient'
+import { UserRole } from '@/lib/db/types'
 
 /**
  * POST /api/settings/logo - Firmenlogo hochladen
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSession()
-    if (!session) {
-      return NextResponse.json({ erfolg: false, nachricht: 'Nicht angemeldet' }, { status: 401 })
-    }
-
     // Nur ADMIN und SUPERADMIN dürfen Logo hochladen
-    const hasRole = await requireRole(session.userId, ['ADMIN', 'SUPERADMIN'])
-    if (!hasRole) {
-      return NextResponse.json({ erfolg: false, nachricht: 'Keine Berechtigung' }, { status: 403 })
-    }
+    await requireRole([UserRole.ADMIN, UserRole.SUPERADMIN])
 
     const formData = await req.formData()
     const file = formData.get('logo') as File
@@ -94,16 +86,8 @@ export async function POST(req: NextRequest) {
  */
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getSession()
-    if (!session) {
-      return NextResponse.json({ erfolg: false, nachricht: 'Nicht angemeldet' }, { status: 401 })
-    }
-
     // Nur ADMIN und SUPERADMIN dürfen Logo löschen
-    const hasRole = await requireRole(session.userId, ['ADMIN', 'SUPERADMIN'])
-    if (!hasRole) {
-      return NextResponse.json({ erfolg: false, nachricht: 'Keine Berechtigung' }, { status: 403 })
-    }
+    await requireRole([UserRole.ADMIN, UserRole.SUPERADMIN])
 
     const db = await getDatabase()
     const settingsCollection = db.collection('firmeneinstellungen')
