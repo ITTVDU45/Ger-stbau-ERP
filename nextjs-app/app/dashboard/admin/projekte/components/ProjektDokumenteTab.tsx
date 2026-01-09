@@ -420,8 +420,8 @@ export default function ProjektDokumenteTab({ projekt, onProjektUpdated }: Proje
 
       {/* Lightbox / Vorschau-Modal */}
       <Dialog open={lightboxOpen} onOpenChange={closeLightbox}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none overflow-hidden">
-          <DialogHeader className="absolute top-0 left-0 right-0 z-10 p-4 bg-gradient-to-b from-black/80 to-transparent">
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 !bg-gray-900 border-gray-700 overflow-hidden [&>button]:hidden">
+          <DialogHeader className="absolute top-0 left-0 right-0 z-10 p-4 bg-gray-900 border-b border-gray-700">
             <div className="flex items-center justify-between">
               <DialogTitle className="text-white font-medium truncate pr-4">
                 {lightboxDokument?.name}
@@ -478,14 +478,24 @@ export default function ProjektDokumenteTab({ projekt, onProjektUpdated }: Proje
           </DialogHeader>
           
           {/* Vorschau-Inhalt */}
-          <div className="w-full h-[90vh] flex items-center justify-center overflow-auto p-8 pt-20">
+          <div className="w-full h-[90vh] flex items-center justify-center overflow-auto p-8 pt-20 bg-gray-800">
             {lightboxDokument && isImage(lightboxDokument.typ) ? (
-              <img
-                src={lightboxDokument.url}
-                alt={lightboxDokument.name}
-                className="max-w-full max-h-full object-contain transition-transform duration-200"
-                style={{ transform: `scale(${lightboxZoom})` }}
-              />
+              <div 
+                className="flex items-center justify-center p-4 rounded-lg"
+                style={{
+                  backgroundImage: 'linear-gradient(45deg, #374151 25%, transparent 25%), linear-gradient(-45deg, #374151 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #374151 75%), linear-gradient(-45deg, transparent 75%, #374151 75%)',
+                  backgroundSize: '20px 20px',
+                  backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
+                  backgroundColor: '#4b5563'
+                }}
+              >
+                <img
+                  src={lightboxDokument.url}
+                  alt={lightboxDokument.name}
+                  className="max-w-full max-h-[80vh] object-contain transition-transform duration-200 shadow-2xl"
+                  style={{ transform: `scale(${lightboxZoom})` }}
+                />
+              </div>
             ) : lightboxDokument && isPdf(lightboxDokument.typ) ? (
               <iframe
                 src={lightboxDokument.url}
