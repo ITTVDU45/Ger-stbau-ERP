@@ -135,7 +135,7 @@ export default function MahnungenTabelle({
 
     setIsDeleting(true)
     try {
-      const response = await fetch(`/api/mahnwesen/${mahnungToDelete.id}`, {
+      const response = await fetch(`/api/mahnwesen/${mahnungToDelete.id}?force=true`, {
         method: 'DELETE'
       })
 
@@ -256,7 +256,7 @@ export default function MahnungenTabelle({
         
         for (const id of mahnungIds) {
           try {
-            const response = await fetch(`/api/mahnwesen/${id}`, {
+            const response = await fetch(`/api/mahnwesen/${id}?force=true`, {
               method: 'DELETE'
             })
             const data = await response.json()

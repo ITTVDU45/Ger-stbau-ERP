@@ -172,7 +172,8 @@ export async function PUT(
 
 /**
  * DELETE /api/mahnwesen/:id
- * Löscht eine Mahnung (nur wenn noch nicht versendet)
+ * Löscht eine Mahnung
+ * Query-Parameter: force=true um auch versendete Mahnungen zu löschen
  */
 export async function DELETE(
   request: Request,
@@ -180,6 +181,8 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
+    const { searchParams } = new URL(request.url)
+    const force = searchParams.get('force') === 'true'
 
     if (!ObjectId.isValid(id)) {
       return NextResponse.json(
@@ -199,13 +202,13 @@ export async function DELETE(
       )
     }
 
-    // Prüfe ob Mahnung bereits versendet wurde
-    if (mahnung.status === 'versendet' || mahnung.versandtAm) {
+    // Prüfe ob Mahnung bereits versendet wurde (nur wenn force nicht gesetzt)
+    if (!force && (mahnung.status === 'versendet' || mahnung.versandtAm)) {
       return NextResponse.json(
         {
           erfolg: false,
           fehler: 'Mahnung kann nicht gelöscht werden',
-          details: 'Mahnung wurde bereits versendet'
+          details: 'Mahnung wurde bereits versendet. Verwenden Sie force=true zum Erzwingen.'
         },
         { status: 403 }
       )
