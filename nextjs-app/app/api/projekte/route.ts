@@ -3,6 +3,42 @@ import { getDatabase } from '@/lib/db/client'
 import { Projekt } from '@/lib/db/types'
 import { ObjectId } from 'mongodb'
 
+/**
+ * Generiert die nächste Projektnummer im Format JJ-NNN
+ * z.B. 26-001, 26-002, etc.
+ */
+async function generiereNaechsteProjektnummer(): Promise<string> {
+  const db = await getDatabase()
+  const projekteCollection = db.collection<Projekt>('projekte')
+  
+  // Aktuelles Jahr (zweistellig)
+  const jahr = new Date().getFullYear().toString().slice(-2)
+  const jahrPrefix = `${jahr}-`
+  
+  // Finde das letzte Projekt des aktuellen Jahres
+  const letzteProjekte = await projekteCollection
+    .find({
+      projektnummer: { $regex: `^${jahrPrefix}` }
+    })
+    .sort({ projektnummer: -1 })
+    .limit(1)
+    .toArray()
+  
+  let naechsteNummer = 1
+  
+  if (letzteProjekte.length > 0 && letzteProjekte[0].projektnummer) {
+    const letzteNummer = letzteProjekte[0].projektnummer
+    const match = letzteNummer.match(/^(\d{2})-(\d{3})$/)
+    
+    if (match && match[1] === jahr) {
+      naechsteNummer = parseInt(match[2], 10) + 1
+    }
+  }
+  
+  // Format: JJ-NNN (z.B. 26-001)
+  return `${jahr}-${naechsteNummer.toString().padStart(3, '0')}`
+}
+
 // GET - Alle Projekte abrufen
 export async function GET(request: NextRequest) {
   try {
@@ -79,8 +115,13 @@ export async function POST(request: NextRequest) {
     const db = await getDatabase()
     const projekteCollection = db.collection<Projekt>('projekte')
     
+    // Generiere automatisch die nächste Projektnummer
+    // Wenn bereits eine Projektnummer angegeben wurde (z.B. beim Import), behalte diese
+    const projektnummer = body.projektnummer || await generiereNaechsteProjektnummer()
+    
     const neuesProjekt: Projekt = {
       ...body,
+      projektnummer,
       erstelltAm: new Date(),
       zuletztGeaendert: new Date()
     }

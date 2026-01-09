@@ -67,12 +67,9 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
       setBudgetNetto(netto)
       setBudgetBrutto(netto * (1 + MWST_SATZ))
     } else {
-      // Projektnummer automatisch generieren
-      const jahr = new Date().getFullYear()
-      const projektnummer = `P-${jahr}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`
-      
+      // Projektnummer wird automatisch vom Server generiert (JJ-NNN Format)
       setFormData({
-        projektnummer,
+        projektnummer: '',  // Server generiert automatisch
         projektname: '',
         kundeId: '',
         kundeName: '',
@@ -389,9 +386,15 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
                 <Label htmlFor="projektnummer">Projektnummer *</Label>
                 <Input
                   id="projektnummer"
-                  value={formData.projektnummer}
+                  value={formData.projektnummer || 'Wird automatisch generiert...'}
                   onChange={(e) => handleChange('projektnummer', e.target.value)}
+                  disabled={!projekt}
+                  className={!projekt ? 'bg-gray-100 text-gray-600' : ''}
+                  placeholder="z.B. 26-001"
                 />
+                {!projekt && (
+                  <p className="text-xs text-gray-500">Format: JJ-NNN (Jahr-Laufnummer)</p>
+                )}
               </div>
 
               <div className="space-y-2">
