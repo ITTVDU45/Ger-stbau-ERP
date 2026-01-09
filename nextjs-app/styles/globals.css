@@ -294,30 +294,38 @@
 /* Rich Text Content Styling für formatierte Beschreibungen */
 .rich-text-content {
   line-height: 1.6;
-  white-space: pre-wrap;
 }
 
 .rich-text-content p {
   margin-bottom: 0.75em;
-  min-height: 1em;
+  min-height: 1.2em;
 }
 
 .rich-text-content p:last-child {
   margin-bottom: 0;
 }
 
-/* Leere Absätze (Leerzeilen) sichtbar machen */
-.rich-text-content p:empty,
-.rich-text-content p br:only-child {
-  min-height: 1.2em;
+/* Leere Absätze (Leerzeilen) sichtbar machen mit ::before pseudo-element */
+.rich-text-content p:empty::before {
+  content: "\00a0"; /* Non-breaking space */
   display: block;
+}
+
+/* Absätze die nur <br> enthalten */
+.rich-text-content p:has(br:only-child)::before {
+  content: "\00a0";
+}
+
+/* Fallback für Browser ohne :has() support - <br> direkt stylen */
+.rich-text-content p > br:only-child {
+  display: block;
+  min-height: 1.2em;
 }
 
 /* Zeilenumbrüche */
 .rich-text-content br {
   display: block;
-  content: "";
-  margin-top: 0.5em;
+  min-height: 0.5em;
 }
 
 .rich-text-content h1,

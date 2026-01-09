@@ -43,6 +43,16 @@ export default function RichTextEditor({ value, onChange, placeholder, className
     '#FED7AA', '#FEE2E2', '#E5E7EB', 'transparent'
   ]
 
+  // Funktion zum Ersetzen leerer <p></p> Tags mit <p>&nbsp;</p>
+  const processHtml = (html: string): string => {
+    // Leere <p></p> Tags mit &nbsp; füllen, damit sie angezeigt werden
+    return html
+      .replace(/<p><\/p>/g, '<p>&nbsp;</p>')
+      .replace(/<p><br><\/p>/g, '<p>&nbsp;</p>')
+      .replace(/<p><br\/><\/p>/g, '<p>&nbsp;</p>')
+      .replace(/<p><br \/><\/p>/g, '<p>&nbsp;</p>')
+  }
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -56,7 +66,8 @@ export default function RichTextEditor({ value, onChange, placeholder, className
     content: value,
     immediatelyRender: false, // Fix für SSR/Hydration-Probleme
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML())
+      const html = editor.getHTML()
+      onChange(processHtml(html))
     },
     editorProps: {
       attributes: {
