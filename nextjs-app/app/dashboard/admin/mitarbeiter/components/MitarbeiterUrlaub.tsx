@@ -5,6 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -27,6 +37,8 @@ export default function MitarbeiterUrlaub({ mitarbeiterId, mitarbeiterName }: Mi
   const [apiError, setApiError] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [urlaubZuLoeschen, setUrlaubZuLoeschen] = useState<string | null>(null)
+  const [loescheUrlaub, setLoescheUrlaub] = useState(false)
   const [formData, setFormData] = useState({
     von: '',
     bis: '',
@@ -158,6 +170,40 @@ export default function MitarbeiterUrlaub({ mitarbeiterId, mitarbeiterName }: Mi
     } catch (error) {
       console.error('Fehler:', error)
       toast.error('Fehler beim Ablehnen')
+    }
+  }
+
+  // Urlaubseintrag löschen - Dialog öffnen
+  const handleLoeschen = (id: string) => {
+    setUrlaubZuLoeschen(id)
+  }
+
+  // Urlaubseintrag tatsächlich löschen
+  const bestaetigeLoeschen = async () => {
+    if (!urlaubZuLoeschen) return
+
+    setLoescheUrlaub(true)
+    try {
+      const response = await fetch(`/api/urlaub/${urlaubZuLoeschen}`, {
+        method: 'DELETE'
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('Urlaubseintrag erfolgreich gelöscht')
+        loadUrlaube()
+      } else {
+        toast.error('Fehler beim Löschen', {
+          description: data.fehler || 'Unbekannter Fehler'
+        })
+      }
+    } catch (error) {
+      console.error('Fehler beim Löschen des Urlaubseintrags:', error)
+      toast.error('Fehler beim Löschen des Urlaubseintrags')
+    } finally {
+      setLoescheUrlaub(false)
+      setUrlaubZuLoeschen(null)
     }
   }
 
@@ -345,6 +391,15 @@ export default function MitarbeiterUrlaub({ mitarbeiterId, mitarbeiterName }: Mi
                               <XCircle className="h-4 w-4 text-red-600" />
                             </Button>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => urlaub._id && handleLoeschen(urlaub._id)}
+                            className="hover:bg-red-50"
+                            title="Löschen"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -449,6 +504,30 @@ export default function MitarbeiterUrlaub({ mitarbeiterId, mitarbeiterName }: Mi
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bestätigungs-Dialog für Urlaubseintrag löschen */}
+      <AlertDialog open={urlaubZuLoeschen !== null} onOpenChange={(open) => !open && setUrlaubZuLoeschen(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Urlaubseintrag löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie diesen Urlaubseintrag wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loescheUrlaub}>
+              Abbrechen
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={bestaetigeLoeschen}
+              disabled={loescheUrlaub}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {loescheUrlaub ? 'Lösche...' : 'Löschen'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
