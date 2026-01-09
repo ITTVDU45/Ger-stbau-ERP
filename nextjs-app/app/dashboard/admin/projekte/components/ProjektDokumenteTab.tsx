@@ -325,9 +325,9 @@ export default function ProjektDokumenteTab({ projekt, onProjektUpdated }: Proje
                     <span>({docs.length})</span>
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {docs.map((dok: any) => (
+                    {docs.map((dok: any, dokIndex: number) => (
                       <div
-                        key={dok._id}
+                        key={dok._id || dok.objectName || `dok-${kategorie}-${dokIndex}`}
                         className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all group"
                       >
                         {/* Thumbnail-Vorschau für Bilder */}
