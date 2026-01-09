@@ -22,6 +22,16 @@ import {
 } from "@/components/ui/select"
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { X, AlertCircle, Plus, Pencil, Trash2, Calendar } from 'lucide-react'
 import { Mitarbeiter, Urlaub } from '@/lib/db/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -63,6 +73,8 @@ export default function MitarbeiterDialog({ open, mitarbeiter, onClose }: Mitarb
   // Abwesenheiten
   const [abwesenheiten, setAbwesenheiten] = useState<Urlaub[]>([])
   const [loadingAbwesenheiten, setLoadingAbwesenheiten] = useState(false)
+  const [abwesenheitZuLoeschen, setAbwesenheitZuLoeschen] = useState<string | null>(null)
+  const [loescheAbwesenheit, setLoescheAbwesenheit] = useState(false)
   const [editingAbwesenheit, setEditingAbwesenheit] = useState<Urlaub | null>(null)
   const [showAbwesenheitForm, setShowAbwesenheitForm] = useState(false)
   const [abwesenheitForm, setAbwesenheitForm] = useState({
@@ -338,21 +350,25 @@ export default function MitarbeiterDialog({ open, mitarbeiter, onClose }: Mitarb
     setShowAbwesenheitForm(true)
   }
 
-  // Abwesenheit löschen
-  const handleAbwesenheitLoeschen = async (id: string) => {
-    if (!confirm('Möchten Sie diese Abwesenheit wirklich löschen?')) {
-      return
-    }
+  // Abwesenheit löschen - Dialog öffnen
+  const handleAbwesenheitLoeschen = (id: string) => {
+    setAbwesenheitZuLoeschen(id)
+  }
 
+  // Abwesenheit tatsächlich löschen
+  const bestaetigeAbwesenheitLoeschen = async () => {
+    if (!abwesenheitZuLoeschen) return
+
+    setLoescheAbwesenheit(true)
     try {
-      const response = await fetch(`/api/urlaub/${id}`, {
+      const response = await fetch(`/api/urlaub/${abwesenheitZuLoeschen}`, {
         method: 'DELETE'
       })
 
       const data = await response.json()
 
       if (response.ok) {
-        toast.success('Abwesenheit gelöscht')
+        toast.success('Abwesenheit erfolgreich gelöscht')
         ladeAbwesenheiten()
       } else {
         toast.error('Fehler beim Löschen', {
@@ -362,6 +378,9 @@ export default function MitarbeiterDialog({ open, mitarbeiter, onClose }: Mitarb
     } catch (error) {
       console.error('Fehler beim Löschen der Abwesenheit:', error)
       toast.error('Fehler beim Löschen der Abwesenheit')
+    } finally {
+      setLoescheAbwesenheit(false)
+      setAbwesenheitZuLoeschen(null)
     }
   }
 
@@ -922,6 +941,30 @@ export default function MitarbeiterDialog({ open, mitarbeiter, onClose }: Mitarb
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Bestätigungs-Dialog für Abwesenheit löschen */}
+      <AlertDialog open={abwesenheitZuLoeschen !== null} onOpenChange={(open) => !open && setAbwesenheitZuLoeschen(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Abwesenheit löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie diese Abwesenheit wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loescheAbwesenheit}>
+              Abbrechen
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={bestaetigeAbwesenheitLoeschen}
+              disabled={loescheAbwesenheit}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {loescheAbwesenheit ? 'Lösche...' : 'Löschen'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   )
 }
