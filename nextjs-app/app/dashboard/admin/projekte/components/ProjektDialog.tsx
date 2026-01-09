@@ -202,19 +202,30 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
     if (dokumenteFiles.length === 0) return
 
     const uploadPromises = dokumenteFiles.map(async ({ file, kategorie, kommentar }) => {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('projektId', projektId)
-      formData.append('kategorie', kategorie)
-      formData.append('kommentar', kommentar)
-      formData.append('benutzer', 'admin')
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('projektId', projektId)
+        formData.append('kategorie', kategorie)
+        formData.append('kommentar', kommentar)
+        formData.append('benutzer', 'admin')
 
-      const response = await fetch(`/api/projekte/${projektId}/dokumente`, {
-        method: 'POST',
-        body: formData
-      })
+        const response = await fetch(`/api/projekte/${projektId}/dokumente`, {
+          method: 'POST',
+          body: formData
+        })
 
-      return response.json()
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error(`Upload-Fehler für ${file.name}:`, errorText)
+          return { erfolg: false, fehler: `Upload fehlgeschlagen: ${response.statusText}` }
+        }
+
+        return await response.json()
+      } catch (error) {
+        console.error(`Upload-Fehler für ${file.name}:`, error)
+        return { erfolg: false, fehler: error instanceof Error ? error.message : 'Unbekannter Fehler' }
+      }
     })
 
     const results = await Promise.all(uploadPromises)
@@ -227,6 +238,8 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
     if (fehlgeschlagene > 0) {
       toast.error(`${fehlgeschlagene} Dokument(e) konnten nicht hochgeladen werden`)
     }
+
+    return { erfolgreiche, fehlgeschlagene }
   }
 
   const handleSubmit = async () => {
@@ -252,26 +265,44 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
         })
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        const projektId = projekt?._id || data.projektId || data.projekt?._id
-        
-        // Dokumente hochladen, falls vorhanden
-        if (projektId && dokumenteFiles.length > 0) {
-          await uploadDokumente(projektId)
-        }
-        
-        // State zurücksetzen
-        setDokumenteFiles([])
-        setBudgetNetto(0)
-        setBudgetBrutto(0)
-        setLastEditedBudget('netto')
-        
-        toast.success(projekt ? 'Projekt aktualisiert' : 'Projekt erstellt')
-        onClose(true)
-      } else {
-        toast.error('Fehler beim Speichern')
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Projekt-Speicher-Fehler:', errorText)
+        toast.error('Fehler beim Speichern des Projekts')
+        return
       }
+
+      const data = await response.json()
+      const projektId = projekt?._id || data.projektId || data.projekt?._id
+
+      if (!projektId) {
+        console.error('Keine Projekt-ID in Response gefunden:', data)
+        toast.error('Fehler: Projekt-ID konnte nicht ermittelt werden')
+        return
+      }
+
+      // Projekt erfolgreich gespeichert
+      toast.success(projekt ? 'Projekt aktualisiert' : 'Projekt erstellt')
+
+      // Dokumente hochladen, falls vorhanden
+      if (dokumenteFiles.length > 0) {
+        toast.info(`Lade ${dokumenteFiles.length} Dokument(e) hoch...`)
+        try {
+          const uploadResult = await uploadDokumente(projektId)
+          // uploadDokumente zeigt bereits Toast-Benachrichtigungen
+        } catch (error) {
+          console.error('Fehler beim Dokument-Upload:', error)
+          toast.error('Fehler beim Hochladen der Dokumente')
+        }
+      }
+
+      // State zurücksetzen und Dialog schließen
+      setDokumenteFiles([])
+      setBudgetNetto(0)
+      setBudgetBrutto(0)
+      setLastEditedBudget('netto')
+      
+      onClose(true)
     } catch (error) {
       console.error('Fehler:', error)
       toast.error('Fehler beim Speichern')
