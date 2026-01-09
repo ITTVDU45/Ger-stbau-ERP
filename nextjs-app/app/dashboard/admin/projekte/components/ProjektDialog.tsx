@@ -169,14 +169,60 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
     if (!fileInputRef.current?.files?.length) return
 
     const files = Array.from(fileInputRef.current.files)
-    const newDokumente = files.map(file => ({
-      file,
-      kategorie: 'sonstiges' as const,
-      kommentar: ''
-    }))
+    const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+    const ALLOWED_TYPES = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ]
 
-    setDokumenteFiles(prev => [...prev, ...newDokumente])
+    const validFiles: File[] = []
+    const invalidFiles: string[] = []
+
+    files.forEach(file => {
+      // File-Size prüfen
+      if (file.size > MAX_FILE_SIZE) {
+        invalidFiles.push(`${file.name} (zu groß: ${(file.size / 1024 / 1024).toFixed(1)}MB)`)
+        return
+      }
+
+      // MIME-Type prüfen
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        // Zusätzlich Dateiendung prüfen (Fallback für Android)
+        const ext = file.name.split('.').pop()?.toLowerCase()
+        const validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx']
+        
+        if (!ext || !validExtensions.includes(ext)) {
+          invalidFiles.push(`${file.name} (ungültiger Dateityp)`)
+          return
+        }
+      }
+
+      validFiles.push(file)
+    })
+
+    // Warnung für ungültige Dateien
+    if (invalidFiles.length > 0) {
+      toast.error(`Folgende Dateien wurden übersprungen:\n${invalidFiles.slice(0, 3).join('\n')}${invalidFiles.length > 3 ? `\n... und ${invalidFiles.length - 3} weitere` : ''}`)
+    }
+
+    // Gültige Dateien hinzufügen
+    if (validFiles.length > 0) {
+      const newDokumente = validFiles.map(file => ({
+        file,
+        kategorie: 'sonstiges' as const,
+        kommentar: ''
+      }))
+
+      setDokumenteFiles(prev => [...prev, ...newDokumente])
+      
+      if (validFiles.length > 0) {
+        toast.success(`${validFiles.length} Datei(en) hinzugefügt`)
+      }
+    }
     
+    // Input zurücksetzen
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -725,7 +771,7 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                accept="image/*,application/pdf,.doc,.docx"
                 className="hidden"
                 onChange={handleDokumentHinzufuegen}
               />
@@ -737,7 +783,7 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
                     Noch keine Dokumente ausgewählt
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    PDF, Bilder, Dokumente bis 10MB
+                    Bilder (JPG, PNG, GIF, WEBP), PDF, Word - Max. 10MB pro Datei
                   </p>
                 </Card>
               ) : (
