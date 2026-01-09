@@ -272,33 +272,57 @@
   border-color: var(--color-border) !important;
 }
 
-/* Dialog / Modal - Light Mode (explizit opak) */
-[data-slot="dialog-content"] {
+/* ============================================
+   DIALOG / MODAL STYLING
+   ============================================ */
+
+/* Light Mode - Dialog Hintergrund explizit weiß */
+[data-slot="dialog-content"],
+[data-radix-dialog-content],
+[role="dialog"] {
   background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
 }
 
-[data-slot="dialog-overlay"] {
+[data-slot="dialog-overlay"],
+[data-radix-dialog-overlay] {
   background-color: rgba(0, 0, 0, 0.5) !important;
 }
 
-/* Dialog / Modal - Dark Mode */
-.dark [data-slot="dialog-content"] {
+/* Dark Mode - Dialog */
+.dark [data-slot="dialog-content"],
+.dark [data-radix-dialog-content],
+.dark [role="dialog"]:not([data-radix-popper-content-wrapper] *) {
   background-color: #1e293b !important;
   border-color: #334155 !important;
 }
 
-.dark [data-slot="dialog-overlay"] {
+.dark [data-slot="dialog-overlay"],
+.dark [data-radix-dialog-overlay] {
   background-color: rgba(0, 0, 0, 0.75) !important;
 }
 
-/* AlertDialog hat ähnliche Struktur */
-[data-slot="alert-dialog-content"] {
+/* AlertDialog - Light Mode */
+[data-slot="alert-dialog-content"],
+[data-radix-alert-dialog-content] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* AlertDialog - Dark Mode */
+.dark [data-slot="alert-dialog-content"],
+.dark [data-radix-alert-dialog-content] {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+/* Popover/Command Content - explizit opak */
+[data-radix-popper-content-wrapper] > div {
   background-color: #ffffff !important;
 }
 
-.dark [data-slot="alert-dialog-content"] {
+.dark [data-radix-popper-content-wrapper] > div {
   background-color: #1e293b !important;
-  border-color: #334155 !important;
 }
 
 /* Scrollbar im Dark Mode */
