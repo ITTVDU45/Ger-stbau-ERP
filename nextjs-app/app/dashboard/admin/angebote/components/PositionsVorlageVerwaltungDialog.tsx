@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { PositionsVorlage, AngebotPosition } from '@/lib/db/types'
 import { Search, Plus, Check, Trash2, Edit, Save } from 'lucide-react'
 import { toast } from 'sonner'
+import RichTextEditor from './RichTextEditor'
 
 interface PositionsVorlageVerwaltungDialogProps {
   onVorlageEinfuegen: (vorlage: PositionsVorlage) => void
@@ -290,7 +291,10 @@ export default function PositionsVorlageVerwaltungDialog({ onVorlageEinfuegen, t
                             )}
                           </div>
                           <h4 className="font-semibold text-gray-900 text-lg">{vorlage.name}</h4>
-                          <p className="text-sm text-gray-700 mt-1">{vorlage.beschreibung}</p>
+                          <div 
+                            className="text-sm text-gray-700 mt-1 prose prose-sm max-w-none [&_h1]:text-base [&_h1]:font-bold [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-medium [&_p]:mb-0.5 [&_ul]:my-0.5 [&_ol]:my-0.5 [&_li]:mb-0"
+                            dangerouslySetInnerHTML={{ __html: vorlage.beschreibung }}
+                          />
                           <div className="flex items-center gap-4 mt-3 text-sm text-gray-700">
                             <span className="font-medium">
                               {vorlage.standardMenge} {vorlage.einheit}
@@ -383,11 +387,11 @@ export default function PositionsVorlageVerwaltungDialog({ onVorlageEinfuegen, t
 
                 <div className="space-y-2">
                   <Label className="text-gray-900 font-medium">Beschreibung *</Label>
-                  <Input
-                    value={neueVorlage.beschreibung}
-                    onChange={(e) => handleNeueVorlageChange('beschreibung', e.target.value)}
-                    placeholder="Detaillierte Beschreibung der Position"
-                    className="bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"
+                  <RichTextEditor
+                    value={neueVorlage.beschreibung || ''}
+                    onChange={(value) => handleNeueVorlageChange('beschreibung', value)}
+                    placeholder="Detaillierte Beschreibung der Position (Fett, Kursiv, Überschriften, Listen etc. möglich)"
+                    className="min-h-[120px]"
                   />
                 </div>
 
