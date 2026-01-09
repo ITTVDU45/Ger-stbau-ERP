@@ -210,9 +210,14 @@ export default function MahnungenTabelle({
 
     const mahnungIds = Array.from(selectedIds)
 
+    const aktionText = aktion === 'genehmigen' ? 'genehmigen' 
+      : aktion === 'ablehnen' ? 'ablehnen' 
+      : aktion === 'versenden' ? 'versenden'
+      : 'löschen'
+
     if (
       !confirm(
-        `Möchten Sie wirklich ${mahnungIds.length} Mahnung(en) ${aktion === 'genehmigen' ? 'genehmigen' : aktion === 'ablehnen' ? 'ablehnen' : 'versenden'}?`
+        `Möchten Sie wirklich ${mahnungIds.length} Mahnung(en) ${aktionText}?`
       )
     ) {
       return
@@ -220,6 +225,38 @@ export default function MahnungenTabelle({
 
     try {
       setProcessing(true)
+
+      // Massenlöschung
+      if (aktion === 'loeschen') {
+        let erfolge = 0
+        let fehler = 0
+        
+        for (const id of mahnungIds) {
+          try {
+            const response = await fetch(`/api/mahnwesen/${id}`, {
+              method: 'DELETE'
+            })
+            const data = await response.json()
+            if (data.erfolg) {
+              erfolge++
+            } else {
+              fehler++
+            }
+          } catch {
+            fehler++
+          }
+        }
+        
+        if (erfolge > 0) {
+          toast.success(`${erfolge} Mahnung(en) erfolgreich gelöscht`)
+        }
+        if (fehler > 0) {
+          toast.error(`${fehler} Mahnung(en) konnten nicht gelöscht werden`)
+        }
+        setSelectedIds(new Set())
+        onRefresh?.()
+        return
+      }
 
       let endpoint = ''
       let body: any = {}
@@ -311,6 +348,16 @@ export default function MahnungenTabelle({
             >
               <Send className="h-4 w-4 mr-2" />
               Alle versenden
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleBatchAction('loeschen')}
+              disabled={processing}
+              className="border-red-600 text-red-600 hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Alle löschen
             </Button>
             <Button
               size="sm"
@@ -457,11 +504,12 @@ export default function MahnungenTabelle({
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700">
                         <DropdownMenuItem
                           onClick={() =>
                             router.push(`/dashboard/admin/mahnwesen/${mahnung._id}`)
                           }
+                          className="text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
                         >
                           <Eye className="h-4 w-4 mr-2" />
                           Ansehen
@@ -470,6 +518,7 @@ export default function MahnungenTabelle({
                           onClick={() =>
                             router.push(`/dashboard/admin/rechnungen/${mahnung.rechnungId}`)
                           }
+                          className="text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
                         >
                           <Eye className="h-4 w-4 mr-2" />
                           Rechnung ansehen
@@ -477,33 +526,32 @@ export default function MahnungenTabelle({
                         {mahnung.status === 'versendet' && mahnung.mahnstufe < 3 && (
                           <DropdownMenuItem
                             onClick={() => handleFolgemahnung(mahnung)}
-                            className="text-orange-600"
+                            className="text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 cursor-pointer"
                           >
                             <FileWarning className="h-4 w-4 mr-2" />
                             Mahnung {mahnung.mahnstufe + 1} erstellen
                           </DropdownMenuItem>
                         )}
                         {mahnung.status !== 'versendet' && (
-                          <>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                router.push(`/dashboard/admin/mahnwesen/${mahnung._id}`)
-                              }
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Bearbeiten
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleDelete(mahnung._id, mahnung.mahnungsnummer)
-                              }
-                              className="text-red-600"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Löschen
-                            </DropdownMenuItem>
-                          </>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              router.push(`/dashboard/admin/mahnwesen/${mahnung._id}`)
+                            }
+                            className="text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Bearbeiten
+                          </DropdownMenuItem>
                         )}
+                        <DropdownMenuItem
+                          onClick={() =>
+                            handleDelete(mahnung._id, mahnung.mahnungsnummer)
+                          }
+                          className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Löschen
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
