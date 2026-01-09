@@ -74,17 +74,44 @@ export async function GET(request: NextRequest) {
       },
       {
         $addFields: {
-          kundeBranche: { $arrayElemAt: ['$kundeData.branche', 0] }
+          kundeBranche: { $arrayElemAt: ['$kundeData.branche', 0] },
+          // Extrahiere Jahr und Nummer für numerische Sortierung
+          // Format: "26-001" -> jahr: 26, nummer: 1
+          projektnummerParts: {
+            $split: ['$projektnummer', '-']
+          }
+        }
+      },
+      {
+        $addFields: {
+          projektnummerJahr: {
+            $toInt: { $arrayElemAt: ['$projektnummerParts', 0] }
+          },
+          projektnummerNummer: {
+            $toInt: { $arrayElemAt: ['$projektnummerParts', 1] }
+          }
         }
       },
       {
         $project: {
           kundeData: 0,
-          kundeIdObject: 0
+          kundeIdObject: 0,
+          projektnummerParts: 0
         }
       },
       {
-        $sort: { beginn: -1 } as any
+        // Sortiere numerisch: erst nach Jahr (absteigend), dann nach Nummer (absteigend)
+        $sort: { 
+          projektnummerJahr: -1,
+          projektnummerNummer: -1
+        } as any
+      },
+      {
+        // Entferne die Hilfsfelder
+        $project: {
+          projektnummerJahr: 0,
+          projektnummerNummer: 0
+        }
       }
     )
     
