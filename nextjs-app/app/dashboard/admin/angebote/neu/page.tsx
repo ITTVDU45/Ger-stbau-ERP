@@ -673,40 +673,6 @@ export default function NeuesAngebotPage() {
                   )}
                 </div>
 
-                {formData.kundeId && (
-                  <div className="space-y-2">
-                    <Label className="text-gray-900 font-medium">Angebots-Typ *</Label>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant={formData.angebotTyp === 'dachdecker' ? 'default' : 'outline'}
-                        onClick={() => handleChange('angebotTyp', 'dachdecker')}
-                        className="flex-1"
-                        disabled={isReadOnly}
-                      >
-                        Dachdecker
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={formData.angebotTyp === 'maler' ? 'default' : 'outline'}
-                        onClick={() => handleChange('angebotTyp', 'maler')}
-                        className="flex-1"
-                        disabled={isReadOnly}
-                      >
-                        Maler
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={formData.angebotTyp === 'bauunternehmen' ? 'default' : 'outline'}
-                        onClick={() => handleChange('angebotTyp', 'bauunternehmen')}
-                        className="flex-1"
-                        disabled={isReadOnly}
-                      >
-                        Bauunternehmen
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div className="space-y-2">
