@@ -26,10 +26,15 @@ import {
   User as UserIcon,
   Loader2,
   Upload,
-  X
+  X,
+  Sun,
+  Moon,
+  Monitor,
+  Palette
 } from 'lucide-react'
 import { User } from '@/lib/db/types'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { useTheme } from 'next-themes'
 
 // Typ-Definitionen für Einladungen
 interface InvitationType {
@@ -48,6 +53,15 @@ interface InvitationType {
 export default function AdminEinstellungenPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('general')
+  
+  // Theme State
+  const { theme, setTheme, resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  
+  // Mounted-Check für Hydration
+  useEffect(() => {
+    setMounted(true)
+  }, [])
   
   // Firmeneinstellungen-States
   const [systemSettings, setSystemSettings] = useState({
@@ -706,6 +720,102 @@ export default function AdminEinstellungenPage() {
                   </div>
                 </>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Darstellung / Theme */}
+          <Card className="bg-white dark:bg-card border shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-foreground">
+                <Palette className="h-5 w-5" />
+                Darstellung
+              </CardTitle>
+              <CardDescription className="text-gray-600 dark:text-muted-foreground">
+                Wählen Sie Ihr bevorzugtes Farbschema
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <Label className="text-sm font-medium">Farbschema</Label>
+                {mounted ? (
+                  <div className="flex flex-wrap gap-3">
+                    {/* Hell */}
+                    <button
+                      onClick={() => setTheme('light')}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all ${
+                        theme === 'light' 
+                          ? 'border-primary bg-primary/10 ring-2 ring-primary/20' 
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                      }`}
+                    >
+                      <div className="p-2 rounded-full bg-yellow-100 dark:bg-yellow-900">
+                        <Sun className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-medium text-gray-900 dark:text-foreground">Hell</p>
+                        <p className="text-xs text-gray-500 dark:text-muted-foreground">Helles Farbschema</p>
+                      </div>
+                      {theme === 'light' && (
+                        <span className="ml-2 text-primary font-bold">✓</span>
+                      )}
+                    </button>
+                    
+                    {/* Dunkel */}
+                    <button
+                      onClick={() => setTheme('dark')}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all ${
+                        theme === 'dark' 
+                          ? 'border-primary bg-primary/10 ring-2 ring-primary/20' 
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                      }`}
+                    >
+                      <div className="p-2 rounded-full bg-indigo-100 dark:bg-indigo-900">
+                        <Moon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-medium text-gray-900 dark:text-foreground">Dunkel</p>
+                        <p className="text-xs text-gray-500 dark:text-muted-foreground">Dunkles Farbschema</p>
+                      </div>
+                      {theme === 'dark' && (
+                        <span className="ml-2 text-primary font-bold">✓</span>
+                      )}
+                    </button>
+                    
+                    {/* System */}
+                    <button
+                      onClick={() => setTheme('system')}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all ${
+                        theme === 'system' 
+                          ? 'border-primary bg-primary/10 ring-2 ring-primary/20' 
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                      }`}
+                    >
+                      <div className="p-2 rounded-full bg-gray-100 dark:bg-gray-800">
+                        <Monitor className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-medium text-gray-900 dark:text-foreground">System</p>
+                        <p className="text-xs text-gray-500 dark:text-muted-foreground">Automatisch nach OS</p>
+                      </div>
+                      {theme === 'system' && (
+                        <span className="ml-2 text-primary font-bold">✓</span>
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-3">
+                    <div className="h-16 w-36 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
+                    <div className="h-16 w-36 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
+                    <div className="h-16 w-36 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
+                  </div>
+                )}
+                
+                {mounted && theme === 'system' && (
+                  <p className="text-sm text-muted-foreground">
+                    Aktuell aktiv: <span className="font-medium">{resolvedTheme === 'dark' ? 'Dunkel' : 'Hell'}</span> (basierend auf Systemeinstellung)
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
 

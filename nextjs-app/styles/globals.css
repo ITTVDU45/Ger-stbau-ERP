@@ -3,26 +3,28 @@
 
 @theme {
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  
-  /* Radius */
   --radius: 0.5rem;
-  
-  /* Custom Brand Colors */
   --gradient-green: linear-gradient(135deg, #C7E70C, #A3E635);
   --gradient-blue: linear-gradient(135deg, #1b3a4b, #2c5364);
-  
+}
+
+/* ============================================
+   LIGHT MODE (Default) CSS VARIABLES
+   ============================================ */
+:root {
   /* Base Colors */
   --color-background: #f8fafc;
   --color-foreground: #0f172a;
   
-  /* Card - Blue Gradient */
-  --color-card: #1b3a4b;
-  --color-card-foreground: #ffffff;
+  /* Card */
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
   
+  /* Popover */
   --color-popover: #ffffff;
   --color-popover-foreground: #0a0a0a;
   
-  /* Primary - Green Gradient */
+  /* Primary - Green */
   --color-primary: #A3E635;
   --color-primary-foreground: #0f172a;
   
@@ -63,6 +65,230 @@
   --color-sidebar-accent-foreground: #0f172a;
   --color-sidebar-border: #e2e8f0;
   --color-sidebar-ring: #A3E635;
+}
+
+/* ============================================
+   DARK MODE CSS VARIABLES
+   ============================================ */
+.dark {
+  /* Base Colors - Dark */
+  --color-background: #0a0a0a;
+  --color-foreground: #f8fafc;
+  
+  /* Card - Dark */
+  --color-card: #1e293b;
+  --color-card-foreground: #f8fafc;
+  
+  /* Popover - Dark */
+  --color-popover: #1e293b;
+  --color-popover-foreground: #f8fafc;
+  
+  /* Primary - Green (same as light) */
+  --color-primary: #A3E635;
+  --color-primary-foreground: #0f172a;
+  
+  /* Secondary - Dark */
+  --color-secondary: #1e293b;
+  --color-secondary-foreground: #f8fafc;
+  
+  /* Muted - Dark */
+  --color-muted: #1e293b;
+  --color-muted-foreground: #94a3b8;
+  
+  /* Accent - Green (same as light) */
+  --color-accent: #C7E70C;
+  --color-accent-foreground: #f8fafc;
+  
+  /* Destructive - Dark */
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #f8fafc;
+  
+  /* Border & Input - Dark */
+  --color-border: #334155;
+  --color-input: #334155;
+  --color-ring: #A3E635;
+  
+  /* Charts - Dark (adjusted for visibility) */
+  --color-chart-1: #C7E70C;
+  --color-chart-2: #38bdf8;
+  --color-chart-3: #A3E635;
+  --color-chart-4: #60a5fa;
+  --color-chart-5: #84cc16;
+  
+  /* Sidebar - Dark */
+  --color-sidebar-background: #0f172a;
+  --color-sidebar-foreground: #cbd5e1;
+  --color-sidebar-primary: #A3E635;
+  --color-sidebar-primary-foreground: #0f172a;
+  --color-sidebar-accent: #1e293b;
+  --color-sidebar-accent-foreground: #f8fafc;
+  --color-sidebar-border: #1e293b;
+  --color-sidebar-ring: #A3E635;
+}
+
+/* ============================================
+   DARK MODE - GLOBAL OVERRIDES
+   Automatische Konvertierung von hardcodierten
+   Tailwind-Farben für Dark Mode
+   ============================================ */
+
+/* Hintergründe */
+.dark .bg-white {
+  background-color: var(--color-card) !important;
+}
+
+.dark .bg-gray-50,
+.dark .bg-slate-50 {
+  background-color: #0f172a !important;
+}
+
+.dark .bg-gray-100,
+.dark .bg-slate-100 {
+  background-color: #1e293b !important;
+}
+
+.dark .bg-gray-200,
+.dark .bg-slate-200 {
+  background-color: #334155 !important;
+}
+
+/* Textfarben */
+.dark .text-gray-900,
+.dark .text-slate-900 {
+  color: #f8fafc !important;
+}
+
+.dark .text-gray-800,
+.dark .text-slate-800 {
+  color: #f1f5f9 !important;
+}
+
+.dark .text-gray-700,
+.dark .text-slate-700 {
+  color: #e2e8f0 !important;
+}
+
+.dark .text-gray-600,
+.dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-gray-500,
+.dark .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+.dark .text-gray-400,
+.dark .text-slate-400 {
+  color: #64748b !important;
+}
+
+/* Borders */
+.dark .border-gray-100,
+.dark .border-slate-100 {
+  border-color: #1e293b !important;
+}
+
+.dark .border-gray-200,
+.dark .border-slate-200 {
+  border-color: #334155 !important;
+}
+
+.dark .border-gray-300,
+.dark .border-slate-300 {
+  border-color: #475569 !important;
+}
+
+/* Hover-Zustände */
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-slate-50:hover {
+  background-color: #1e293b !important;
+}
+
+.dark .hover\:bg-gray-100:hover,
+.dark .hover\:bg-slate-100:hover {
+  background-color: #334155 !important;
+}
+
+/* Placeholder */
+.dark .placeholder\:text-gray-400::placeholder,
+.dark .placeholder\:text-slate-400::placeholder {
+  color: #64748b !important;
+}
+
+/* Divide Colors */
+.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #334155 !important;
+}
+
+/* Ring Colors */
+.dark .ring-gray-200,
+.dark .ring-slate-200 {
+  --tw-ring-color: #334155 !important;
+}
+
+/* Focus States */
+.dark .focus\:ring-gray-200:focus,
+.dark .focus\:ring-slate-200:focus {
+  --tw-ring-color: #334155 !important;
+}
+
+/* Inputs & Form Elements im Dark Mode */
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: var(--color-ring) !important;
+  outline-color: var(--color-ring) !important;
+}
+
+/* Cards im Dark Mode */
+.dark [class*="CardContent"],
+.dark [class*="CardHeader"],
+.dark .rounded-lg.border.bg-white,
+.dark .rounded-xl.border.bg-white,
+.dark .shadow-sm.bg-white {
+  background-color: var(--color-card) !important;
+}
+
+/* Dropdown Menus */
+.dark [role="menu"],
+.dark [role="listbox"],
+.dark [data-radix-popper-content-wrapper] [role="dialog"] {
+  background-color: var(--color-popover) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* Scrollbar im Dark Mode */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }
 
 /* Admin tables: ensure text is visible (override white in some headers/buttons) */
@@ -124,12 +350,20 @@
     transform: translateY(-1px);
   }
 
-  /* Glass Effect */
+  /* Glass Effect - Light Mode */
   .glass-card {
     background: rgba(255, 255, 255, 0.12);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.18);
     box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+  }
+
+  /* Glass Effect - Dark Mode */
+  .dark .glass-card {
+    background: rgba(17, 25, 40, 0.75);
+    backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.125);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
   }
 
   /* Chat UI Kit Custom Overrides */

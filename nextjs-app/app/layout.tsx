@@ -2,6 +2,7 @@ import '../styles/globals.css'
 import { ApiSnackbarProvider } from '../components/ApiSnackbar'
 import LocaleProvider from '../lib/locale'
 import { Toaster } from '@/components/ui/sonner'
+import { ThemeProvider } from '@/providers/theme-provider'
 
 export const metadata = {
   title: 'Gerüstbau ERP Software',
@@ -23,19 +24,26 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="de" className="overflow-x-hidden">
+    <html lang="de" className="overflow-x-hidden" suppressHydrationWarning>
       <body className="overflow-x-hidden">
-        <LocaleProvider>
-          <ApiSnackbarProvider>
-            {children}
-            <Toaster 
-              position="top-right"
-              richColors
-              closeButton
-              duration={4000}
-            />
-          </ApiSnackbarProvider>
-        </LocaleProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <LocaleProvider>
+            <ApiSnackbarProvider>
+              {children}
+              <Toaster 
+                position="top-right"
+                richColors
+                closeButton
+                duration={4000}
+              />
+            </ApiSnackbarProvider>
+          </LocaleProvider>
+        </ThemeProvider>
       </body>
     </html>
   )
