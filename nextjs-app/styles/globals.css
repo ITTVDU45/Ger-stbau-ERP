@@ -272,6 +272,35 @@
   border-color: var(--color-border) !important;
 }
 
+/* Dialog / Modal - Light Mode (explizit opak) */
+[data-slot="dialog-content"] {
+  background-color: #ffffff !important;
+}
+
+[data-slot="dialog-overlay"] {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Dialog / Modal - Dark Mode */
+.dark [data-slot="dialog-content"] {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+.dark [data-slot="dialog-overlay"] {
+  background-color: rgba(0, 0, 0, 0.75) !important;
+}
+
+/* AlertDialog hat ähnliche Struktur */
+[data-slot="alert-dialog-content"] {
+  background-color: #ffffff !important;
+}
+
+.dark [data-slot="alert-dialog-content"] {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
 /* Scrollbar im Dark Mode */
 .dark ::-webkit-scrollbar {
   width: 8px;

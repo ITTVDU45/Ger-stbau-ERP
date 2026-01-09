@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,8 +19,13 @@ import {
   ListPlus, 
   Download,
   FileSpreadsheet,
-  CheckCircle
+  CheckCircle,
+  ChevronsUpDown,
+  Check
 } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { cn } from '@/lib/utils'
 import { Rechnung, AngebotPosition, Kunde, Projekt } from '@/lib/db/types'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -98,6 +103,59 @@ export default function NeueRechnungPage() {
   const [activeTab, setActiveTab] = useState('allgemein')
   const [template, setTemplate] = useState<'modern' | 'klassisch' | 'kompakt'>('modern')
   const [showAngebotDialog, setShowAngebotDialog] = useState(false)
+  const [kundeSearchOpen, setKundeSearchOpen] = useState(false)
+  const [kundeSearchQuery, setKundeSearchQuery] = useState('')
+
+  // Gefilterte Kundenliste basierend auf Suche
+  const filteredKunden = useMemo(() => {
+    if (!kundeSearchQuery.trim()) return kunden
+    const query = kundeSearchQuery.toLowerCase()
+    return kunden.filter(k => {
+      const searchStr = `${k.firma || ''} ${k.vorname || ''} ${k.nachname || ''} ${k.kundennummer || ''}`.toLowerCase()
+      return searchStr.includes(query)
+    })
+  }, [kunden, kundeSearchQuery])
+
+  // Farbzuweisung basierend auf Branche
+  const getBrancheColor = (branche?: string) => {
+    switch (branche) {
+      case 'dachdecker': return 'bg-blue-500'
+      case 'maler': return 'bg-green-500'
+      case 'bauunternehmen': return 'bg-purple-500'
+      case 'privat': return 'bg-yellow-500'
+      default: return 'bg-gray-400'
+    }
+  }
+
+  const getBrancheName = (branche?: string) => {
+    switch (branche) {
+      case 'dachdecker': return 'Dachdecker'
+      case 'maler': return 'Maler'
+      case 'bauunternehmen': return 'Bauunternehmen'
+      case 'privat': return 'Privat'
+      default: return 'Sonstige'
+    }
+  }
+
+  // Kunden nach Branche gruppieren
+  const kundenGruppen = useMemo(() => {
+    const gruppen: Record<string, Kunde[]> = {
+      dachdecker: [],
+      maler: [],
+      bauunternehmen: [],
+      privat: [],
+      sonstige: []
+    }
+    filteredKunden.forEach(k => {
+      const branche = k.branche || 'sonstige'
+      if (gruppen[branche]) {
+        gruppen[branche].push(k)
+      } else {
+        gruppen.sonstige.push(k)
+      }
+    })
+    return gruppen
+  }, [filteredKunden])
   const [companySettings, setCompanySettings] = useState<any>(null)
 
   useEffect(() => {
@@ -507,21 +565,146 @@ export default function NeueRechnungPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Kunde *</Label>
-                  <Select
-                    value={formData.kundeId || ''}
-                    onValueChange={handleKundeChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Kunde auswählen" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {kunden.map(kunde => (
-                        <SelectItem key={kunde._id} value={kunde._id || ''}>
-                          {kunde.firma || `${kunde.vorname} ${kunde.nachname}`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={kundeSearchOpen} onOpenChange={setKundeSearchOpen} modal={true}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={kundeSearchOpen}
+                        className="w-full justify-between border-gray-300 text-gray-900 bg-white hover:bg-gray-50"
+                      >
+                        {formData.kundeId ? (
+                          <span className="flex items-center gap-2 truncate">
+                            <span className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0", getBrancheColor(kunden.find(k => k._id === formData.kundeId)?.branche))} />
+                            {kunden.find(k => k._id === formData.kundeId)?.firma || 
+                             `${kunden.find(k => k._id === formData.kundeId)?.vorname} ${kunden.find(k => k._id === formData.kundeId)?.nachname}`}
+                          </span>
+                        ) : (
+                          "Kunde auswählen..."
+                        )}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0 z-[9999] bg-white" align="start" sideOffset={4}>
+                      <Command>
+                        <CommandInput 
+                          placeholder="Kunde suchen..." 
+                          value={kundeSearchQuery}
+                          onValueChange={setKundeSearchQuery}
+                          className="text-gray-900"
+                        />
+                        <CommandList>
+                          <CommandEmpty>Kein Kunde gefunden.</CommandEmpty>
+                          {/* Dachdecker - Blau */}
+                          {kundenGruppen.dachdecker.length > 0 && (
+                            <CommandGroup heading={<span className="flex items-center gap-2 text-blue-600 font-semibold"><span className="w-2 h-2 rounded-full bg-blue-500" /> Dachdecker</span>}>
+                              {kundenGruppen.dachdecker.map(k => (
+                                <CommandItem
+                                  key={k._id}
+                                  value={`${k.firma || ''} ${k.vorname || ''} ${k.nachname || ''} ${k.kundennummer || ''}`}
+                                  onSelect={() => {
+                                    handleKundeChange(k._id || '')
+                                    setKundeSearchOpen(false)
+                                    setKundeSearchQuery('')
+                                  }}
+                                  className="flex items-center gap-2 cursor-pointer text-gray-900 hover:bg-gray-100"
+                                >
+                                  <Check className={cn("h-4 w-4", formData.kundeId === k._id ? "opacity-100" : "opacity-0")} />
+                                  <span className="w-2 h-2 rounded-full bg-blue-500" />
+                                  {k.firma || `${k.vorname} ${k.nachname}`}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          )}
+                          {/* Maler - Grün */}
+                          {kundenGruppen.maler.length > 0 && (
+                            <CommandGroup heading={<span className="flex items-center gap-2 text-green-600 font-semibold"><span className="w-2 h-2 rounded-full bg-green-500" /> Maler</span>}>
+                              {kundenGruppen.maler.map(k => (
+                                <CommandItem
+                                  key={k._id}
+                                  value={`${k.firma || ''} ${k.vorname || ''} ${k.nachname || ''} ${k.kundennummer || ''}`}
+                                  onSelect={() => {
+                                    handleKundeChange(k._id || '')
+                                    setKundeSearchOpen(false)
+                                    setKundeSearchQuery('')
+                                  }}
+                                  className="flex items-center gap-2 cursor-pointer text-gray-900 hover:bg-gray-100"
+                                >
+                                  <Check className={cn("h-4 w-4", formData.kundeId === k._id ? "opacity-100" : "opacity-0")} />
+                                  <span className="w-2 h-2 rounded-full bg-green-500" />
+                                  {k.firma || `${k.vorname} ${k.nachname}`}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          )}
+                          {/* Bauunternehmen - Lila */}
+                          {kundenGruppen.bauunternehmen.length > 0 && (
+                            <CommandGroup heading={<span className="flex items-center gap-2 text-purple-600 font-semibold"><span className="w-2 h-2 rounded-full bg-purple-500" /> Bauunternehmen</span>}>
+                              {kundenGruppen.bauunternehmen.map(k => (
+                                <CommandItem
+                                  key={k._id}
+                                  value={`${k.firma || ''} ${k.vorname || ''} ${k.nachname || ''} ${k.kundennummer || ''}`}
+                                  onSelect={() => {
+                                    handleKundeChange(k._id || '')
+                                    setKundeSearchOpen(false)
+                                    setKundeSearchQuery('')
+                                  }}
+                                  className="flex items-center gap-2 cursor-pointer text-gray-900 hover:bg-gray-100"
+                                >
+                                  <Check className={cn("h-4 w-4", formData.kundeId === k._id ? "opacity-100" : "opacity-0")} />
+                                  <span className="w-2 h-2 rounded-full bg-purple-500" />
+                                  {k.firma || `${k.vorname} ${k.nachname}`}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          )}
+                          {/* Privat - Gelb */}
+                          {kundenGruppen.privat.length > 0 && (
+                            <CommandGroup heading={<span className="flex items-center gap-2 text-yellow-600 font-semibold"><span className="w-2 h-2 rounded-full bg-yellow-500" /> Privat</span>}>
+                              {kundenGruppen.privat.map(k => (
+                                <CommandItem
+                                  key={k._id}
+                                  value={`${k.firma || ''} ${k.vorname || ''} ${k.nachname || ''} ${k.kundennummer || ''}`}
+                                  onSelect={() => {
+                                    handleKundeChange(k._id || '')
+                                    setKundeSearchOpen(false)
+                                    setKundeSearchQuery('')
+                                  }}
+                                  className="flex items-center gap-2 cursor-pointer text-gray-900 hover:bg-gray-100"
+                                >
+                                  <Check className={cn("h-4 w-4", formData.kundeId === k._id ? "opacity-100" : "opacity-0")} />
+                                  <span className="w-2 h-2 rounded-full bg-yellow-500" />
+                                  {k.firma || `${k.vorname} ${k.nachname}`}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          )}
+                          {/* Sonstige - Grau */}
+                          {kundenGruppen.sonstige.length > 0 && (
+                            <CommandGroup heading={<span className="flex items-center gap-2 text-gray-600 font-semibold"><span className="w-2 h-2 rounded-full bg-gray-400" /> Sonstige</span>}>
+                              {kundenGruppen.sonstige.map(k => (
+                                <CommandItem
+                                  key={k._id}
+                                  value={`${k.firma || ''} ${k.vorname || ''} ${k.nachname || ''} ${k.kundennummer || ''}`}
+                                  onSelect={() => {
+                                    handleKundeChange(k._id || '')
+                                    setKundeSearchOpen(false)
+                                    setKundeSearchQuery('')
+                                  }}
+                                  className="flex items-center gap-2 cursor-pointer text-gray-900 hover:bg-gray-100"
+                                >
+                                  <Check className={cn("h-4 w-4", formData.kundeId === k._id ? "opacity-100" : "opacity-0")} />
+                                  <span className="w-2 h-2 rounded-full bg-gray-400" />
+                                  {k.firma || `${k.vorname} ${k.nachname}`}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          )}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <div className="space-y-2">
