@@ -1,23 +1,25 @@
-"use client"
+'use client'
 
-import React from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+/**
+ * Plantafel / Kalender Seite
+ * 
+ * Ressourcen-Kalender für Projekt- und Mitarbeitereinsatzplanung.
+ * 
+ * Features:
+ * - Team-View: Zeilen = Mitarbeiter
+ * - Projekt-View: Zeilen = Projekte
+ * - Drag & Drop für Einsätze
+ * - Konflikt-Erkennung
+ * - Abwesenheiten (Urlaub/Krankheit)
+ */
+
+import { QueryProvider } from '@/providers/query-provider'
+import PlantafelBoard from '@/components/plantafel/PlantafelBoard'
 
 export default function KalenderPage() {
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Kalender & Einsatzplanung</CardTitle>
-          <CardDescription>
-            Planen Sie Einsätze und Termine
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-gray-600">Kalender-Modul wird geladen... (FullCalendar-Integration folgt)</p>
-        </CardContent>
-      </Card>
-    </div>
+    <QueryProvider>
+      <PlantafelBoard />
+    </QueryProvider>
   )
 }
-

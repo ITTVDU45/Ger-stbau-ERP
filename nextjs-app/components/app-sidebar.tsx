@@ -156,7 +156,7 @@ const adminData = {
       name: "Planung & Analyse",
       items: [
         {
-          title: "Kalender",
+          title: "Plantafel",
           icon: Calendar,
           url: "/dashboard/admin/kalender",
         },

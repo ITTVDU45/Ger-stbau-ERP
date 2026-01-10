@@ -1,0 +1,373 @@
+/**
+ * Plantafel Kalender Styles
+ * 
+ * Überschreibt/erweitert die Standard-Styles von react-big-calendar
+ */
+
+/* Import der Basis-Styles */
+@import 'react-big-calendar/lib/css/react-big-calendar.css';
+
+/* ============================================================================
+   ALLGEMEINE KALENDER-STYLES
+   ============================================================================ */
+
+.rbc-calendar {
+  font-family: inherit;
+  background: white;
+  border-radius: 8px;
+}
+
+.dark .rbc-calendar {
+  background: #1e293b; /* slate-800 */
+  color: #e2e8f0; /* slate-200 */
+}
+
+/* Header */
+.rbc-header {
+  padding: 12px 8px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #374151; /* gray-700 */
+  background: #f9fafb; /* gray-50 */
+  border-bottom: 1px solid #e5e7eb; /* gray-200 */
+}
+
+.dark .rbc-header {
+  color: #e2e8f0;
+  background: #334155; /* slate-700 */
+  border-color: #475569;
+}
+
+/* Arbeitszeit-Bereich */
+.rbc-time-view {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dark .rbc-time-view {
+  border-color: #475569;
+}
+
+/* Zeit-Slots */
+.rbc-timeslot-group {
+  min-height: 60px;
+  border-bottom: 1px solid #f3f4f6; /* gray-100 */
+}
+
+.dark .rbc-timeslot-group {
+  border-color: #334155;
+}
+
+.rbc-time-slot {
+  border-top: 1px solid #f3f4f6;
+}
+
+.dark .rbc-time-slot {
+  border-color: #334155;
+}
+
+/* Zeit-Labels */
+.rbc-label {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  color: #6b7280; /* gray-500 */
+}
+
+.dark .rbc-label {
+  color: #9ca3af;
+}
+
+/* ============================================================================
+   RESOURCE VIEW STYLES
+   ============================================================================ */
+
+/* Resource Header (Mitarbeiter-/Projekt-Zeile) */
+.rbc-row-resource {
+  min-height: 50px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dark .rbc-row-resource {
+  border-color: #475569;
+}
+
+.rbc-resource-header {
+  padding: 8px 12px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: #1f2937;
+  background: #f9fafb;
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 180px;
+}
+
+.dark .rbc-resource-header {
+  color: #f1f5f9;
+  background: #334155;
+  border-color: #475569;
+}
+
+/* ============================================================================
+   EVENT STYLES
+   ============================================================================ */
+
+/* Basis-Event */
+.rbc-event {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.15s ease;
+}
+
+.rbc-event:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.rbc-event:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Event-Label */
+.rbc-event-label {
+  font-size: 0.7rem;
+  opacity: 0.9;
+}
+
+.rbc-event-content {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ============================================================================
+   CUSTOM EVENT TYPEN
+   ============================================================================ */
+
+/* Einsatz (Standard) */
+.plantafel-event-einsatz {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+}
+
+.plantafel-event-einsatz.bestaetigt {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+/* Abwesenheiten */
+.plantafel-event-urlaub {
+  background: repeating-linear-gradient(
+    45deg,
+    #94a3b8,
+    #94a3b8 4px,
+    #9ca3af 4px,
+    #9ca3af 8px
+  );
+  color: #1f2937;
+}
+
+.plantafel-event-krankheit {
+  background: repeating-linear-gradient(
+    45deg,
+    #f87171,
+    #f87171 4px,
+    #fca5a5 4px,
+    #fca5a5 8px
+  );
+  color: #1f2937;
+}
+
+.plantafel-event-sonderurlaub {
+  background: repeating-linear-gradient(
+    45deg,
+    #a78bfa,
+    #a78bfa 4px,
+    #c4b5fd 4px,
+    #c4b5fd 8px
+  );
+  color: #1f2937;
+}
+
+/* Konflikt-Markierung */
+.plantafel-event-conflict {
+  outline: 3px solid #ef4444 !important;
+  outline-offset: -1px;
+  animation: conflict-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes conflict-pulse {
+  0%, 100% {
+    outline-color: #ef4444;
+  }
+  50% {
+    outline-color: #fca5a5;
+  }
+}
+
+/* ============================================================================
+   DRAG & DROP STYLES
+   ============================================================================ */
+
+.rbc-addons-dnd .rbc-addons-dnd-resizable {
+  position: relative;
+}
+
+/* Resize-Griffe */
+.rbc-addons-dnd-resize-ns-icon,
+.rbc-addons-dnd-resize-ew-icon {
+  display: none;
+}
+
+.rbc-addons-dnd-resize-ns-anchor {
+  width: 100%;
+  height: 8px;
+  cursor: ns-resize;
+  position: absolute;
+  left: 0;
+}
+
+.rbc-addons-dnd-resize-ns-anchor:first-child {
+  top: 0;
+}
+
+.rbc-addons-dnd-resize-ns-anchor:last-child {
+  bottom: 0;
+}
+
+/* Dragging State */
+.rbc-addons-dnd-dragging {
+  opacity: 0.7;
+}
+
+.rbc-addons-dnd-drag-preview {
+  opacity: 0.5;
+  background: #3b82f6;
+  border-radius: 4px;
+}
+
+/* Drop Target */
+.rbc-addons-dnd-over {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* ============================================================================
+   TODAY HIGHLIGHT
+   ============================================================================ */
+
+.rbc-today {
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.dark .rbc-today {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.rbc-current-time-indicator {
+  background: #ef4444;
+  height: 2px;
+}
+
+.rbc-current-time-indicator::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  background: #ef4444;
+  border-radius: 50%;
+}
+
+/* ============================================================================
+   TOOLBAR (ausgeblendet - wir nutzen eigene)
+   ============================================================================ */
+
+.rbc-toolbar {
+  display: none;
+}
+
+/* ============================================================================
+   MONAT-ANSICHT
+   ============================================================================ */
+
+.rbc-month-view {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dark .rbc-month-view {
+  border-color: #475569;
+}
+
+.rbc-month-row {
+  min-height: 100px;
+}
+
+.rbc-date-cell {
+  padding: 4px 8px;
+  text-align: right;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.dark .rbc-date-cell {
+  color: #e2e8f0;
+}
+
+.rbc-off-range-bg {
+  background: #f9fafb;
+}
+
+.dark .rbc-off-range-bg {
+  background: #1e293b;
+}
+
+.rbc-off-range {
+  color: #9ca3af;
+}
+
+/* ============================================================================
+   WOCHEN-ANSICHT
+   ============================================================================ */
+
+.rbc-time-header {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dark .rbc-time-header {
+  border-color: #475569;
+}
+
+.rbc-time-content {
+  border-top: none;
+}
+
+/* ============================================================================
+   RESPONSIVE ANPASSUNGEN
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .rbc-resource-header {
+    min-width: 120px;
+    font-size: 0.75rem;
+    padding: 6px 8px;
+  }
+  
+  .rbc-event {
+    font-size: 0.7rem;
+    padding: 2px 4px;
+  }
+  
+  .rbc-label {
+    font-size: 0.7rem;
+  }
+}
