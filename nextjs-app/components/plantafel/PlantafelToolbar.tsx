@@ -85,21 +85,25 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
       <div className="flex flex-wrap items-center justify-between gap-4">
         {/* View-Switch */}
         <div className="flex items-center gap-2">
-          <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 p-1">
+          <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 p-1 bg-gray-100 dark:bg-gray-800">
             <Button
-              variant={view === 'team' ? 'default' : 'ghost'}
+              variant="ghost"
               size="sm"
               onClick={() => setView('team')}
-              className={view === 'team' ? 'bg-blue-600 text-white' : ''}
+              className={view === 'team' 
+                ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm' 
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}
             >
               <Users className="h-4 w-4 mr-2" />
               Team
             </Button>
             <Button
-              variant={view === 'project' ? 'default' : 'ghost'}
+              variant="ghost"
               size="sm"
               onClick={() => setView('project')}
-              className={view === 'project' ? 'bg-blue-600 text-white' : ''}
+              className={view === 'project' 
+                ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm' 
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}
             >
               <Briefcase className="h-4 w-4 mr-2" />
               Projekte
@@ -109,14 +113,16 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
           <Separator orientation="vertical" className="h-8 mx-2" />
           
           {/* Kalender-View */}
-          <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 p-1">
+          <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 p-1 bg-gray-100 dark:bg-gray-800">
             {(['day', 'week', 'month'] as const).map((v) => (
               <Button
                 key={v}
-                variant={calendarView === v ? 'default' : 'ghost'}
+                variant="ghost"
                 size="sm"
                 onClick={() => setCalendarView(v)}
-                className={calendarView === v ? 'bg-gray-800 text-white dark:bg-gray-600' : ''}
+                className={calendarView === v 
+                  ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm' 
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}
               >
                 {v === 'day' ? 'Tag' : v === 'week' ? 'Woche' : 'Monat'}
               </Button>
