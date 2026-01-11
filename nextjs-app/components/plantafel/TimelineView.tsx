@@ -59,44 +59,51 @@ export default function TimelineView({
   }
   
   return (
-    <div className="flex flex-col h-full bg-white overflow-hidden">
-      {/* Header: Tage */}
-      <div className="flex border-b-2 border-gray-300 bg-gray-50 sticky top-0 z-20">
-        {/* Ressourcen-Header-Platzhalter */}
-        <div className="w-48 flex-shrink-0 border-r-2 border-gray-300 px-4 py-3 bg-gray-100">
-          <span className="font-bold text-sm text-gray-700">Ressource</span>
+    <div className="flex flex-col h-full bg-white">
+      {/* Outer Container mit Scroll */}
+      <div className="flex flex-col h-full overflow-hidden">
+        {/* Header: Ressourcen + Tage (sticky oben) */}
+        <div className="flex border-b-2 border-gray-300 bg-white sticky top-0 z-30 shadow-sm">
+          {/* Ressourcen-Header-Platzhalter (sticky links) */}
+          <div className="w-52 flex-shrink-0 border-r-2 border-gray-300 px-4 py-3 bg-gray-100 sticky left-0 z-40">
+            <span className="font-bold text-sm text-gray-800">Ressource</span>
+          </div>
+          
+          {/* Tage-Header (scrollbar) */}
+          <div className="flex overflow-x-hidden">
+            {days.map((day, idx) => (
+              <div
+                key={idx}
+                className="flex-shrink-0 w-40 border-r border-gray-200 px-3 py-3 text-center bg-gray-50"
+              >
+                <div className="font-semibold text-sm text-gray-900">
+                  {format(day, 'EEEE', { locale: de })}
+                </div>
+                <div className="text-xs text-gray-600 mt-1">
+                  {format(day, 'dd. MMMM', { locale: de })}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
         
-        {/* Tage-Header */}
-        <div className="flex-1 flex overflow-x-auto">
-          {days.map((day, idx) => (
-            <div
-              key={idx}
-              className="flex-shrink-0 w-32 border-r border-gray-200 px-2 py-3 text-center"
-            >
-              <div className="font-semibold text-xs text-gray-900">
-                {format(day, 'EEE', { locale: de })}
-              </div>
-              <div className="text-sm text-gray-700">
-                {format(day, 'dd.MM.', { locale: de })}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      
-      {/* Body: Ressourcen-Zeilen */}
-      <div className="flex-1 overflow-auto">
-        {resources.map((resource, rowIdx) => {
-          const resourceEvents = eventsByResource.get(resource.resourceId) || []
-          
-          return (
-            <div
-              key={resource.resourceId}
-              className={`flex border-b border-gray-200 ${rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}
-            >
-              {/* Ressourcen-Name (links, sticky) */}
-              <div className="w-48 flex-shrink-0 border-r border-gray-300 px-4 py-3 flex items-center gap-3 sticky left-0 bg-inherit z-10">
+        {/* Body: Ressourcen-Zeilen (scrollbar) */}
+        <div className="flex-1 overflow-auto relative">
+          <div className="inline-block min-w-full">
+            {resources.map((resource, rowIdx) => {
+              const resourceEvents = eventsByResource.get(resource.resourceId) || []
+              
+              return (
+                <div
+                  key={resource.resourceId}
+                  className="flex border-b border-gray-200 min-h-[80px]"
+                >
+                  {/* Ressourcen-Name (links, sticky) */}
+                  <div className={`
+                    w-52 flex-shrink-0 border-r-2 border-gray-300 px-4 py-3 
+                    flex items-center gap-3 sticky left-0 z-20 shadow-sm
+                    ${rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                  `}>
                 {resource.type === 'employee' ? (
                   <>
                     {resource.profilbildUrl ? (
@@ -141,14 +148,18 @@ export default function TimelineView({
               </div>
               
               {/* Timeline-Zellen */}
-              <div className="flex-1 flex relative">
+              <div className="flex">
                 {days.map((day, dayIdx) => {
                   const dayEvents = resourceEvents.filter(e => isEventOnDay(e, day))
                   
                   return (
                     <div
                       key={dayIdx}
-                      className="flex-shrink-0 w-32 border-r border-gray-100 p-1 cursor-pointer hover:bg-blue-50 relative"
+                      className={`
+                        flex-shrink-0 w-40 border-r border-gray-200 p-2 cursor-pointer 
+                        hover:bg-blue-50 transition-colors relative
+                        ${rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                      `}
                       onClick={() => onSlotClick && onSlotClick(resource.resourceId, day)}
                     >
                       {dayEvents.map((event, eventIdx) => (
@@ -159,15 +170,15 @@ export default function TimelineView({
                             onEventClick && onEventClick(event)
                           }}
                           className={`
-                            text-xs px-2 py-1 mb-1 rounded cursor-pointer shadow-sm
-                            hover:shadow-md transition-shadow truncate
+                            text-xs px-2 py-1.5 mb-1.5 rounded-md cursor-pointer shadow
+                            hover:shadow-lg transition-all truncate font-medium
                             ${event.sourceType === 'urlaub' 
-                              ? 'bg-gray-300 text-gray-800 border border-gray-400'
+                              ? 'bg-gray-200 text-gray-800 border-l-4 border-gray-500'
                               : event.hasConflict
-                              ? 'bg-red-100 text-red-900 border-2 border-red-500'
+                              ? 'bg-red-50 text-red-900 border-l-4 border-red-600 ring-1 ring-red-200'
                               : event.bestaetigt
-                              ? 'bg-green-500 text-white'
-                              : 'bg-blue-500 text-white'
+                              ? 'bg-green-500 text-white border-l-4 border-green-700'
+                              : 'bg-blue-500 text-white border-l-4 border-blue-700'
                             }
                           `}
                           style={{
@@ -175,7 +186,13 @@ export default function TimelineView({
                           }}
                           title={`${event.title}\n${format(event.start, 'HH:mm', { locale: de })} - ${format(event.end, 'HH:mm', { locale: de })}`}
                         >
-                          {event.title}
+                          <div className="flex items-center gap-1">
+                            {event.hasConflict && <span className="text-red-600">⚠️</span>}
+                            <span className="truncate">{event.title}</span>
+                          </div>
+                          <div className="text-[10px] opacity-80 mt-0.5">
+                            {format(event.start, 'HH:mm', { locale: de })} - {format(event.end, 'HH:mm', { locale: de })}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -185,12 +202,17 @@ export default function TimelineView({
             </div>
           )
         })}
-        
-        {resources.length === 0 && (
-          <div className="p-8 text-center text-gray-500">
-            Keine Ressourcen vorhanden. Bitte Filter anpassen.
           </div>
-        )}
+          
+          {resources.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center p-8">
+                <p className="text-gray-500 text-sm">Keine Ressourcen vorhanden.</p>
+                <p className="text-gray-400 text-xs mt-1">Bitte Filter anpassen.</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
