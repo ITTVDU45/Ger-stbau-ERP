@@ -7,11 +7,14 @@
  * und Zeit horizontal als Spalten
  */
 
-import { useMemo } from 'react'
-import { format, eachDayOfInterval, isSameDay, isWithinInterval } from 'date-fns'
+import { useMemo, useState } from 'react'
+import { format, eachDayOfInterval, isSameDay, isWithinInterval, addDays, differenceInDays } from 'date-fns'
 import { de } from 'date-fns/locale'
+import { X } from 'lucide-react'
+import { toast } from 'sonner'
 import { PlantafelEvent, PlantafelResource, DateRange } from './types'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { useUpdateAssignment, useDeleteAssignment } from '@/lib/queries/plantafelQueries'
 
 interface TimelineViewProps {
   resources: PlantafelResource[]
@@ -32,6 +35,12 @@ export default function TimelineView({
   onEventClick,
   onSlotClick
 }: TimelineViewProps) {
+  const [draggedEvent, setDraggedEvent] = useState<PlantafelEvent | null>(null)
+  const [dragOverCell, setDragOverCell] = useState<{ resourceId: string; day: Date } | null>(null)
+  
+  const updateMutation = useUpdateAssignment()
+  const deleteMutation = useDeleteAssignment()
+  
   // Tage im Zeitraum berechnen
   const days = useMemo(() => {
     if (dateRange.start.getTime() === dateRange.end.getTime()) {
@@ -59,6 +68,87 @@ export default function TimelineView({
     return isWithinInterval(day, { start: event.start, end: event.end }) ||
            isSameDay(event.start, day) ||
            isSameDay(event.end, day)
+  }
+  
+  // Drag & Drop Handler
+  const handleDragStart = (e: React.DragEvent, event: PlantafelEvent) => {
+    if (event.sourceType === 'urlaub') {
+      e.preventDefault()
+      toast.error('Abwesenheiten können nicht verschoben werden')
+      return
+    }
+    setDraggedEvent(event)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+  
+  const handleDragOver = (e: React.DragEvent, resourceId: string, day: Date) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverCell({ resourceId, day })
+  }
+  
+  const handleDragLeave = () => {
+    setDragOverCell(null)
+  }
+  
+  const handleDrop = async (e: React.DragEvent, targetResourceId: string, targetDay: Date) => {
+    e.preventDefault()
+    setDragOverCell(null)
+    
+    if (!draggedEvent) return
+    
+    try {
+      // Berechne die Verschiebung in Tagen
+      const daysDiff = differenceInDays(targetDay, draggedEvent.start)
+      
+      // Neue Start- und Endzeiten
+      const newStart = addDays(draggedEvent.start, daysDiff)
+      const newEnd = addDays(draggedEvent.end, daysDiff)
+      
+      await updateMutation.mutateAsync({
+        id: draggedEvent.sourceId,
+        data: {
+          von: newStart.toISOString(),
+          bis: newEnd.toISOString(),
+          // Ressource nur ändern wenn verschieden
+          ...(targetResourceId !== draggedEvent.resourceId && {
+            mitarbeiterId: targetResourceId,
+          })
+        }
+      })
+      
+      toast.success('Einsatz verschoben')
+    } catch (error: any) {
+      toast.error(error.message || 'Fehler beim Verschieben')
+    } finally {
+      setDraggedEvent(null)
+    }
+  }
+  
+  const handleDragEnd = () => {
+    setDraggedEvent(null)
+    setDragOverCell(null)
+  }
+  
+  // Löschen Handler
+  const handleDelete = async (e: React.MouseEvent, event: PlantafelEvent) => {
+    e.stopPropagation()
+    
+    if (event.sourceType === 'urlaub') {
+      toast.error('Abwesenheiten können hier nicht gelöscht werden')
+      return
+    }
+    
+    if (!confirm('Möchten Sie diesen Einsatz wirklich löschen?')) {
+      return
+    }
+    
+    try {
+      await deleteMutation.mutateAsync(event.sourceId)
+      toast.success('Einsatz gelöscht')
+    } catch (error: any) {
+      toast.error(error.message || 'Fehler beim Löschen')
+    }
   }
   
   // Berechne Gesamtbreite
@@ -181,36 +271,56 @@ export default function TimelineView({
                           flex-shrink-0 border-r border-gray-200 p-2
                           cursor-pointer hover:bg-blue-50 transition-colors
                           ${rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                          ${dragOverCell?.resourceId === resource.resourceId && 
+                            isSameDay(dragOverCell.day, day) ? 'bg-blue-100 ring-2 ring-blue-400' : ''}
                         `}
                         onClick={() => onSlotClick && onSlotClick(resource.resourceId, day)}
+                        onDragOver={(e) => handleDragOver(e, resource.resourceId, day)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDrop(e, resource.resourceId, day)}
                       >
                         {dayEvents.map((event) => (
                           <div
                             key={event.id}
+                            draggable={event.sourceType !== 'urlaub'}
+                            onDragStart={(e) => handleDragStart(e, event)}
+                            onDragEnd={handleDragEnd}
                             onClick={(e) => {
                               e.stopPropagation()
                               onEventClick && onEventClick(event)
                             }}
                             className={`
-                              text-xs px-2 py-1.5 mb-1.5 rounded-md cursor-pointer shadow
-                              hover:shadow-lg transition-all font-medium
+                              text-xs px-2 py-1.5 mb-1.5 rounded-md shadow
+                              hover:shadow-lg transition-all font-medium relative group
                               ${event.sourceType === 'urlaub' 
-                                ? 'bg-gray-200 text-gray-800 border-l-4 border-gray-500'
+                                ? 'bg-gray-200 text-gray-800 border-l-4 border-gray-500 cursor-default'
                                 : event.hasConflict
-                                ? 'bg-red-50 text-red-900 border-l-4 border-red-600 ring-1 ring-red-200'
+                                ? 'bg-red-50 text-red-900 border-l-4 border-red-600 ring-1 ring-red-200 cursor-move'
                                 : event.bestaetigt
-                                ? 'bg-green-500 text-white border-l-4 border-green-700'
-                                : 'bg-blue-500 text-white border-l-4 border-blue-700'
+                                ? 'bg-green-500 text-white border-l-4 border-green-700 cursor-move'
+                                : 'bg-blue-500 text-white border-l-4 border-blue-700 cursor-move'
                               }
+                              ${draggedEvent?.id === event.id ? 'opacity-50' : ''}
                             `}
                             style={{
                               backgroundColor: event.color && event.sourceType !== 'urlaub' ? event.color : undefined
                             }}
-                            title={`${event.title}\n${format(event.start, 'HH:mm', { locale: de })} - ${format(event.end, 'HH:mm', { locale: de })}`}
+                            title={`${event.title}\n${format(event.start, 'HH:mm', { locale: de })} - ${format(event.end, 'HH:mm', { locale: de })}\n${event.sourceType === 'urlaub' ? '' : 'Drag & Drop zum Verschieben'}`}
                           >
-                            <div className="flex items-center gap-1 truncate">
-                              {event.hasConflict && <span className="text-red-600 flex-shrink-0">⚠️</span>}
-                              <span className="truncate">{event.title}</span>
+                            <div className="flex items-center gap-1 justify-between">
+                              <div className="flex items-center gap-1 flex-1 min-w-0">
+                                {event.hasConflict && <span className="text-red-600 flex-shrink-0">⚠️</span>}
+                                <span className="truncate">{event.title}</span>
+                              </div>
+                              {event.sourceType !== 'urlaub' && (
+                                <button
+                                  onClick={(e) => handleDelete(e, event)}
+                                  className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-600 rounded"
+                                  title="Einsatz löschen"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              )}
                             </div>
                             <div className="text-[10px] opacity-80 mt-0.5">
                               {format(event.start, 'HH:mm', { locale: de })} - {format(event.end, 'HH:mm', { locale: de })}
