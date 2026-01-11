@@ -23,6 +23,7 @@ import '@/styles/plantafel.css'
 import PlantafelToolbar from './PlantafelToolbar'
 import AssignmentDialog from './AssignmentDialog'
 import ConflictPanel from './ConflictPanel'
+import TimelineView from './TimelineView'
 
 // State & Queries
 import { usePlantafelStore } from '@/lib/stores/plantafelStore'
@@ -330,6 +331,21 @@ export default function PlantafelBoard() {
                 <p className="text-gray-500">Lade Plantafel...</p>
               </div>
             </div>
+          ) : calendarView === 'week' ? (
+            <TimelineView
+              resources={resources}
+              events={filteredEvents}
+              dateRange={dateRange}
+              onEventClick={handleSelectEvent}
+              onSlotClick={(resourceId, date) => {
+                const slot = {
+                  start: date,
+                  end: new Date(date.getTime() + 8 * 60 * 60 * 1000), // 8 Stunden später
+                  resourceId
+                }
+                openCreateDialog(slot)
+              }}
+            />
           ) : (
             <DnDCalendar
               localizer={localizer}
