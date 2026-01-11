@@ -10,11 +10,22 @@
 import { useMemo, useState } from 'react'
 import { format, eachDayOfInterval, isSameDay, isWithinInterval, addDays, differenceInDays } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { X } from 'lucide-react'
+import { X, Trash2, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { PlantafelEvent, PlantafelResource, DateRange } from './types'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useUpdateAssignment, useDeleteAssignment } from '@/lib/queries/plantafelQueries'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
 
 interface TimelineViewProps {
   resources: PlantafelResource[]
@@ -39,6 +50,8 @@ export default function TimelineView({
 }: TimelineViewProps) {
   const [draggedEvent, setDraggedEvent] = useState<PlantafelEvent | null>(null)
   const [dragOverCell, setDragOverCell] = useState<{ resourceId: string; day: Date } | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [eventToDelete, setEventToDelete] = useState<PlantafelEvent | null>(null)
   
   const updateMutation = useUpdateAssignment()
   const deleteMutation = useDeleteAssignment()
@@ -151,8 +164,8 @@ export default function TimelineView({
     setDragOverCell(null)
   }
   
-  // Löschen Handler
-  const handleDelete = async (e: React.MouseEvent, event: PlantafelEvent) => {
+  // Löschen Dialog öffnen
+  const handleDeleteClick = (e: React.MouseEvent, event: PlantafelEvent) => {
     e.stopPropagation()
     
     if (event.sourceType === 'urlaub') {
@@ -160,15 +173,23 @@ export default function TimelineView({
       return
     }
     
-    if (!confirm('Möchten Sie diesen Einsatz wirklich löschen?')) {
-      return
-    }
+    setEventToDelete(event)
+    setDeleteDialogOpen(true)
+  }
+  
+  // Löschen bestätigen
+  const handleDeleteConfirm = async () => {
+    if (!eventToDelete) return
     
     try {
-      await deleteMutation.mutateAsync(event.sourceId)
-      toast.success('Einsatz gelöscht')
-    } catch (error: any) {
-      toast.error(error.message || 'Fehler beim Löschen')
+      await deleteMutation.mutateAsync(eventToDelete.sourceId)
+      toast.success('Einsatz erfolgreich gelöscht')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Fehler beim Löschen'
+      toast.error(errorMessage)
+    } finally {
+      setDeleteDialogOpen(false)
+      setEventToDelete(null)
     }
   }
   
@@ -335,7 +356,7 @@ export default function TimelineView({
                               </div>
                               {event.sourceType !== 'urlaub' && (
                                 <button
-                                  onClick={(e) => handleDelete(e, event)}
+                                  onClick={(e) => handleDeleteClick(e, event)}
                                   className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-600 rounded"
                                   title="Einsatz löschen"
                                 >
@@ -357,6 +378,68 @@ export default function TimelineView({
           )}
         </div>
       </div>
+      
+      {/* Modern Lösch-Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-4">
+              <Trash2 className="h-6 w-6 text-red-600" />
+            </div>
+            <AlertDialogTitle className="text-center text-gray-900">
+              Einsatz löschen
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-gray-600">
+              {eventToDelete && (
+                <div className="space-y-2 mt-2">
+                  <p>Möchten Sie diesen Einsatz wirklich löschen?</p>
+                  <div className="bg-gray-50 rounded-lg p-3 mt-3 text-left">
+                    <p className="font-medium text-gray-900">{eventToDelete.title}</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {format(eventToDelete.start, 'dd.MM.yyyy', { locale: de })}
+                      {!isSameDay(eventToDelete.start, eventToDelete.end) && (
+                        <> - {format(eventToDelete.end, 'dd.MM.yyyy', { locale: de })}</>
+                      )}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {format(eventToDelete.start, 'HH:mm')} - {format(eventToDelete.end, 'HH:mm')} Uhr
+                    </p>
+                  </div>
+                  <p className="text-sm text-amber-600 flex items-center gap-1 mt-3">
+                    <AlertTriangle className="h-4 w-4" />
+                    Diese Aktion kann nicht rückgängig gemacht werden.
+                  </p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4">
+            <AlertDialogCancel 
+              className="bg-gray-100 text-gray-700 hover:bg-gray-200 border-0"
+              onClick={() => setEventToDelete(null)}
+            >
+              Abbrechen
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-red-600 text-white hover:bg-red-700"
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <span className="animate-spin mr-2">⏳</span>
+                  Löschen...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Endgültig löschen
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
