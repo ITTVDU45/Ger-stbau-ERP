@@ -1,5 +1,5 @@
 import { NotificationProvider } from '@/lib/contexts/NotificationContext'
-import { MobileDashboardLayout } from '@/components/MobileDashboardLayout'
+import DashboardLayoutClient from '@/components/DashboardLayoutClient'
 import { getSession } from '@/lib/auth/session'
 import { getDatabase } from '@/lib/db/client'
 import { User } from '@/lib/db/types'
@@ -112,9 +112,9 @@ export default async function DashboardLayout({
   
   return (
     <NotificationProvider>
-      <MobileDashboardLayout user={serializedUser}>
+      <DashboardLayoutClient user={serializedUser}>
         {children}
-      </MobileDashboardLayout>
+      </DashboardLayoutClient>
     </NotificationProvider>
   )
 }
