@@ -21,6 +21,10 @@ interface TimelineViewProps {
   onSlotClick?: (resourceId: string, date: Date) => void
 }
 
+// Feste Breiten in Pixeln für perfekte Ausrichtung
+const RESOURCE_WIDTH = 208 // px
+const DAY_WIDTH = 160 // px
+
 export default function TimelineView({
   resources,
   events,
@@ -30,7 +34,6 @@ export default function TimelineView({
 }: TimelineViewProps) {
   // Tage im Zeitraum berechnen
   const days = useMemo(() => {
-    // Wenn start == end, dann nur einen Tag anzeigen
     if (dateRange.start.getTime() === dateRange.end.getTime()) {
       return [dateRange.start]
     }
@@ -58,15 +61,23 @@ export default function TimelineView({
            isSameDay(event.end, day)
   }
   
+  // Berechne Gesamtbreite
+  const totalWidth = RESOURCE_WIDTH + (days.length * DAY_WIDTH)
+  
   return (
     <div className="flex flex-col h-full bg-white">
-      {/* Einheitlicher Scroll-Container für Header und Body */}
+      {/* Scrollbarer Container */}
       <div className="flex-1 overflow-auto">
-        <div className="inline-block min-w-full">
-          {/* Header Row - Sticky */}
+        {/* Content mit fester Breite */}
+        <div style={{ width: `${totalWidth}px` }}>
+          
+          {/* HEADER ROW - Sticky */}
           <div className="flex sticky top-0 z-30 bg-white border-b-2 border-gray-300 shadow-sm">
             {/* Ressourcen-Header */}
-            <div className="w-52 flex-shrink-0 sticky left-0 z-40 bg-gray-100 border-r-2 border-gray-300 px-4 py-3">
+            <div 
+              style={{ width: `${RESOURCE_WIDTH}px`, minWidth: `${RESOURCE_WIDTH}px` }}
+              className="flex-shrink-0 sticky left-0 z-40 bg-gray-100 border-r-2 border-gray-300 px-4 py-3"
+            >
               <span className="font-bold text-sm text-gray-800">Ressource</span>
             </div>
             
@@ -74,7 +85,8 @@ export default function TimelineView({
             {days.map((day, idx) => (
               <div
                 key={idx}
-                className="w-40 flex-shrink-0 border-r border-gray-200 bg-gray-50 px-3 py-3 text-center"
+                style={{ width: `${DAY_WIDTH}px`, minWidth: `${DAY_WIDTH}px` }}
+                className="flex-shrink-0 border-r border-gray-200 bg-gray-50 px-3 py-3 text-center"
               >
                 <div className="font-semibold text-sm text-gray-900">
                   {format(day, 'EEEE', { locale: de })}
@@ -86,7 +98,7 @@ export default function TimelineView({
             ))}
           </div>
           
-          {/* Body Rows */}
+          {/* BODY ROWS */}
           {resources.length === 0 ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-center p-8">
@@ -103,12 +115,15 @@ export default function TimelineView({
                   key={resource.resourceId}
                   className="flex border-b border-gray-200 min-h-[80px]"
                 >
-                  {/* Ressourcen-Name (sticky links) */}
-                  <div className={`
-                    w-52 flex-shrink-0 sticky left-0 z-20
-                    border-r-2 border-gray-300 px-4 py-3 shadow-sm
-                    ${rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
-                  `}>
+                  {/* Ressourcen-Name - Sticky Left */}
+                  <div 
+                    style={{ width: `${RESOURCE_WIDTH}px`, minWidth: `${RESOURCE_WIDTH}px` }}
+                    className={`
+                      flex-shrink-0 sticky left-0 z-20
+                      border-r-2 border-gray-300 px-4 py-3 shadow-sm
+                      ${rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                    `}
+                  >
                     <div className="flex items-center gap-3 h-full">
                       {resource.type === 'employee' ? (
                         <>
@@ -161,8 +176,9 @@ export default function TimelineView({
                     return (
                       <div
                         key={dayIdx}
+                        style={{ width: `${DAY_WIDTH}px`, minWidth: `${DAY_WIDTH}px` }}
                         className={`
-                          w-40 flex-shrink-0 border-r border-gray-200 p-2
+                          flex-shrink-0 border-r border-gray-200 p-2
                           cursor-pointer hover:bg-blue-50 transition-colors
                           ${rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
                         `}
