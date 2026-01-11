@@ -30,6 +30,10 @@ export default function TimelineView({
 }: TimelineViewProps) {
   // Tage im Zeitraum berechnen
   const days = useMemo(() => {
+    // Wenn start == end, dann nur einen Tag anzeigen
+    if (dateRange.start.getTime() === dateRange.end.getTime()) {
+      return [dateRange.start]
+    }
     return eachDayOfInterval({
       start: dateRange.start,
       end: dateRange.end

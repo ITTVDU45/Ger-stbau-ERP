@@ -331,7 +331,7 @@ export default function PlantafelBoard() {
                 <p className="text-gray-500">Lade Plantafel...</p>
               </div>
             </div>
-          ) : calendarView === 'week' ? (
+          ) : calendarView === 'week' || calendarView === 'day' ? (
             <TimelineView
               resources={resources}
               events={filteredEvents}

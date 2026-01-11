@@ -101,7 +101,7 @@ export const usePlantafelStore = create<PlantafelState>()(
     (set, get) => ({
       // Initial State
       view: 'team',
-      calendarView: 'day',
+      calendarView: 'week',
       dateRange: getDefaultDateRange(),
       currentDate: new Date(),
       filters: defaultFilters,
@@ -130,11 +130,11 @@ export const usePlantafelStore = create<PlantafelState>()(
             end: endOfMonth(currentDate)
           }
         } else {
-          // day view
+          // day view - nur der aktuelle Tag
           const start = new Date(currentDate)
           start.setHours(0, 0, 0, 0)
           const end = new Date(currentDate)
-          end.setHours(23, 59, 59, 999)
+          end.setHours(0, 0, 0, 0) // Gleicher Tag für Timeline
           newRange = { start, end }
         }
         
@@ -158,10 +158,11 @@ export const usePlantafelStore = create<PlantafelState>()(
             end: endOfMonth(currentDate)
           }
         } else {
+          // day view - nur der aktuelle Tag
           const start = new Date(currentDate)
           start.setHours(0, 0, 0, 0)
           const end = new Date(currentDate)
-          end.setHours(23, 59, 59, 999)
+          end.setHours(0, 0, 0, 0) // Gleicher Tag
           newRange = { start, end }
         }
         
