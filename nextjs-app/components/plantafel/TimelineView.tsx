@@ -162,11 +162,11 @@ export default function TimelineView({
         <div style={{ width: `${totalWidth}px` }}>
           
           {/* HEADER ROW - Sticky */}
-          <div className="flex sticky top-0 z-30 bg-white border-b-2 border-gray-300 shadow-sm">
+          <div className="flex sticky top-0 z-50 bg-white border-b-2 border-gray-300 shadow-md">
             {/* Ressourcen-Header */}
             <div 
               style={{ width: `${RESOURCE_WIDTH}px`, minWidth: `${RESOURCE_WIDTH}px` }}
-              className="flex-shrink-0 sticky left-0 z-40 bg-gray-100 border-r-2 border-gray-300 px-4 py-3"
+              className="flex-shrink-0 sticky left-0 z-50 bg-gray-100 border-r-2 border-gray-300 px-4 py-3"
             >
               <span className="font-bold text-sm text-gray-800">Ressource</span>
             </div>
@@ -209,7 +209,7 @@ export default function TimelineView({
                   <div 
                     style={{ width: `${RESOURCE_WIDTH}px`, minWidth: `${RESOURCE_WIDTH}px` }}
                     className={`
-                      flex-shrink-0 sticky left-0 z-20
+                      flex-shrink-0 sticky left-0 z-40
                       border-r-2 border-gray-300 px-4 py-3 shadow-sm
                       ${rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
                     `}
