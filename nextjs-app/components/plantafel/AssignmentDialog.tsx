@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { User, Briefcase, Trash2 } from 'lucide-react'
+import { User, Briefcase, Trash2, Info } from 'lucide-react'
 import { usePlantafelStore } from '@/lib/stores/plantafelStore'
 import { useEmployees, useProjects, useCreateAssignment, useUpdateAssignment, useDeleteAssignment } from '@/lib/queries/plantafelQueries'
 
