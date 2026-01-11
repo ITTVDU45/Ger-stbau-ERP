@@ -714,11 +714,13 @@ export interface Einsatz {
   rolle?: string
   geplantStunden?: number
   
-  // NEU: Aufbau/Abbau-Zeiten (optional)
-  aufbauVon?: string  // z.B. "06:00"
-  aufbauBis?: string  // z.B. "08:00"
-  abbauVon?: string   // z.B. "16:00"
-  abbauBis?: string   // z.B. "18:00"
+  // NEU: Aufbau/Abbau-Planung (optional)
+  aufbauVon?: Date    // Aufbau-Startdatum
+  aufbauBis?: Date    // Aufbau-Enddatum (optional)
+  stundenAufbau?: number  // Geplante Aufbau-Stunden
+  abbauVon?: Date     // Abbau-Startdatum (optional)
+  abbauBis?: Date     // Abbau-Enddatum (optional)
+  stundenAbbau?: number   // Geplante Abbau-Stunden
   
   notizen?: string
   bestaetigt: boolean

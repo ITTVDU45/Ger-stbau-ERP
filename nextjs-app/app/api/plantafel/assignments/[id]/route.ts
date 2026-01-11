@@ -41,11 +41,13 @@ export async function PATCH(
       geplantStunden, 
       notizen, 
       bestaetigt,
-      // Aufbau/Abbau-Zeiten
+      // Aufbau/Abbau-Planung (Datum + Stunden)
       aufbauVon,
       aufbauBis,
+      stundenAufbau,
       abbauVon,
-      abbauBis
+      abbauBis,
+      stundenAbbau
     } = body
     
     const db = await getDatabase()
@@ -137,11 +139,13 @@ export async function PATCH(
     if (notizen !== undefined) updateData.notizen = notizen
     if (bestaetigt !== undefined) updateData.bestaetigt = bestaetigt
     
-    // Aufbau/Abbau-Zeiten
-    if (aufbauVon !== undefined) updateData.aufbauVon = aufbauVon || undefined
-    if (aufbauBis !== undefined) updateData.aufbauBis = aufbauBis || undefined
-    if (abbauVon !== undefined) updateData.abbauVon = abbauVon || undefined
-    if (abbauBis !== undefined) updateData.abbauBis = abbauBis || undefined
+    // Aufbau/Abbau-Planung (Datum + Stunden)
+    if (aufbauVon !== undefined) updateData.aufbauVon = aufbauVon ? new Date(aufbauVon) : undefined
+    if (aufbauBis !== undefined) updateData.aufbauBis = aufbauBis ? new Date(aufbauBis) : undefined
+    if (stundenAufbau !== undefined) updateData.stundenAufbau = stundenAufbau || undefined
+    if (abbauVon !== undefined) updateData.abbauVon = abbauVon ? new Date(abbauVon) : undefined
+    if (abbauBis !== undefined) updateData.abbauBis = abbauBis ? new Date(abbauBis) : undefined
+    if (stundenAbbau !== undefined) updateData.stundenAbbau = stundenAbbau || undefined
     
     // Update durchführen
     const result = await einsatzCollection.updateOne(

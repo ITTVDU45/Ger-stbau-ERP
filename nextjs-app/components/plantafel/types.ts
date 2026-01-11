@@ -71,11 +71,13 @@ export interface PlantafelEvent {
   bestaetigt?: boolean
   rolle?: string
   
-  // Aufbau/Abbau-Zeiten (für Zeiterfassung-Sync)
-  aufbauVon?: string
-  aufbauBis?: string
-  abbauVon?: string
-  abbauBis?: string
+  // Aufbau/Abbau-Planung (für Zeiterfassung-Sync)
+  aufbauVon?: Date
+  aufbauBis?: Date
+  stundenAufbau?: number
+  abbauVon?: Date
+  abbauBis?: Date
+  stundenAbbau?: number
 }
 
 /**
@@ -183,11 +185,13 @@ export interface CreateAssignmentRequest {
   geplantStunden?: number
   notizen?: string
   bestaetigt?: boolean
-  // Aufbau/Abbau-Zeiten (optional)
-  aufbauVon?: string // z.B. "06:00"
-  aufbauBis?: string // z.B. "08:00"
-  abbauVon?: string  // z.B. "16:00"
-  abbauBis?: string  // z.B. "18:00"
+  // Aufbau/Abbau-Planung (optional)
+  aufbauVon?: string // ISO-Datum
+  aufbauBis?: string // ISO-Datum (optional)
+  stundenAufbau?: number
+  abbauVon?: string  // ISO-Datum (optional)
+  abbauBis?: string  // ISO-Datum (optional)
+  stundenAbbau?: number
 }
 
 /** PATCH /api/plantafel/assignments/[id] Request Body */
@@ -200,11 +204,13 @@ export interface UpdateAssignmentRequest {
   geplantStunden?: number
   notizen?: string
   bestaetigt?: boolean
-  // Aufbau/Abbau-Zeiten (optional)
-  aufbauVon?: string // z.B. "06:00"
-  aufbauBis?: string // z.B. "08:00"
-  abbauVon?: string  // z.B. "16:00"
-  abbauBis?: string  // z.B. "18:00"
+  // Aufbau/Abbau-Planung (optional)
+  aufbauVon?: string // ISO-Datum
+  aufbauBis?: string // ISO-Datum (optional)
+  stundenAufbau?: number
+  abbauVon?: string  // ISO-Datum (optional)
+  abbauBis?: string  // ISO-Datum (optional)
+  stundenAbbau?: number
 }
 
 /** GET /api/plantafel/conflicts Response */
@@ -247,11 +253,13 @@ export function mapEinsatzToEvent(einsatz: Einsatz, view: PlantafelView): Planta
     rolle: einsatz.rolle,
     hasConflict: false,
     
-    // Aufbau/Abbau-Zeiten
-    aufbauVon: einsatz.aufbauVon,
-    aufbauBis: einsatz.aufbauBis,
-    abbauVon: einsatz.abbauVon,
-    abbauBis: einsatz.abbauBis
+    // Aufbau/Abbau-Planung
+    aufbauVon: einsatz.aufbauVon ? new Date(einsatz.aufbauVon) : undefined,
+    aufbauBis: einsatz.aufbauBis ? new Date(einsatz.aufbauBis) : undefined,
+    stundenAufbau: einsatz.stundenAufbau,
+    abbauVon: einsatz.abbauVon ? new Date(einsatz.abbauVon) : undefined,
+    abbauBis: einsatz.abbauBis ? new Date(einsatz.abbauBis) : undefined,
+    stundenAbbau: einsatz.stundenAbbau
   }
 }
 

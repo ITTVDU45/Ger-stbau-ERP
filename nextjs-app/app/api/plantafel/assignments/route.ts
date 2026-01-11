@@ -296,11 +296,13 @@ export async function POST(request: NextRequest) {
       geplantStunden, 
       notizen, 
       bestaetigt,
-      // Aufbau/Abbau-Zeiten
+      // Aufbau/Abbau-Planung (Datum + Stunden)
       aufbauVon,
       aufbauBis,
+      stundenAufbau,
       abbauVon,
-      abbauBis
+      abbauBis,
+      stundenAbbau
     } = body
     
     // Validierung
@@ -363,11 +365,13 @@ export async function POST(request: NextRequest) {
       geplantStunden: geplantStunden || undefined,
       notizen: notizen || undefined,
       bestaetigt: bestaetigt || false,
-      // Aufbau/Abbau-Zeiten
-      aufbauVon: aufbauVon || undefined,
-      aufbauBis: aufbauBis || undefined,
-      abbauVon: abbauVon || undefined,
-      abbauBis: abbauBis || undefined,
+      // Aufbau/Abbau-Planung (Datum + Stunden)
+      aufbauVon: aufbauVon ? new Date(aufbauVon) : undefined,
+      aufbauBis: aufbauBis ? new Date(aufbauBis) : undefined,
+      stundenAufbau: stundenAufbau || undefined,
+      abbauVon: abbauVon ? new Date(abbauVon) : undefined,
+      abbauBis: abbauBis ? new Date(abbauBis) : undefined,
+      stundenAbbau: stundenAbbau || undefined,
       erstelltAm: new Date(),
       zuletztGeaendert: new Date()
     }

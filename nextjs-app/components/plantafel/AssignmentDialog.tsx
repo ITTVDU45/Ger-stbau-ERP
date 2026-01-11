@@ -3,7 +3,8 @@
 /**
  * AssignmentDialog
  * 
- * Dialog zum Erstellen und Bearbeiten von Einsätzen
+ * Dialog zum Erstellen und Bearbeiten von Einsätzen in der Plantafel.
+ * Struktur wie MitarbeiterZuweisenDialog mit Aufbau/Abbau-Datumsfeldern und Stunden.
  */
 
 import { useState, useEffect } from 'react'
@@ -33,22 +34,23 @@ import {
 import { Calendar, User, Briefcase, Clock, Trash2 } from 'lucide-react'
 import { usePlantafelStore } from '@/lib/stores/plantafelStore'
 import { useEmployees, useProjects, useCreateAssignment, useUpdateAssignment, useDeleteAssignment } from '@/lib/queries/plantafelQueries'
-import { PlantafelEvent } from './types'
 
 interface AssignmentFormData {
   mitarbeiterId: string
   projektId: string
-  von: string
-  bis: string
+  von: string // datetime-local
+  bis: string // datetime-local
   rolle: string
   geplantStunden: number
   notizen: string
   bestaetigt: boolean
-  // Aufbau/Abbau-Zeiten (optional)
-  aufbauVon: string
-  aufbauBis: string
-  abbauVon: string
-  abbauBis: string
+  // Aufbau/Abbau-Planung (wie MitarbeiterZuweisenDialog)
+  aufbauVon: string // date
+  aufbauBis: string // date (optional)
+  stundenAufbau: number
+  abbauVon: string  // date (optional)
+  abbauBis: string  // date (optional)
+  stundenAbbau: number
 }
 
 const defaultFormData: AssignmentFormData = {
@@ -62,8 +64,10 @@ const defaultFormData: AssignmentFormData = {
   bestaetigt: false,
   aufbauVon: '',
   aufbauBis: '',
+  stundenAufbau: 0,
   abbauVon: '',
-  abbauBis: ''
+  abbauBis: '',
+  stundenAbbau: 0
 }
 
 export default function AssignmentDialog() {
@@ -106,6 +110,7 @@ export default function AssignmentDialog() {
       // Bearbeiten: Daten aus Event laden
       const von = format(selectedEvent.start, "yyyy-MM-dd'T'HH:mm")
       const bis = format(selectedEvent.end, "yyyy-MM-dd'T'HH:mm")
+      
       setFormData({
         mitarbeiterId: selectedEvent.mitarbeiterId || '',
         projektId: selectedEvent.projektId || '',
@@ -115,20 +120,34 @@ export default function AssignmentDialog() {
         geplantStunden: calculateHours(von, bis),
         notizen: selectedEvent.notes || '',
         bestaetigt: selectedEvent.bestaetigt || false,
-        aufbauVon: selectedEvent.aufbauVon || '',
-        aufbauBis: selectedEvent.aufbauBis || '',
-        abbauVon: selectedEvent.abbauVon || '',
-        abbauBis: selectedEvent.abbauBis || ''
+        // Aufbau/Abbau-Planung
+        aufbauVon: selectedEvent.aufbauVon 
+          ? format(new Date(selectedEvent.aufbauVon), 'yyyy-MM-dd') 
+          : '',
+        aufbauBis: selectedEvent.aufbauBis 
+          ? format(new Date(selectedEvent.aufbauBis), 'yyyy-MM-dd') 
+          : '',
+        stundenAufbau: selectedEvent.stundenAufbau || 0,
+        abbauVon: selectedEvent.abbauVon 
+          ? format(new Date(selectedEvent.abbauVon), 'yyyy-MM-dd') 
+          : '',
+        abbauBis: selectedEvent.abbauBis 
+          ? format(new Date(selectedEvent.abbauBis), 'yyyy-MM-dd') 
+          : '',
+        stundenAbbau: selectedEvent.stundenAbbau || 0
       })
     } else if (dialogMode === 'create' && selectedSlot) {
       // Erstellen: Slot-Daten vorausfüllen
       const von = format(selectedSlot.start, "yyyy-MM-dd'T'HH:mm")
       const bis = format(selectedSlot.end, "yyyy-MM-dd'T'HH:mm")
+      const aufbauVon = format(selectedSlot.start, 'yyyy-MM-dd')
+      
       setFormData({
         ...defaultFormData,
         von,
         bis,
         geplantStunden: calculateHours(von, bis),
+        aufbauVon, // Vorausfüllen mit Startdatum
         // Je nach View den resourceId als Mitarbeiter oder Projekt vorauswählen
         mitarbeiterId: view === 'team' ? selectedSlot.resourceId : '',
         projektId: view === 'project' ? selectedSlot.resourceId : ''
@@ -138,14 +157,14 @@ export default function AssignmentDialog() {
     }
   }, [dialogMode, selectedEvent, selectedSlot, view])
   
-  const handleChange = (field: keyof AssignmentFormData, value: any) => {
+  const handleChange = (field: keyof AssignmentFormData, value: string | number | boolean) => {
     setFormData(prev => {
       const newData = { ...prev, [field]: value }
       
       // Automatisch Stunden berechnen wenn Von oder Bis geändert wird
       if (field === 'von' || field === 'bis') {
-        const von = field === 'von' ? value : prev.von
-        const bis = field === 'bis' ? value : prev.bis
+        const von = field === 'von' ? value as string : prev.von
+        const bis = field === 'bis' ? value as string : prev.bis
         newData.geplantStunden = calculateHours(von, bis)
       }
       
@@ -177,69 +196,55 @@ export default function AssignmentDialog() {
     }
     
     try {
-      // Aufbau/Abbau validieren (wenn gesetzt)
+      // Aufbau/Abbau-Datum Validierung (wenn beide gesetzt)
       if (formData.aufbauVon && formData.aufbauBis) {
-        if (formData.aufbauVon >= formData.aufbauBis) {
-          toast.error('Aufbau: Startzeit muss vor Endzeit liegen')
+        if (new Date(formData.aufbauVon) > new Date(formData.aufbauBis)) {
+          toast.error('Aufbau: Startdatum muss vor Enddatum liegen')
           return
         }
       }
       if (formData.abbauVon && formData.abbauBis) {
-        if (formData.abbauVon >= formData.abbauBis) {
-          toast.error('Abbau: Startzeit muss vor Endzeit liegen')
+        if (new Date(formData.abbauVon) > new Date(formData.abbauBis)) {
+          toast.error('Abbau: Startdatum muss vor Enddatum liegen')
           return
         }
       }
       
+      const payload = {
+        mitarbeiterId: formData.mitarbeiterId,
+        projektId: formData.projektId,
+        von: vonDate.toISOString(),
+        bis: bisDate.toISOString(),
+        rolle: formData.rolle || undefined,
+        geplantStunden: formData.geplantStunden || undefined,
+        notizen: formData.notizen || undefined,
+        bestaetigt: formData.bestaetigt,
+        // Aufbau/Abbau-Planung (Datum + Stunden)
+        aufbauVon: formData.aufbauVon || undefined,
+        aufbauBis: formData.aufbauBis || undefined,
+        stundenAufbau: formData.stundenAufbau || undefined,
+        abbauVon: formData.abbauVon || undefined,
+        abbauBis: formData.abbauBis || undefined,
+        stundenAbbau: formData.stundenAbbau || undefined
+      }
+      
       if (dialogMode === 'create') {
-        await createMutation.mutateAsync({
-          mitarbeiterId: formData.mitarbeiterId,
-          projektId: formData.projektId,
-          von: vonDate.toISOString(),
-          bis: bisDate.toISOString(),
-          rolle: formData.rolle || undefined,
-          geplantStunden: formData.geplantStunden || undefined,
-          notizen: formData.notizen || undefined,
-          bestaetigt: formData.bestaetigt,
-          // Aufbau/Abbau-Zeiten
-          aufbauVon: formData.aufbauVon || undefined,
-          aufbauBis: formData.aufbauBis || undefined,
-          abbauVon: formData.abbauVon || undefined,
-          abbauBis: formData.abbauBis || undefined
-        })
+        await createMutation.mutateAsync(payload)
         toast.success(formData.bestaetigt 
           ? 'Einsatz erstellt und Zeiterfassungen angelegt' 
           : 'Einsatz erfolgreich erstellt')
       } else if (selectedEvent) {
-        // Extrahiere die echte ID aus der Event-ID (z.B. "einsatz-123" -> "123")
         const realId = selectedEvent.sourceId
-        
-        await updateMutation.mutateAsync({
-          id: realId,
-          data: {
-            mitarbeiterId: formData.mitarbeiterId,
-            projektId: formData.projektId,
-            von: vonDate.toISOString(),
-            bis: bisDate.toISOString(),
-            rolle: formData.rolle || undefined,
-            geplantStunden: formData.geplantStunden || undefined,
-            notizen: formData.notizen || undefined,
-            bestaetigt: formData.bestaetigt,
-            // Aufbau/Abbau-Zeiten
-            aufbauVon: formData.aufbauVon || undefined,
-            aufbauBis: formData.aufbauBis || undefined,
-            abbauVon: formData.abbauVon || undefined,
-            abbauBis: formData.abbauBis || undefined
-          }
-        })
+        await updateMutation.mutateAsync({ id: realId, data: payload })
         toast.success(formData.bestaetigt 
           ? 'Einsatz aktualisiert und Zeiterfassungen synchronisiert' 
           : 'Einsatz erfolgreich aktualisiert')
       }
       
       closeDialog()
-    } catch (error: any) {
-      toast.error(error.message || 'Fehler beim Speichern')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Fehler beim Speichern'
+      toast.error(errorMessage)
     }
   }
   
@@ -252,8 +257,9 @@ export default function AssignmentDialog() {
       await deleteMutation.mutateAsync(realId)
       toast.success('Einsatz erfolgreich gelöscht')
       closeDialog()
-    } catch (error: any) {
-      toast.error(error.message || 'Fehler beim Löschen')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Fehler beim Löschen'
+      toast.error(errorMessage)
     } finally {
       setIsDeleting(false)
     }
@@ -264,7 +270,7 @@ export default function AssignmentDialog() {
   
   return (
     <Dialog open={isDialogOpen} onOpenChange={(open) => !open && closeDialog()}>
-      <DialogContent className="sm:max-w-[500px] bg-white text-gray-900">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white text-gray-900">
         <DialogHeader>
           <DialogTitle className="text-gray-900">
             {dialogMode === 'create' ? 'Neuer Einsatz' : 'Einsatz bearbeiten'}
@@ -276,24 +282,27 @@ export default function AssignmentDialog() {
           </DialogDescription>
         </DialogHeader>
         
-        <div className="grid gap-4 py-4">
+        <div className="space-y-6 py-4">
           {/* Mitarbeiter */}
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="mitarbeiter" className="text-right text-gray-900">
-              <User className="h-4 w-4 inline mr-2" />
-              Mitarbeiter
+          <div className="space-y-2">
+            <Label htmlFor="mitarbeiter" className="text-gray-900 font-medium flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Mitarbeiter *
             </Label>
             <Select
               value={formData.mitarbeiterId}
               onValueChange={(value) => handleChange('mitarbeiterId', value)}
             >
-              <SelectTrigger className="col-span-3 bg-white text-gray-900">
+              <SelectTrigger className="bg-white text-gray-900 border-gray-300">
                 <SelectValue placeholder="Mitarbeiter auswählen" />
               </SelectTrigger>
               <SelectContent className="bg-white text-gray-900">
                 {employees.filter(e => e.aktiv).map((employee) => (
                   <SelectItem key={employee._id} value={employee._id || ''}>
                     {employee.vorname} {employee.nachname}
+                    {employee.personalnummer && (
+                      <span className="text-gray-500 ml-2">(#{employee.personalnummer})</span>
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -301,16 +310,16 @@ export default function AssignmentDialog() {
           </div>
           
           {/* Projekt */}
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="projekt" className="text-right text-gray-900">
-              <Briefcase className="h-4 w-4 inline mr-2" />
-              Projekt
+          <div className="space-y-2">
+            <Label htmlFor="projekt" className="text-gray-900 font-medium flex items-center gap-2">
+              <Briefcase className="h-4 w-4" />
+              Projekt *
             </Label>
             <Select
               value={formData.projektId}
               onValueChange={(value) => handleChange('projektId', value)}
             >
-              <SelectTrigger className="col-span-3 bg-white text-gray-900">
+              <SelectTrigger className="bg-white text-gray-900 border-gray-300">
                 <SelectValue placeholder="Projekt auswählen" />
               </SelectTrigger>
               <SelectContent className="bg-white text-gray-900">
@@ -323,175 +332,192 @@ export default function AssignmentDialog() {
             </Select>
           </div>
           
-          {/* Start-Datum */}
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="von" className="text-right text-gray-900">
-              <Calendar className="h-4 w-4 inline mr-2" />
-              Von
-            </Label>
-            <Input
-              id="von"
-              type="datetime-local"
-              value={formData.von}
-              onChange={(e) => handleChange('von', e.target.value)}
-              className="col-span-3 bg-white text-gray-900"
-            />
-          </div>
-          
-          {/* End-Datum */}
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="bis" className="text-right text-gray-900">
-              <Calendar className="h-4 w-4 inline mr-2" />
-              Bis
-            </Label>
-            <Input
-              id="bis"
-              type="datetime-local"
-              value={formData.bis}
-              onChange={(e) => handleChange('bis', e.target.value)}
-              className="col-span-3 bg-white text-gray-900"
-            />
-          </div>
-          
           {/* Rolle */}
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="rolle" className="text-right text-gray-900">
-              Rolle
-            </Label>
-            <Input
-              id="rolle"
-              placeholder="z.B. Vorarbeiter, Helfer"
+          <div className="space-y-2">
+            <Label htmlFor="rolle" className="text-gray-900 font-medium">Rolle im Projekt</Label>
+            <Select
               value={formData.rolle}
-              onChange={(e) => handleChange('rolle', e.target.value)}
-              className="col-span-3 bg-white text-gray-900"
-            />
+              onValueChange={(value) => handleChange('rolle', value)}
+            >
+              <SelectTrigger className="bg-white text-gray-900 border-gray-300">
+                <SelectValue placeholder="Rolle auswählen" />
+              </SelectTrigger>
+              <SelectContent className="bg-white text-gray-900">
+                <SelectItem value="kolonnenfuehrer">Kolonnenführer</SelectItem>
+                <SelectItem value="vorarbeiter">Vorarbeiter</SelectItem>
+                <SelectItem value="monteur">Monteur</SelectItem>
+                <SelectItem value="helfer">Helfer</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           
-          {/* Geplante Stunden - Automatisch berechnet */}
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="stunden" className="text-right text-gray-900">
-              <Clock className="h-4 w-4 inline mr-2" />
-              Std. geplant
-            </Label>
-            <div className="col-span-3">
+          {/* Einsatz-Zeitraum */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="von" className="text-gray-900 font-medium flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Von *
+              </Label>
               <Input
-                id="stunden"
-                type="text"
-                value={`${formData.geplantStunden || 0} Stunden`}
-                readOnly
-                disabled
-                className="bg-gray-100 text-gray-700 cursor-not-allowed"
-                title="Wird automatisch aus Von/Bis berechnet"
+                id="von"
+                type="datetime-local"
+                value={formData.von}
+                onChange={(e) => handleChange('von', e.target.value)}
+                className="bg-white text-gray-900 border-gray-300"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Automatisch berechnet aus Zeitraum
-              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bis" className="text-gray-900 font-medium flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Bis *
+              </Label>
+              <Input
+                id="bis"
+                type="datetime-local"
+                value={formData.bis}
+                onChange={(e) => handleChange('bis', e.target.value)}
+                className="bg-white text-gray-900 border-gray-300"
+              />
             </div>
           </div>
           
-          {/* Separator: Aufbau/Abbau */}
-          <div className="col-span-4 border-t border-gray-200 pt-4 mt-2">
-            <p className="text-sm font-semibold text-gray-700 mb-2">
-              Aufbau/Abbau-Zeiten (optional)
-            </p>
+          {/* Geplante Stunden */}
+          <div className="space-y-2">
+            <Label className="text-gray-900 font-medium flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Geplante Stunden (automatisch)
+            </Label>
+            <Input
+              type="text"
+              value={`${formData.geplantStunden || 0} Stunden`}
+              readOnly
+              disabled
+              className="bg-gray-100 text-gray-700 cursor-not-allowed border-gray-300"
+            />
+            <p className="text-xs text-gray-500">Wird automatisch aus Von/Bis berechnet</p>
+          </div>
+          
+          {/* Aufbau/Abbau Planung */}
+          <div className="border-t border-gray-200 pt-4">
+            <Label className="text-gray-900 font-semibold mb-3 block">
+              Aufbau/Abbau Planung (optional)
+            </Label>
             <p className="text-xs text-gray-500 mb-4">
               Bei Bestätigung werden automatisch Zeiterfassungs-Einträge erstellt
             </p>
-          </div>
-          
-          {/* Aufbau-Zeiten */}
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right text-gray-900">
-              Aufbau
-            </Label>
-            <div className="col-span-3 grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="aufbauVon" className="text-xs text-gray-500">Von</Label>
+            
+            {/* Aufbau */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="space-y-2">
+                <Label className="text-gray-700 font-medium">Aufbau: Von *</Label>
                 <Input
-                  id="aufbauVon"
-                  type="time"
+                  type="date"
                   value={formData.aufbauVon}
                   onChange={(e) => handleChange('aufbauVon', e.target.value)}
-                  className="bg-white text-gray-900"
-                  placeholder="06:00"
+                  className="bg-white text-gray-900 border-gray-300"
                 />
               </div>
-              <div>
-                <Label htmlFor="aufbauBis" className="text-xs text-gray-500">Bis</Label>
+              <div className="space-y-2">
+                <Label className="text-gray-700 font-medium">Aufbau: Bis (optional)</Label>
                 <Input
-                  id="aufbauBis"
-                  type="time"
+                  type="date"
                   value={formData.aufbauBis}
                   onChange={(e) => handleChange('aufbauBis', e.target.value)}
-                  className="bg-white text-gray-900"
-                  placeholder="08:00"
+                  className="bg-white text-gray-900 border-gray-300"
                 />
               </div>
             </div>
-          </div>
-          
-          {/* Abbau-Zeiten */}
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right text-gray-900">
-              Abbau
-            </Label>
-            <div className="col-span-3 grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="abbauVon" className="text-xs text-gray-500">Von</Label>
+            
+            {/* Stunden Aufbau/Abbau */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="space-y-2">
+                <Label className="text-gray-700 font-medium flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                  Stunden Aufbau
+                </Label>
                 <Input
-                  id="abbauVon"
-                  type="time"
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={formData.stundenAufbau}
+                  onChange={(e) => handleChange('stundenAufbau', parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  className="bg-white text-gray-900 border-gray-300"
+                />
+                <p className="text-xs text-gray-500">Geplante Aufbau-Stunden</p>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-700 font-medium flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  Stunden Abbau
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={formData.stundenAbbau}
+                  onChange={(e) => handleChange('stundenAbbau', parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  className="bg-white text-gray-900 border-gray-300"
+                />
+                <p className="text-xs text-gray-500">Geplante Abbau-Stunden</p>
+              </div>
+            </div>
+            
+            {/* Abbau */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-gray-700 font-medium">Abbau: Von (optional)</Label>
+                <Input
+                  type="date"
                   value={formData.abbauVon}
                   onChange={(e) => handleChange('abbauVon', e.target.value)}
-                  className="bg-white text-gray-900"
-                  placeholder="16:00"
+                  className="bg-white text-gray-900 border-gray-300"
                 />
               </div>
-              <div>
-                <Label htmlFor="abbauBis" className="text-xs text-gray-500">Bis</Label>
+              <div className="space-y-2">
+                <Label className="text-gray-700 font-medium">Abbau: Bis (optional)</Label>
                 <Input
-                  id="abbauBis"
-                  type="time"
+                  type="date"
                   value={formData.abbauBis}
                   onChange={(e) => handleChange('abbauBis', e.target.value)}
-                  className="bg-white text-gray-900"
-                  placeholder="18:00"
+                  className="bg-white text-gray-900 border-gray-300"
                 />
               </div>
             </div>
           </div>
           
           {/* Notizen */}
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="notizen" className="text-right text-gray-900">
-              Notizen
-            </Label>
+          <div className="space-y-2">
+            <Label htmlFor="notizen" className="text-gray-900 font-medium">Notizen</Label>
             <Textarea
               id="notizen"
               placeholder="Zusätzliche Hinweise..."
               value={formData.notizen}
               onChange={(e) => handleChange('notizen', e.target.value)}
-              className="col-span-3 bg-white text-gray-900"
+              className="bg-white text-gray-900 border-gray-300"
               rows={2}
             />
           </div>
           
           {/* Bestätigt */}
-          <div className="grid grid-cols-4 items-center gap-4">
-            <div className="col-span-1" />
-            <div className="col-span-3 flex items-center gap-2">
-              <Checkbox
-                id="bestaetigt"
-                checked={formData.bestaetigt}
-                onCheckedChange={(checked) => handleChange('bestaetigt', !!checked)}
-              />
-              <label
-                htmlFor="bestaetigt"
-                className="text-sm text-gray-900 cursor-pointer"
-              >
-                Einsatz bestätigt
-              </label>
-            </div>
+          <div className="flex items-center gap-2 pt-2">
+            <Checkbox
+              id="bestaetigt"
+              checked={formData.bestaetigt}
+              onCheckedChange={(checked) => handleChange('bestaetigt', !!checked)}
+            />
+            <label
+              htmlFor="bestaetigt"
+              className="text-sm text-gray-900 cursor-pointer"
+            >
+              Einsatz bestätigt
+            </label>
+            {formData.bestaetigt && (
+              <span className="text-xs text-blue-600 ml-2">
+                → Zeiterfassungen werden erstellt
+              </span>
+            )}
           </div>
         </div>
         
