@@ -336,6 +336,7 @@ export default function PlantafelBoard() {
               resources={resources}
               events={filteredEvents}
               dateRange={dateRange}
+              view={view}
               onEventClick={handleSelectEvent}
               onSlotClick={(resourceId, date) => {
                 const slot = {

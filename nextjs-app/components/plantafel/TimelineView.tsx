@@ -20,6 +20,7 @@ interface TimelineViewProps {
   resources: PlantafelResource[]
   events: PlantafelEvent[]
   dateRange: DateRange
+  view: 'team' | 'project'
   onEventClick?: (event: PlantafelEvent) => void
   onSlotClick?: (resourceId: string, date: Date) => void
 }
@@ -32,6 +33,7 @@ export default function TimelineView({
   resources,
   events,
   dateRange,
+  view,
   onEventClick,
   onSlotClick
 }: TimelineViewProps) {
@@ -98,23 +100,42 @@ export default function TimelineView({
     if (!draggedEvent) return
     
     try {
-      // Berechne die Verschiebung in Tagen
-      const daysDiff = differenceInDays(targetDay, draggedEvent.start)
+      // Setze die Zielzeit auf den Anfang des Tages und behalte die Original-Stunden bei
+      const originalStartHour = draggedEvent.start.getHours()
+      const originalStartMinute = draggedEvent.start.getMinutes()
+      const originalEndHour = draggedEvent.end.getHours()
+      const originalEndMinute = draggedEvent.end.getMinutes()
       
-      // Neue Start- und Endzeiten
-      const newStart = addDays(draggedEvent.start, daysDiff)
-      const newEnd = addDays(draggedEvent.end, daysDiff)
+      // Neue Daten mit gleicher Uhrzeit
+      const newStart = new Date(targetDay)
+      newStart.setHours(originalStartHour, originalStartMinute, 0, 0)
+      
+      const newEnd = new Date(targetDay)
+      newEnd.setHours(originalEndHour, originalEndMinute, 0, 0)
+      
+      // Wenn End vor Start, dann am nächsten Tag
+      if (newEnd <= newStart) {
+        newEnd.setDate(newEnd.getDate() + 1)
+      }
+      
+      // Update-Daten zusammenstellen
+      const updateData: any = {
+        von: newStart.toISOString(),
+        bis: newEnd.toISOString(),
+      }
+      
+      // Ressource nur ändern wenn verschieden und je nach View
+      if (targetResourceId !== draggedEvent.resourceId) {
+        if (view === 'team') {
+          updateData.mitarbeiterId = targetResourceId
+        } else if (view === 'project') {
+          updateData.projektId = targetResourceId
+        }
+      }
       
       await updateMutation.mutateAsync({
         id: draggedEvent.sourceId,
-        data: {
-          von: newStart.toISOString(),
-          bis: newEnd.toISOString(),
-          // Ressource nur ändern wenn verschieden
-          ...(targetResourceId !== draggedEvent.resourceId && {
-            mitarbeiterId: targetResourceId,
-          })
-        }
+        data: updateData
       })
       
       toast.success('Einsatz verschoben')
