@@ -81,22 +81,27 @@ export default function AssignmentDialog() {
   useEffect(() => {
     if (dialogMode === 'edit' && selectedEvent) {
       // Bearbeiten: Daten aus Event laden
+      const von = format(selectedEvent.start, "yyyy-MM-dd'T'HH:mm")
+      const bis = format(selectedEvent.end, "yyyy-MM-dd'T'HH:mm")
       setFormData({
         mitarbeiterId: selectedEvent.mitarbeiterId || '',
         projektId: selectedEvent.projektId || '',
-        von: format(selectedEvent.start, "yyyy-MM-dd'T'HH:mm"),
-        bis: format(selectedEvent.end, "yyyy-MM-dd'T'HH:mm"),
+        von,
+        bis,
         rolle: '',
-        geplantStunden: 0,
+        geplantStunden: calculateHours(von, bis),
         notizen: selectedEvent.notes || '',
         bestaetigt: selectedEvent.bestaetigt || false
       })
     } else if (dialogMode === 'create' && selectedSlot) {
       // Erstellen: Slot-Daten vorausfüllen
+      const von = format(selectedSlot.start, "yyyy-MM-dd'T'HH:mm")
+      const bis = format(selectedSlot.end, "yyyy-MM-dd'T'HH:mm")
       setFormData({
         ...defaultFormData,
-        von: format(selectedSlot.start, "yyyy-MM-dd'T'HH:mm"),
-        bis: format(selectedSlot.end, "yyyy-MM-dd'T'HH:mm"),
+        von,
+        bis,
+        geplantStunden: calculateHours(von, bis),
         // Je nach View den resourceId als Mitarbeiter oder Projekt vorauswählen
         mitarbeiterId: view === 'team' ? selectedSlot.resourceId : '',
         projektId: view === 'project' ? selectedSlot.resourceId : ''
@@ -106,8 +111,29 @@ export default function AssignmentDialog() {
     }
   }, [dialogMode, selectedEvent, selectedSlot, view])
   
+  // Berechne Stunden aus Von/Bis
+  const calculateHours = (von: string, bis: string): number => {
+    if (!von || !bis) return 0
+    const vonDate = new Date(von)
+    const bisDate = new Date(bis)
+    const diffMs = bisDate.getTime() - vonDate.getTime()
+    const diffHours = diffMs / (1000 * 60 * 60)
+    return Math.max(0, Math.round(diffHours * 2) / 2) // Runde auf 0.5 Stunden
+  }
+  
   const handleChange = (field: keyof AssignmentFormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value }
+      
+      // Automatisch Stunden berechnen wenn Von oder Bis geändert wird
+      if (field === 'von' || field === 'bis') {
+        const von = field === 'von' ? value : prev.von
+        const bis = field === 'bis' ? value : prev.bis
+        newData.geplantStunden = calculateHours(von, bis)
+      }
+      
+      return newData
+    })
   }
   
   const handleSubmit = async () => {
@@ -296,21 +322,26 @@ export default function AssignmentDialog() {
             />
           </div>
           
-          {/* Geplante Stunden */}
+          {/* Geplante Stunden - Automatisch berechnet */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="stunden" className="text-right text-gray-900">
               <Clock className="h-4 w-4 inline mr-2" />
               Std. geplant
             </Label>
-            <Input
-              id="stunden"
-              type="number"
-              min="0"
-              step="0.5"
-              value={formData.geplantStunden || ''}
-              onChange={(e) => handleChange('geplantStunden', parseFloat(e.target.value) || 0)}
-              className="col-span-3 bg-white text-gray-900"
-            />
+            <div className="col-span-3">
+              <Input
+                id="stunden"
+                type="text"
+                value={`${formData.geplantStunden || 0} Stunden`}
+                readOnly
+                disabled
+                className="bg-gray-100 text-gray-700 cursor-not-allowed"
+                title="Wird automatisch aus Von/Bis berechnet"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Automatisch berechnet aus Zeitraum
+              </p>
+            </div>
           </div>
           
           {/* Notizen */}
