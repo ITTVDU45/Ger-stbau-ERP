@@ -294,11 +294,12 @@ export function mapEinsatzToEvents(einsatz: Einsatz, view: PlantafelView): Plant
   }
   
   // Prüfe ob Aufbau vorhanden
+  // WICHTIG: Die Uhrzeiten sind jetzt in aufbauVon/aufbauBis enthalten!
   if (einsatz.aufbauVon && einsatz.stundenAufbau && einsatz.stundenAufbau > 0) {
+    // aufbauVon enthält bereits Datum + Uhrzeit (z.B. 2026-01-07T08:00:00)
     const aufbauStart = new Date(einsatz.aufbauVon)
-    aufbauStart.setHours(8, 0, 0, 0)
+    // aufbauBis enthält bereits Datum + Uhrzeit (z.B. 2026-01-07T11:00:00)
     const aufbauEnd = einsatz.aufbauBis ? new Date(einsatz.aufbauBis) : new Date(einsatz.aufbauVon)
-    aufbauEnd.setHours(17, 0, 0, 0)
     
     events.push({
       ...baseEvent,
@@ -311,12 +312,13 @@ export function mapEinsatzToEvents(einsatz: Einsatz, view: PlantafelView): Plant
     })
   }
   
-  // Prüfe ob Abbau vorhanden und an anderem Tag
+  // Prüfe ob Abbau vorhanden
+  // WICHTIG: Die Uhrzeiten sind jetzt in abbauVon/abbauBis enthalten!
   if (einsatz.abbauVon && einsatz.stundenAbbau && einsatz.stundenAbbau > 0) {
+    // abbauVon enthält bereits Datum + Uhrzeit
     const abbauStart = new Date(einsatz.abbauVon)
-    abbauStart.setHours(8, 0, 0, 0)
+    // abbauBis enthält bereits Datum + Uhrzeit
     const abbauEnd = einsatz.abbauBis ? new Date(einsatz.abbauBis) : new Date(einsatz.abbauVon)
-    abbauEnd.setHours(17, 0, 0, 0)
     
     events.push({
       ...baseEvent,
