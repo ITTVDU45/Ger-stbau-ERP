@@ -291,31 +291,3 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
     </div>
   )
 }
-        </Popover>
-        
-        {/* Abwesenheiten Toggle */}
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id="show-absences"
-            checked={filters.showAbsences}
-            onCheckedChange={(checked) => setFilters({ showAbsences: !!checked })}
-          />
-          <label
-            htmlFor="show-absences"
-            className="text-sm text-gray-900 dark:text-gray-100 cursor-pointer"
-          >
-            Abwesenheiten anzeigen
-          </label>
-        </div>
-        
-        {/* Filter zurücksetzen */}
-        {activeFilterCount > 0 && (
-          <Button variant="ghost" size="sm" onClick={resetFilters}>
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Filter zurücksetzen
-          </Button>
-        )}
-      </div>
-    </div>
-  )
-}
