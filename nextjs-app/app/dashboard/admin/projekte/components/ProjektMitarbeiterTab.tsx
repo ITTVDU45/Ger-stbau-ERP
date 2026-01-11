@@ -934,6 +934,7 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
                   <TableHeader>
                     <TableRow className="border-gray-200 hover:bg-gray-50">
                       <TableHead className="text-gray-900 font-semibold">Datum</TableHead>
+                      <TableHead className="text-gray-900 font-semibold">Quelle</TableHead>
                       <TableHead className="text-gray-900 font-semibold">Typ</TableHead>
                       <TableHead className="text-gray-900 font-semibold text-right">Stunden</TableHead>
                       <TableHead className="text-gray-900 font-semibold">Von - Bis</TableHead>
@@ -950,6 +951,17 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
                       <TableRow key={eintrag._id} className="border-gray-200 hover:bg-gray-50">
                         <TableCell className="font-medium text-gray-900">
                           {format(new Date(eintrag.datum), 'dd.MM.yyyy', { locale: de })}
+                        </TableCell>
+                        <TableCell>
+                          {eintrag.automatischErstellt ? (
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
+                              📅 Plantafel
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-gray-600 text-xs">
+                              Manuell
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">

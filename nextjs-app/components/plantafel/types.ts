@@ -69,6 +69,13 @@ export interface PlantafelEvent {
   // Zusätzliche Infos
   notes?: string
   bestaetigt?: boolean
+  rolle?: string
+  
+  // Aufbau/Abbau-Zeiten (für Zeiterfassung-Sync)
+  aufbauVon?: string
+  aufbauBis?: string
+  abbauVon?: string
+  abbauBis?: string
 }
 
 /**
@@ -176,6 +183,11 @@ export interface CreateAssignmentRequest {
   geplantStunden?: number
   notizen?: string
   bestaetigt?: boolean
+  // Aufbau/Abbau-Zeiten (optional)
+  aufbauVon?: string // z.B. "06:00"
+  aufbauBis?: string // z.B. "08:00"
+  abbauVon?: string  // z.B. "16:00"
+  abbauBis?: string  // z.B. "18:00"
 }
 
 /** PATCH /api/plantafel/assignments/[id] Request Body */
@@ -188,6 +200,11 @@ export interface UpdateAssignmentRequest {
   geplantStunden?: number
   notizen?: string
   bestaetigt?: boolean
+  // Aufbau/Abbau-Zeiten (optional)
+  aufbauVon?: string // z.B. "06:00"
+  aufbauBis?: string // z.B. "08:00"
+  abbauVon?: string  // z.B. "16:00"
+  abbauBis?: string  // z.B. "18:00"
 }
 
 /** GET /api/plantafel/conflicts Response */
@@ -227,7 +244,14 @@ export function mapEinsatzToEvent(einsatz: Einsatz, view: PlantafelView): Planta
     
     notes: einsatz.notizen,
     bestaetigt: einsatz.bestaetigt,
-    hasConflict: false
+    rolle: einsatz.rolle,
+    hasConflict: false,
+    
+    // Aufbau/Abbau-Zeiten
+    aufbauVon: einsatz.aufbauVon,
+    aufbauBis: einsatz.aufbauBis,
+    abbauVon: einsatz.abbauVon,
+    abbauBis: einsatz.abbauBis
   }
 }
 

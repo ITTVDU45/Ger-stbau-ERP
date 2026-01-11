@@ -524,8 +524,9 @@ export default function MitarbeiterZeiterfassung({ mitarbeiterId, mitarbeiterNam
                 <TableHeader>
                   <TableRow className="border-gray-200 hover:bg-gray-50">
                     <TableHead className="text-gray-900 font-semibold">Datum</TableHead>
-                  <TableHead className="text-gray-900 font-semibold">Projekt</TableHead>
-                  <TableHead className="text-gray-900 font-semibold">Typ</TableHead>
+                    <TableHead className="text-gray-900 font-semibold">Projekt</TableHead>
+                    <TableHead className="text-gray-900 font-semibold">Quelle</TableHead>
+                    <TableHead className="text-gray-900 font-semibold">Typ</TableHead>
                     <TableHead className="text-gray-900 font-semibold">Stunden</TableHead>
                     <TableHead className="text-gray-900 font-semibold">Pause</TableHead>
                     <TableHead className="text-gray-900 font-semibold">Von - Bis</TableHead>
@@ -542,6 +543,17 @@ export default function MitarbeiterZeiterfassung({ mitarbeiterId, mitarbeiterNam
                       </TableCell>
                       <TableCell className="text-gray-700">
                         {zeit.projektName || '-'}
+                      </TableCell>
+                      <TableCell>
+                        {zeit.automatischErstellt ? (
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
+                            📅 Plantafel
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-gray-600 text-xs">
+                            Manuell
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell className="text-gray-700">
                         <div className="flex items-center gap-2">
@@ -642,6 +654,7 @@ export default function MitarbeiterZeiterfassung({ mitarbeiterId, mitarbeiterNam
                   <TableRow className="border-gray-200 hover:bg-gray-50">
                     <TableHead className="text-gray-900 font-semibold">Datum</TableHead>
                     <TableHead className="text-gray-900 font-semibold text-right">Stunden</TableHead>
+                    <TableHead className="text-gray-900 font-semibold">Quelle</TableHead>
                     <TableHead className="text-gray-900 font-semibold">Typ</TableHead>
                     <TableHead className="text-gray-900 font-semibold">Von - Bis</TableHead>
                     <TableHead className="text-gray-900 font-semibold">Pause</TableHead>
@@ -660,6 +673,17 @@ export default function MitarbeiterZeiterfassung({ mitarbeiterId, mitarbeiterNam
                         </TableCell>
                         <TableCell className="font-bold text-gray-900 text-right">
                           {eintrag.stunden} Std.
+                        </TableCell>
+                        <TableCell>
+                          {eintrag.automatischErstellt ? (
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
+                              📅 Plantafel
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-gray-600 text-xs">
+                              Manuell
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell className="text-gray-700">
                           <div className="flex items-center gap-2">

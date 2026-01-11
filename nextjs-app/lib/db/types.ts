@@ -177,6 +177,10 @@ export interface Zeiterfassung {
   freigegebenAm?: Date
   erstelltAm: Date
   zuletztGeaendert: Date
+  
+  // NEU: Verknüpfung zur Plantafel
+  einsatzId?: string  // ObjectId des verknüpften Einsatzes
+  automatischErstellt?: boolean  // true = aus Plantafel, false/undefined = manuell
 }
 
 // Urlaub & Abwesenheiten
@@ -709,6 +713,13 @@ export interface Einsatz {
   bis: Date
   rolle?: string
   geplantStunden?: number
+  
+  // NEU: Aufbau/Abbau-Zeiten (optional)
+  aufbauVon?: string  // z.B. "06:00"
+  aufbauBis?: string  // z.B. "08:00"
+  abbauVon?: string   // z.B. "16:00"
+  abbauBis?: string   // z.B. "18:00"
+  
   notizen?: string
   bestaetigt: boolean
   erstelltAm: Date

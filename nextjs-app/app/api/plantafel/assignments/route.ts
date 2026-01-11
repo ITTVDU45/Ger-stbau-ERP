@@ -21,6 +21,7 @@ import {
   checkOverlap,
   getOverlapPeriod
 } from '@/components/plantafel/types'
+import { syncEinsatzToZeiterfassung } from '@/lib/services/plantafelSyncService'
 
 /**
  * Berechnet Konflikte für eine Liste von Events
@@ -286,7 +287,21 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
-    const { mitarbeiterId, projektId, von, bis, rolle, geplantStunden, notizen, bestaetigt } = body
+    const { 
+      mitarbeiterId, 
+      projektId, 
+      von, 
+      bis, 
+      rolle, 
+      geplantStunden, 
+      notizen, 
+      bestaetigt,
+      // Aufbau/Abbau-Zeiten
+      aufbauVon,
+      aufbauBis,
+      abbauVon,
+      abbauBis
+    } = body
     
     // Validierung
     if (!mitarbeiterId || !projektId || !von || !bis) {
@@ -348,6 +363,11 @@ export async function POST(request: NextRequest) {
       geplantStunden: geplantStunden || undefined,
       notizen: notizen || undefined,
       bestaetigt: bestaetigt || false,
+      // Aufbau/Abbau-Zeiten
+      aufbauVon: aufbauVon || undefined,
+      aufbauBis: aufbauBis || undefined,
+      abbauVon: abbauVon || undefined,
+      abbauBis: abbauBis || undefined,
       erstelltAm: new Date(),
       zuletztGeaendert: new Date()
     }
@@ -355,12 +375,21 @@ export async function POST(request: NextRequest) {
     const result = await db.collection<Einsatz>('einsatz')
       .insertOne(neuerEinsatz as any)
     
+    // NEU: Sync zu Zeiterfassung wenn bestätigt
+    const erstellterEinsatz: Einsatz = {
+      ...neuerEinsatz,
+      _id: result.insertedId.toString()
+    }
+    
+    let syncResult = { created: 0, deleted: 0 }
+    if (erstellterEinsatz.bestaetigt) {
+      syncResult = await syncEinsatzToZeiterfassung(erstellterEinsatz, db)
+    }
+    
     return NextResponse.json({
       erfolg: true,
-      einsatz: {
-        ...neuerEinsatz,
-        _id: result.insertedId.toString()
-      }
+      einsatz: erstellterEinsatz,
+      zeiterfassungSync: syncResult
     }, { status: 201 })
     
   } catch (error) {

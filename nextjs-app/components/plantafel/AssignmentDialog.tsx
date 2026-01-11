@@ -44,6 +44,11 @@ interface AssignmentFormData {
   geplantStunden: number
   notizen: string
   bestaetigt: boolean
+  // Aufbau/Abbau-Zeiten (optional)
+  aufbauVon: string
+  aufbauBis: string
+  abbauVon: string
+  abbauBis: string
 }
 
 const defaultFormData: AssignmentFormData = {
@@ -54,7 +59,11 @@ const defaultFormData: AssignmentFormData = {
   rolle: '',
   geplantStunden: 0,
   notizen: '',
-  bestaetigt: false
+  bestaetigt: false,
+  aufbauVon: '',
+  aufbauBis: '',
+  abbauVon: '',
+  abbauBis: ''
 }
 
 export default function AssignmentDialog() {
@@ -102,10 +111,14 @@ export default function AssignmentDialog() {
         projektId: selectedEvent.projektId || '',
         von,
         bis,
-        rolle: '',
+        rolle: selectedEvent.rolle || '',
         geplantStunden: calculateHours(von, bis),
         notizen: selectedEvent.notes || '',
-        bestaetigt: selectedEvent.bestaetigt || false
+        bestaetigt: selectedEvent.bestaetigt || false,
+        aufbauVon: selectedEvent.aufbauVon || '',
+        aufbauBis: selectedEvent.aufbauBis || '',
+        abbauVon: selectedEvent.abbauVon || '',
+        abbauBis: selectedEvent.abbauBis || ''
       })
     } else if (dialogMode === 'create' && selectedSlot) {
       // Erstellen: Slot-Daten vorausfüllen
@@ -164,6 +177,20 @@ export default function AssignmentDialog() {
     }
     
     try {
+      // Aufbau/Abbau validieren (wenn gesetzt)
+      if (formData.aufbauVon && formData.aufbauBis) {
+        if (formData.aufbauVon >= formData.aufbauBis) {
+          toast.error('Aufbau: Startzeit muss vor Endzeit liegen')
+          return
+        }
+      }
+      if (formData.abbauVon && formData.abbauBis) {
+        if (formData.abbauVon >= formData.abbauBis) {
+          toast.error('Abbau: Startzeit muss vor Endzeit liegen')
+          return
+        }
+      }
+      
       if (dialogMode === 'create') {
         await createMutation.mutateAsync({
           mitarbeiterId: formData.mitarbeiterId,
@@ -173,9 +200,16 @@ export default function AssignmentDialog() {
           rolle: formData.rolle || undefined,
           geplantStunden: formData.geplantStunden || undefined,
           notizen: formData.notizen || undefined,
-          bestaetigt: formData.bestaetigt
+          bestaetigt: formData.bestaetigt,
+          // Aufbau/Abbau-Zeiten
+          aufbauVon: formData.aufbauVon || undefined,
+          aufbauBis: formData.aufbauBis || undefined,
+          abbauVon: formData.abbauVon || undefined,
+          abbauBis: formData.abbauBis || undefined
         })
-        toast.success('Einsatz erfolgreich erstellt')
+        toast.success(formData.bestaetigt 
+          ? 'Einsatz erstellt und Zeiterfassungen angelegt' 
+          : 'Einsatz erfolgreich erstellt')
       } else if (selectedEvent) {
         // Extrahiere die echte ID aus der Event-ID (z.B. "einsatz-123" -> "123")
         const realId = selectedEvent.sourceId
@@ -190,10 +224,17 @@ export default function AssignmentDialog() {
             rolle: formData.rolle || undefined,
             geplantStunden: formData.geplantStunden || undefined,
             notizen: formData.notizen || undefined,
-            bestaetigt: formData.bestaetigt
+            bestaetigt: formData.bestaetigt,
+            // Aufbau/Abbau-Zeiten
+            aufbauVon: formData.aufbauVon || undefined,
+            aufbauBis: formData.aufbauBis || undefined,
+            abbauVon: formData.abbauVon || undefined,
+            abbauBis: formData.abbauBis || undefined
           }
         })
-        toast.success('Einsatz erfolgreich aktualisiert')
+        toast.success(formData.bestaetigt 
+          ? 'Einsatz aktualisiert und Zeiterfassungen synchronisiert' 
+          : 'Einsatz erfolgreich aktualisiert')
       }
       
       closeDialog()
@@ -345,6 +386,78 @@ export default function AssignmentDialog() {
               <p className="text-xs text-gray-500 mt-1">
                 Automatisch berechnet aus Zeitraum
               </p>
+            </div>
+          </div>
+          
+          {/* Separator: Aufbau/Abbau */}
+          <div className="col-span-4 border-t border-gray-200 pt-4 mt-2">
+            <p className="text-sm font-semibold text-gray-700 mb-2">
+              Aufbau/Abbau-Zeiten (optional)
+            </p>
+            <p className="text-xs text-gray-500 mb-4">
+              Bei Bestätigung werden automatisch Zeiterfassungs-Einträge erstellt
+            </p>
+          </div>
+          
+          {/* Aufbau-Zeiten */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label className="text-right text-gray-900">
+              Aufbau
+            </Label>
+            <div className="col-span-3 grid grid-cols-2 gap-2">
+              <div>
+                <Label htmlFor="aufbauVon" className="text-xs text-gray-500">Von</Label>
+                <Input
+                  id="aufbauVon"
+                  type="time"
+                  value={formData.aufbauVon}
+                  onChange={(e) => handleChange('aufbauVon', e.target.value)}
+                  className="bg-white text-gray-900"
+                  placeholder="06:00"
+                />
+              </div>
+              <div>
+                <Label htmlFor="aufbauBis" className="text-xs text-gray-500">Bis</Label>
+                <Input
+                  id="aufbauBis"
+                  type="time"
+                  value={formData.aufbauBis}
+                  onChange={(e) => handleChange('aufbauBis', e.target.value)}
+                  className="bg-white text-gray-900"
+                  placeholder="08:00"
+                />
+              </div>
+            </div>
+          </div>
+          
+          {/* Abbau-Zeiten */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label className="text-right text-gray-900">
+              Abbau
+            </Label>
+            <div className="col-span-3 grid grid-cols-2 gap-2">
+              <div>
+                <Label htmlFor="abbauVon" className="text-xs text-gray-500">Von</Label>
+                <Input
+                  id="abbauVon"
+                  type="time"
+                  value={formData.abbauVon}
+                  onChange={(e) => handleChange('abbauVon', e.target.value)}
+                  className="bg-white text-gray-900"
+                  placeholder="16:00"
+                />
+              </div>
+              <div>
+                <Label htmlFor="abbauBis" className="text-xs text-gray-500">Bis</Label>
+                <Input
+                  id="abbauBis"
+                  type="time"
+                  value={formData.abbauBis}
+                  onChange={(e) => handleChange('abbauBis', e.target.value)}
+                  className="bg-white text-gray-900"
+                  placeholder="18:00"
+                />
+              </div>
             </div>
           </div>
           

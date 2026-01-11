@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db/client'
 import { Einsatz, Mitarbeiter, Projekt } from '@/lib/db/types'
 import { ObjectId } from 'mongodb'
+import { syncEinsatzToZeiterfassung, deleteZeiterfassungenForEinsatz } from '@/lib/services/plantafelSyncService'
 
 /**
  * PATCH /api/plantafel/assignments/[id]
@@ -31,7 +32,21 @@ export async function PATCH(
     }
     
     const body = await request.json()
-    const { mitarbeiterId, projektId, von, bis, rolle, geplantStunden, notizen, bestaetigt } = body
+    const { 
+      mitarbeiterId, 
+      projektId, 
+      von, 
+      bis, 
+      rolle, 
+      geplantStunden, 
+      notizen, 
+      bestaetigt,
+      // Aufbau/Abbau-Zeiten
+      aufbauVon,
+      aufbauBis,
+      abbauVon,
+      abbauBis
+    } = body
     
     const db = await getDatabase()
     const einsatzCollection = db.collection<Einsatz>('einsatz')
@@ -122,6 +137,12 @@ export async function PATCH(
     if (notizen !== undefined) updateData.notizen = notizen
     if (bestaetigt !== undefined) updateData.bestaetigt = bestaetigt
     
+    // Aufbau/Abbau-Zeiten
+    if (aufbauVon !== undefined) updateData.aufbauVon = aufbauVon || undefined
+    if (aufbauBis !== undefined) updateData.aufbauBis = aufbauBis || undefined
+    if (abbauVon !== undefined) updateData.abbauVon = abbauVon || undefined
+    if (abbauBis !== undefined) updateData.abbauBis = abbauBis || undefined
+    
     // Update durchführen
     const result = await einsatzCollection.updateOne(
       { _id: new ObjectId(id) },
@@ -138,12 +159,31 @@ export async function PATCH(
     // Lade aktualisierten Einsatz
     const updatedEinsatz = await einsatzCollection.findOne({ _id: new ObjectId(id) })
     
+    // NEU: Sync zu Zeiterfassung
+    let syncResult = { created: 0, deleted: 0 }
+    if (updatedEinsatz) {
+      const einsatzWithId: Einsatz = {
+        ...updatedEinsatz,
+        _id: updatedEinsatz._id?.toString()
+      }
+      
+      if (einsatzWithId.bestaetigt) {
+        // Bestätigt: Zeiterfassungen erstellen/aktualisieren
+        syncResult = await syncEinsatzToZeiterfassung(einsatzWithId, db)
+      } else {
+        // Nicht mehr bestätigt: Zeiterfassungen löschen
+        const deletedCount = await deleteZeiterfassungenForEinsatz(id, db)
+        syncResult = { created: 0, deleted: deletedCount }
+      }
+    }
+    
     return NextResponse.json({
       erfolg: true,
       einsatz: {
         ...updatedEinsatz,
         _id: updatedEinsatz?._id?.toString()
-      }
+      },
+      zeiterfassungSync: syncResult
     })
     
   } catch (error) {
@@ -177,6 +217,9 @@ export async function DELETE(
     const db = await getDatabase()
     const einsatzCollection = db.collection<Einsatz>('einsatz')
     
+    // NEU: Zuerst verknüpfte Zeiterfassungen löschen
+    const deletedZeiterfassungen = await deleteZeiterfassungenForEinsatz(id, db)
+    
     const result = await einsatzCollection.deleteOne({ _id: new ObjectId(id) })
     
     if (result.deletedCount === 0) {
@@ -188,7 +231,8 @@ export async function DELETE(
     
     return NextResponse.json({
       erfolg: true,
-      message: 'Einsatz erfolgreich gelöscht'
+      message: 'Einsatz erfolgreich gelöscht',
+      zeiterfassungenGeloescht: deletedZeiterfassungen
     })
     
   } catch (error) {
