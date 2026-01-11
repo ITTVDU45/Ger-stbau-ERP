@@ -89,25 +89,42 @@ export default function AssignmentDialog() {
     return (formData.stundenAufbau || 0) + (formData.stundenAbbau || 0)
   }
   
-  // Berechne den Einsatz-Zeitraum aus Aufbau/Abbau-Daten
-  const getEinsatzZeitraum = () => {
-    const dates: Date[] = []
+  // Berechne den Aufbau-Zeitraum (NUR Aufbau-Tage, nicht Abbau!)
+  const getAufbauZeitraum = () => {
+    if (!formData.aufbauVon) return { von: null, bis: null }
     
-    if (formData.aufbauVon) dates.push(new Date(formData.aufbauVon))
-    if (formData.aufbauBis) dates.push(new Date(formData.aufbauBis))
-    if (formData.abbauVon) dates.push(new Date(formData.abbauVon))
-    if (formData.abbauBis) dates.push(new Date(formData.abbauBis))
-    
-    if (dates.length === 0) return { von: null, bis: null }
-    
-    const von = new Date(Math.min(...dates.map(d => d.getTime())))
-    const bis = new Date(Math.max(...dates.map(d => d.getTime())))
+    const von = new Date(formData.aufbauVon)
+    const bis = formData.aufbauBis ? new Date(formData.aufbauBis) : new Date(formData.aufbauVon)
     
     // Setze Zeit auf 08:00 bzw. 17:00
     von.setHours(8, 0, 0, 0)
     bis.setHours(17, 0, 0, 0)
     
     return { von, bis }
+  }
+  
+  // Berechne den Abbau-Zeitraum (nur wenn abbauVon gesetzt)
+  const getAbbauZeitraum = () => {
+    if (!formData.abbauVon) return { von: null, bis: null }
+    
+    const von = new Date(formData.abbauVon)
+    const bis = formData.abbauBis ? new Date(formData.abbauBis) : new Date(formData.abbauVon)
+    
+    // Setze Zeit auf 08:00 bzw. 17:00
+    von.setHours(8, 0, 0, 0)
+    bis.setHours(17, 0, 0, 0)
+    
+    return { von, bis }
+  }
+  
+  // Prüfe ob Abbau an anderen Tagen als Aufbau ist
+  const istAbbauSeparat = (): boolean => {
+    if (!formData.abbauVon || !formData.aufbauVon) return false
+    
+    const aufbauEnd = formData.aufbauBis || formData.aufbauVon
+    
+    // Abbau ist separat wenn abbauVon > aufbauBis (oder aufbauVon)
+    return new Date(formData.abbauVon) > new Date(aufbauEnd)
   }
   
   // Formular initialisieren
@@ -190,39 +207,69 @@ export default function AssignmentDialog() {
         }
       }
       
-      // Berechne automatisch den Einsatz-Zeitraum aus Aufbau/Abbau
-      const { von, bis } = getEinsatzZeitraum()
-      if (!von || !bis) {
-        toast.error('Konnte Einsatz-Zeitraum nicht berechnen')
+      // Berechne Aufbau-Zeitraum
+      const aufbauZeitraum = getAufbauZeitraum()
+      if (!aufbauZeitraum.von || !aufbauZeitraum.bis) {
+        toast.error('Bitte geben Sie ein Aufbau-Startdatum an')
         return
       }
       
-      const payload = {
+      // Prüfe ob Abbau an separaten Tagen ist
+      const abbauSeparat = istAbbauSeparat()
+      const abbauZeitraum = abbauSeparat ? getAbbauZeitraum() : { von: null, bis: null }
+      
+      // Payload für Aufbau-Einsatz
+      const aufbauPayload = {
         mitarbeiterId: formData.mitarbeiterId,
         projektId: formData.projektId,
-        von: von.toISOString(),
-        bis: bis.toISOString(),
+        von: aufbauZeitraum.von.toISOString(),
+        bis: aufbauZeitraum.bis.toISOString(),
         rolle: formData.rolle || undefined,
-        geplantStunden: getGesamtStunden() || undefined,
-        notizen: formData.notizen || undefined,
+        geplantStunden: formData.stundenAufbau || undefined,
+        notizen: formData.notizen ? `Aufbau - ${formData.notizen}` : 'Aufbau',
         bestaetigt: formData.bestaetigt,
-        // Aufbau/Abbau-Planung (Datum + Stunden)
+        // Aufbau-Planung
         aufbauVon: formData.aufbauVon || undefined,
         aufbauBis: formData.aufbauBis || undefined,
         stundenAufbau: formData.stundenAufbau || undefined,
-        abbauVon: formData.abbauVon || undefined,
-        abbauBis: formData.abbauBis || undefined,
-        stundenAbbau: formData.stundenAbbau || undefined
+        // Abbau nur wenn NICHT separat
+        abbauVon: abbauSeparat ? undefined : (formData.abbauVon || undefined),
+        abbauBis: abbauSeparat ? undefined : (formData.abbauBis || undefined),
+        stundenAbbau: abbauSeparat ? undefined : (formData.stundenAbbau || undefined)
       }
       
       if (dialogMode === 'create') {
-        await createMutation.mutateAsync(payload)
-        toast.success(formData.bestaetigt 
-          ? 'Einsatz erstellt und Zeiterfassungen angelegt' 
-          : 'Einsatz erfolgreich erstellt')
+        // 1. Aufbau-Einsatz erstellen
+        await createMutation.mutateAsync(aufbauPayload)
+        
+        // 2. Wenn Abbau separat, zweiten Einsatz erstellen
+        if (abbauSeparat && abbauZeitraum.von && abbauZeitraum.bis && formData.stundenAbbau > 0) {
+          const abbauPayload = {
+            mitarbeiterId: formData.mitarbeiterId,
+            projektId: formData.projektId,
+            von: abbauZeitraum.von.toISOString(),
+            bis: abbauZeitraum.bis.toISOString(),
+            rolle: formData.rolle || undefined,
+            geplantStunden: formData.stundenAbbau || undefined,
+            notizen: formData.notizen ? `Abbau - ${formData.notizen}` : 'Abbau',
+            bestaetigt: formData.bestaetigt,
+            // Abbau-Planung
+            abbauVon: formData.abbauVon || undefined,
+            abbauBis: formData.abbauBis || undefined,
+            stundenAbbau: formData.stundenAbbau || undefined
+          }
+          await createMutation.mutateAsync(abbauPayload)
+          toast.success(formData.bestaetigt 
+            ? '2 Einsätze erstellt (Aufbau + Abbau) mit Zeiterfassungen' 
+            : '2 Einsätze erstellt (Aufbau + Abbau)')
+        } else {
+          toast.success(formData.bestaetigt 
+            ? 'Einsatz erstellt und Zeiterfassungen angelegt' 
+            : 'Einsatz erfolgreich erstellt')
+        }
       } else if (selectedEvent) {
         const realId = selectedEvent.sourceId
-        await updateMutation.mutateAsync({ id: realId, data: payload })
+        await updateMutation.mutateAsync({ id: realId, data: aufbauPayload })
         toast.success(formData.bestaetigt 
           ? 'Einsatz aktualisiert und Zeiterfassungen synchronisiert' 
           : 'Einsatz erfolgreich aktualisiert')
@@ -436,8 +483,13 @@ export default function AssignmentDialog() {
                 </span>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                (Aufbau: {formData.stundenAufbau || 0} + Abbau: {formData.stundenAbbau || 0})
+                (Aufbau: {formData.stundenAufbau || 0}h + Abbau: {formData.stundenAbbau || 0}h)
               </p>
+              {istAbbauSeparat() && formData.stundenAbbau > 0 && (
+                <p className="text-xs text-blue-600 mt-2 font-medium">
+                  ℹ️ Abbau an anderem Tag → 2 separate Einträge werden erstellt
+                </p>
+              )}
             </div>
           </div>
           
