@@ -14,7 +14,7 @@ import {
   PlantafelResource,
   PlantafelView,
   ConflictInfo,
-  mapEinsatzToEvent,
+  mapEinsatzToEvents,
   mapUrlaubToEvent,
   mapMitarbeiterToResource,
   mapProjektToResource,
@@ -235,23 +235,23 @@ export async function GET(request: NextRequest) {
       }))
     }
     
-    // Mappe Events
-    const events: PlantafelEvent[] = [
-      ...einsaetze.map(e => ({
-        ...mapEinsatzToEvent({
-          ...e,
-          _id: e._id?.toString()
-        }, view),
-        resourceId: view === 'team' ? e.mitarbeiterId : e.projektId
-      })),
-      ...urlaube.map(u => ({
-        ...mapUrlaubToEvent({
-          ...u,
-          _id: u._id?.toString()
-        }),
-        resourceId: u.mitarbeiterId
-      }))
-    ]
+    // Mappe Events - mapEinsatzToEvents gibt Array zurück (Aufbau + Abbau separat)
+    const einsatzEvents = einsaetze.flatMap(e => 
+      mapEinsatzToEvents({
+        ...e,
+        _id: e._id?.toString()
+      }, view)
+    )
+    
+    const urlaubEvents = urlaube.map(u => ({
+      ...mapUrlaubToEvent({
+        ...u,
+        _id: u._id?.toString()
+      }),
+      resourceId: u.mitarbeiterId
+    }))
+    
+    const events: PlantafelEvent[] = [...einsatzEvents, ...urlaubEvents]
     
     // Berechne Konflikte
     const conflicts = calculateConflicts(events)

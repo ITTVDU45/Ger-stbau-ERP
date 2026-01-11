@@ -229,7 +229,7 @@ export interface ConflictsResponse {
 // ============================================================================
 
 /**
- * Mappt einen Einsatz auf ein PlantafelEvent
+ * Mappt einen Einsatz auf ein PlantafelEvent (Legacy - für Abwärtskompatibilität)
  */
 export function mapEinsatzToEvent(einsatz: Einsatz, view: PlantafelView): PlantafelEvent {
   return {
@@ -261,6 +261,87 @@ export function mapEinsatzToEvent(einsatz: Einsatz, view: PlantafelView): Planta
     abbauBis: einsatz.abbauBis ? new Date(einsatz.abbauBis) : undefined,
     stundenAbbau: einsatz.stundenAbbau
   }
+}
+
+/**
+ * Mappt einen Einsatz auf mehrere PlantafelEvents (Aufbau + Abbau separat)
+ * Wenn Aufbau und Abbau an verschiedenen Tagen sind, werden 2 Events erstellt
+ */
+export function mapEinsatzToEvents(einsatz: Einsatz, view: PlantafelView): PlantafelEvent[] {
+  const events: PlantafelEvent[] = []
+  const baseTitle = view === 'team' ? einsatz.projektName : einsatz.mitarbeiterName
+  const resourceId = view === 'team' ? einsatz.mitarbeiterId : einsatz.projektId
+  
+  const baseEvent = {
+    type: 'einsatz' as PlantafelEventType,
+    sourceType: 'einsatz' as const,
+    sourceId: einsatz._id || '',
+    mitarbeiterId: einsatz.mitarbeiterId,
+    mitarbeiterName: einsatz.mitarbeiterName,
+    projektId: einsatz.projektId,
+    projektName: einsatz.projektName,
+    notes: einsatz.notizen,
+    bestaetigt: einsatz.bestaetigt,
+    rolle: einsatz.rolle,
+    hasConflict: false,
+    // Alle Aufbau/Abbau-Daten für Dialog
+    aufbauVon: einsatz.aufbauVon ? new Date(einsatz.aufbauVon) : undefined,
+    aufbauBis: einsatz.aufbauBis ? new Date(einsatz.aufbauBis) : undefined,
+    stundenAufbau: einsatz.stundenAufbau,
+    abbauVon: einsatz.abbauVon ? new Date(einsatz.abbauVon) : undefined,
+    abbauBis: einsatz.abbauBis ? new Date(einsatz.abbauBis) : undefined,
+    stundenAbbau: einsatz.stundenAbbau
+  }
+  
+  // Prüfe ob Aufbau vorhanden
+  if (einsatz.aufbauVon && einsatz.stundenAufbau && einsatz.stundenAufbau > 0) {
+    const aufbauStart = new Date(einsatz.aufbauVon)
+    aufbauStart.setHours(8, 0, 0, 0)
+    const aufbauEnd = einsatz.aufbauBis ? new Date(einsatz.aufbauBis) : new Date(einsatz.aufbauVon)
+    aufbauEnd.setHours(17, 0, 0, 0)
+    
+    events.push({
+      ...baseEvent,
+      id: `einsatz-${einsatz._id}-aufbau`,
+      title: `${baseTitle} (Aufbau)`,
+      start: aufbauStart,
+      end: aufbauEnd,
+      resourceId,
+      color: '#3b82f6' // Blau für Aufbau
+    })
+  }
+  
+  // Prüfe ob Abbau vorhanden und an anderem Tag
+  if (einsatz.abbauVon && einsatz.stundenAbbau && einsatz.stundenAbbau > 0) {
+    const abbauStart = new Date(einsatz.abbauVon)
+    abbauStart.setHours(8, 0, 0, 0)
+    const abbauEnd = einsatz.abbauBis ? new Date(einsatz.abbauBis) : new Date(einsatz.abbauVon)
+    abbauEnd.setHours(17, 0, 0, 0)
+    
+    events.push({
+      ...baseEvent,
+      id: `einsatz-${einsatz._id}-abbau`,
+      title: `${baseTitle} (Abbau)`,
+      start: abbauStart,
+      end: abbauEnd,
+      resourceId,
+      color: '#22c55e' // Grün für Abbau
+    })
+  }
+  
+  // Fallback: Wenn keine Aufbau/Abbau-Daten, nutze Gesamt-Zeitraum
+  if (events.length === 0) {
+    events.push({
+      ...baseEvent,
+      id: `einsatz-${einsatz._id}`,
+      title: baseTitle,
+      start: new Date(einsatz.von),
+      end: new Date(einsatz.bis),
+      resourceId
+    })
+  }
+  
+  return events
 }
 
 /**
