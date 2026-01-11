@@ -402,6 +402,10 @@ export default function PlantafelBoard() {
               step={30}
               timeslots={2}
               
+              // Popup für "+X weitere" in Monatsansicht
+              popup
+              popupOffset={{ x: 0, y: -10 }}
+              
               // Drag & Drop
               draggableAccessor={() => true}
               resizableAccessor={(event) => event.sourceType === 'einsatz'}
