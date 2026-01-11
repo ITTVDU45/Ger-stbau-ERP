@@ -45,6 +45,24 @@ const localizer = dateFnsLocalizer({
   locales,
 })
 
+// Deutsche Formate für Kalender-Header
+const formats = {
+  dayFormat: (date: Date, culture: string | undefined, localizer: any) =>
+    localizer.format(date, 'EEE dd.MM.', culture),
+  dayHeaderFormat: (date: Date, culture: string | undefined, localizer: any) =>
+    localizer.format(date, 'EEEE, dd. MMMM', culture),
+  dayRangeHeaderFormat: ({ start, end }: { start: Date; end: Date }, culture: string | undefined, localizer: any) =>
+    `${localizer.format(start, 'dd.MM.', culture)} – ${localizer.format(end, 'dd.MM.yyyy', culture)}`,
+  weekdayFormat: (date: Date, culture: string | undefined, localizer: any) =>
+    localizer.format(date, 'EEE', culture),
+  monthHeaderFormat: (date: Date, culture: string | undefined, localizer: any) =>
+    localizer.format(date, 'MMMM yyyy', culture),
+  timeGutterFormat: (date: Date, culture: string | undefined, localizer: any) =>
+    localizer.format(date, 'HH:mm', culture),
+  eventTimeRangeFormat: ({ start, end }: { start: Date; end: Date }, culture: string | undefined, localizer: any) =>
+    `${localizer.format(start, 'HH:mm', culture)} – ${localizer.format(end, 'HH:mm', culture)}`,
+}
+
 // ============================================================================
 // DRAG & DROP CALENDAR
 // ============================================================================
@@ -338,6 +356,10 @@ export default function PlantafelBoard() {
                 resourceHeader
               }}
               
+              // Deutsche Datumsformate
+              formats={formats}
+              culture="de"
+              
               // Arbeitszeit-Bereich
               min={new Date(0, 0, 0, 7, 0, 0)} // 07:00
               max={new Date(0, 0, 0, 18, 0, 0)} // 18:00
@@ -367,7 +389,7 @@ export default function PlantafelBoard() {
               draggableAccessor={() => true}
               resizableAccessor={(event) => event.sourceType === 'einsatz'}
               
-              style={{ height: '100%' }}
+              style={{ height: '100%', minWidth: '800px' }}
             />
           )}
         </div>

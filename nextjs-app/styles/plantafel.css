@@ -37,16 +37,33 @@
 .rbc-header {
   padding: 12px 8px;
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: #374151; /* gray-700 */
   background: #f9fafb; /* gray-50 */
   border-bottom: 1px solid #e5e7eb; /* gray-200 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 80px;
 }
 
 .dark .rbc-header {
   color: #e2e8f0;
   background: #334155; /* slate-700 */
   border-color: #475569;
+}
+
+/* Zeit-Header (Tage-Zeile) */
+.rbc-time-header-cell {
+  min-width: 100px;
+}
+
+.rbc-time-header-content {
+  min-width: 100px;
+}
+
+.rbc-row-bg .rbc-day-bg {
+  min-width: 100px;
 }
 
 /* Arbeitszeit-Bereich */
