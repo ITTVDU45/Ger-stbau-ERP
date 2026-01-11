@@ -389,28 +389,30 @@ export default function TimelineView({
             <AlertDialogTitle className="text-center text-gray-900">
               Einsatz löschen
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-center text-gray-600">
-              {eventToDelete && (
-                <div className="space-y-2 mt-2">
-                  <p>Möchten Sie diesen Einsatz wirklich löschen?</p>
-                  <div className="bg-gray-50 rounded-lg p-3 mt-3 text-left">
-                    <p className="font-medium text-gray-900">{eventToDelete.title}</p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {format(eventToDelete.start, 'dd.MM.yyyy', { locale: de })}
-                      {!isSameDay(eventToDelete.start, eventToDelete.end) && (
-                        <> - {format(eventToDelete.end, 'dd.MM.yyyy', { locale: de })}</>
-                      )}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {format(eventToDelete.start, 'HH:mm')} - {format(eventToDelete.end, 'HH:mm')} Uhr
-                    </p>
+            <AlertDialogDescription asChild>
+              <div className="text-center text-gray-600">
+                {eventToDelete && (
+                  <div className="space-y-2 mt-2">
+                    <span className="block">Möchten Sie diesen Einsatz wirklich löschen?</span>
+                    <div className="bg-gray-50 rounded-lg p-3 mt-3 text-left">
+                      <span className="block font-medium text-gray-900">{eventToDelete.title}</span>
+                      <span className="block text-sm text-gray-500 mt-1">
+                        {format(eventToDelete.start, 'dd.MM.yyyy', { locale: de })}
+                        {!isSameDay(eventToDelete.start, eventToDelete.end) && (
+                          <> - {format(eventToDelete.end, 'dd.MM.yyyy', { locale: de })}</>
+                        )}
+                      </span>
+                      <span className="block text-sm text-gray-500">
+                        {format(eventToDelete.start, 'HH:mm')} - {format(eventToDelete.end, 'HH:mm')} Uhr
+                      </span>
+                    </div>
+                    <span className="text-sm text-amber-600 flex items-center justify-center gap-1 mt-3">
+                      <AlertTriangle className="h-4 w-4" />
+                      Diese Aktion kann nicht rückgängig gemacht werden.
+                    </span>
                   </div>
-                  <p className="text-sm text-amber-600 flex items-center gap-1 mt-3">
-                    <AlertTriangle className="h-4 w-4" />
-                    Diese Aktion kann nicht rückgängig gemacht werden.
-                  </p>
-                </div>
-              )}
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-4">
