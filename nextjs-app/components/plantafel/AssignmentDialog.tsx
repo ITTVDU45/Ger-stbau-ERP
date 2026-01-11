@@ -77,6 +77,20 @@ export default function AssignmentDialog() {
   const [formData, setFormData] = useState<AssignmentFormData>(defaultFormData)
   const [isDeleting, setIsDeleting] = useState(false)
   
+  // Berechne Stunden aus Von/Bis
+  const calculateHours = (von: string, bis: string): number => {
+    if (!von || !bis) return 0
+    try {
+      const vonDate = new Date(von)
+      const bisDate = new Date(bis)
+      const diffMs = bisDate.getTime() - vonDate.getTime()
+      const diffHours = diffMs / (1000 * 60 * 60)
+      return Math.max(0, Math.round(diffHours * 2) / 2) // Runde auf 0.5 Stunden
+    } catch {
+      return 0
+    }
+  }
+  
   // Formular initialisieren
   useEffect(() => {
     if (dialogMode === 'edit' && selectedEvent) {
@@ -110,16 +124,6 @@ export default function AssignmentDialog() {
       setFormData(defaultFormData)
     }
   }, [dialogMode, selectedEvent, selectedSlot, view])
-  
-  // Berechne Stunden aus Von/Bis
-  const calculateHours = (von: string, bis: string): number => {
-    if (!von || !bis) return 0
-    const vonDate = new Date(von)
-    const bisDate = new Date(bis)
-    const diffMs = bisDate.getTime() - vonDate.getTime()
-    const diffHours = diffMs / (1000 * 60 * 60)
-    return Math.max(0, Math.round(diffHours * 2) / 2) // Runde auf 0.5 Stunden
-  }
   
   const handleChange = (field: keyof AssignmentFormData, value: any) => {
     setFormData(prev => {
