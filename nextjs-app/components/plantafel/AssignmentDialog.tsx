@@ -41,12 +41,17 @@ interface AssignmentFormData {
   rolle: string
   notizen: string
   bestaetigt: boolean
-  // Aufbau/Abbau-Planung (wie MitarbeiterZuweisenDialog)
-  aufbauVon: string // date (Pflicht)
-  aufbauBis: string // date (optional)
+  // Aufbau-Planung (Datum + Uhrzeit)
+  aufbauVonDatum: string  // date
+  aufbauVonZeit: string   // time (z.B. "08:00")
+  aufbauBisDatum: string  // date (optional)
+  aufbauBisZeit: string   // time (optional)
   stundenAufbau: number
-  abbauVon: string  // date (optional)
-  abbauBis: string  // date (optional)
+  // Abbau-Planung (Datum + Uhrzeit)
+  abbauVonDatum: string   // date (optional)
+  abbauVonZeit: string    // time (optional)
+  abbauBisDatum: string   // date (optional)
+  abbauBisZeit: string    // time (optional)
   stundenAbbau: number
 }
 
@@ -56,11 +61,15 @@ const defaultFormData: AssignmentFormData = {
   rolle: '',
   notizen: '',
   bestaetigt: false,
-  aufbauVon: new Date().toISOString().split('T')[0], // Heute als Standard
-  aufbauBis: '',
+  aufbauVonDatum: new Date().toISOString().split('T')[0],
+  aufbauVonZeit: '08:00',
+  aufbauBisDatum: '',
+  aufbauBisZeit: '17:00',
   stundenAufbau: 0,
-  abbauVon: '',
-  abbauBis: '',
+  abbauVonDatum: '',
+  abbauVonZeit: '08:00',
+  abbauBisDatum: '',
+  abbauBisZeit: '17:00',
   stundenAbbau: 0
 }
 
@@ -89,42 +98,49 @@ export default function AssignmentDialog() {
     return (formData.stundenAufbau || 0) + (formData.stundenAbbau || 0)
   }
   
-  // Berechne den Aufbau-Zeitraum (NUR Aufbau-Tage, nicht Abbau!)
+  // Kombiniere Datum und Zeit zu einem Date-Objekt
+  const combineDateAndTime = (datum: string, zeit: string): Date | null => {
+    if (!datum) return null
+    const date = new Date(datum)
+    if (zeit) {
+      const [hours, minutes] = zeit.split(':').map(Number)
+      date.setHours(hours || 8, minutes || 0, 0, 0)
+    } else {
+      date.setHours(8, 0, 0, 0)
+    }
+    return date
+  }
+  
+  // Berechne den Aufbau-Zeitraum mit Uhrzeiten
   const getAufbauZeitraum = () => {
-    if (!formData.aufbauVon) return { von: null, bis: null }
+    if (!formData.aufbauVonDatum) return { von: null, bis: null }
     
-    const von = new Date(formData.aufbauVon)
-    const bis = formData.aufbauBis ? new Date(formData.aufbauBis) : new Date(formData.aufbauVon)
-    
-    // Setze Zeit auf 08:00 bzw. 17:00
-    von.setHours(8, 0, 0, 0)
-    bis.setHours(17, 0, 0, 0)
+    const von = combineDateAndTime(formData.aufbauVonDatum, formData.aufbauVonZeit)
+    const bisDatum = formData.aufbauBisDatum || formData.aufbauVonDatum
+    const bis = combineDateAndTime(bisDatum, formData.aufbauBisZeit || formData.aufbauVonZeit)
     
     return { von, bis }
   }
   
-  // Berechne den Abbau-Zeitraum (nur wenn abbauVon gesetzt)
+  // Berechne den Abbau-Zeitraum mit Uhrzeiten
   const getAbbauZeitraum = () => {
-    if (!formData.abbauVon) return { von: null, bis: null }
+    if (!formData.abbauVonDatum) return { von: null, bis: null }
     
-    const von = new Date(formData.abbauVon)
-    const bis = formData.abbauBis ? new Date(formData.abbauBis) : new Date(formData.abbauVon)
-    
-    // Setze Zeit auf 08:00 bzw. 17:00
-    von.setHours(8, 0, 0, 0)
-    bis.setHours(17, 0, 0, 0)
+    const von = combineDateAndTime(formData.abbauVonDatum, formData.abbauVonZeit)
+    const bisDatum = formData.abbauBisDatum || formData.abbauVonDatum
+    const bis = combineDateAndTime(bisDatum, formData.abbauBisZeit || formData.abbauVonZeit)
     
     return { von, bis }
   }
   
   // Prüfe ob Abbau an anderen Tagen als Aufbau ist
   const istAbbauSeparat = (): boolean => {
-    if (!formData.abbauVon || !formData.aufbauVon) return false
+    if (!formData.abbauVonDatum || !formData.aufbauVonDatum) return false
     
-    const aufbauEnd = formData.aufbauBis || formData.aufbauVon
+    const aufbauEnd = formData.aufbauBisDatum || formData.aufbauVonDatum
     
     // Abbau ist separat wenn abbauVon > aufbauBis (oder aufbauVon)
-    return new Date(formData.abbauVon) > new Date(aufbauEnd)
+    return new Date(formData.abbauVonDatum) > new Date(aufbauEnd)
   }
   
   // Formular initialisieren
@@ -137,29 +153,42 @@ export default function AssignmentDialog() {
         rolle: selectedEvent.rolle || '',
         notizen: selectedEvent.notes || '',
         bestaetigt: selectedEvent.bestaetigt || false,
-        // Aufbau/Abbau-Planung
-        aufbauVon: selectedEvent.aufbauVon 
+        // Aufbau-Planung
+        aufbauVonDatum: selectedEvent.aufbauVon 
           ? format(new Date(selectedEvent.aufbauVon), 'yyyy-MM-dd') 
           : format(selectedEvent.start, 'yyyy-MM-dd'),
-        aufbauBis: selectedEvent.aufbauBis 
+        aufbauVonZeit: selectedEvent.aufbauVon 
+          ? format(new Date(selectedEvent.aufbauVon), 'HH:mm')
+          : '08:00',
+        aufbauBisDatum: selectedEvent.aufbauBis 
           ? format(new Date(selectedEvent.aufbauBis), 'yyyy-MM-dd') 
           : '',
+        aufbauBisZeit: selectedEvent.aufbauBis 
+          ? format(new Date(selectedEvent.aufbauBis), 'HH:mm')
+          : '17:00',
         stundenAufbau: selectedEvent.stundenAufbau || 0,
-        abbauVon: selectedEvent.abbauVon 
+        // Abbau-Planung
+        abbauVonDatum: selectedEvent.abbauVon 
           ? format(new Date(selectedEvent.abbauVon), 'yyyy-MM-dd') 
           : '',
-        abbauBis: selectedEvent.abbauBis 
+        abbauVonZeit: selectedEvent.abbauVon 
+          ? format(new Date(selectedEvent.abbauVon), 'HH:mm')
+          : '08:00',
+        abbauBisDatum: selectedEvent.abbauBis 
           ? format(new Date(selectedEvent.abbauBis), 'yyyy-MM-dd') 
           : '',
+        abbauBisZeit: selectedEvent.abbauBis 
+          ? format(new Date(selectedEvent.abbauBis), 'HH:mm')
+          : '17:00',
         stundenAbbau: selectedEvent.stundenAbbau || 0
       })
     } else if (dialogMode === 'create' && selectedSlot) {
       // Erstellen: Slot-Daten vorausfüllen
-      const aufbauVon = format(selectedSlot.start, 'yyyy-MM-dd')
+      const aufbauVonDatum = format(selectedSlot.start, 'yyyy-MM-dd')
       
       setFormData({
         ...defaultFormData,
-        aufbauVon, // Vorausfüllen mit Startdatum
+        aufbauVonDatum, // Vorausfüllen mit Startdatum
         // Je nach View den resourceId als Mitarbeiter oder Projekt vorauswählen
         mitarbeiterId: view === 'team' ? selectedSlot.resourceId : '',
         projektId: view === 'project' ? selectedSlot.resourceId : ''
@@ -183,7 +212,7 @@ export default function AssignmentDialog() {
       toast.error('Bitte wählen Sie ein Projekt aus')
       return
     }
-    if (!formData.aufbauVon) {
+    if (!formData.aufbauVonDatum) {
       toast.error('Bitte geben Sie ein Aufbau-Startdatum an')
       return
     }
@@ -194,14 +223,14 @@ export default function AssignmentDialog() {
     
     try {
       // Aufbau/Abbau-Datum Validierung (wenn beide gesetzt)
-      if (formData.aufbauVon && formData.aufbauBis) {
-        if (new Date(formData.aufbauVon) > new Date(formData.aufbauBis)) {
+      if (formData.aufbauVonDatum && formData.aufbauBisDatum) {
+        if (new Date(formData.aufbauVonDatum) > new Date(formData.aufbauBisDatum)) {
           toast.error('Aufbau: Startdatum muss vor Enddatum liegen')
           return
         }
       }
-      if (formData.abbauVon && formData.abbauBis) {
-        if (new Date(formData.abbauVon) > new Date(formData.abbauBis)) {
+      if (formData.abbauVonDatum && formData.abbauBisDatum) {
+        if (new Date(formData.abbauVonDatum) > new Date(formData.abbauBisDatum)) {
           toast.error('Abbau: Startdatum muss vor Enddatum liegen')
           return
         }
@@ -225,6 +254,14 @@ export default function AssignmentDialog() {
       const gesamtBis = new Date(Math.max(...allDates.map(d => d.getTime())))
       
       // Ein Einsatz mit allen Daten (Aufbau + Abbau)
+      // Aufbau-Zeiten mit Datum kombinieren
+      const aufbauVonDateTime = aufbauZeitraum.von!
+      const aufbauBisDateTime = aufbauZeitraum.bis!
+      
+      // Abbau-Zeiten mit Datum kombinieren (falls vorhanden)
+      const abbauVonDateTime = abbauZeitraum.von
+      const abbauBisDateTime = abbauZeitraum.bis
+      
       const payload = {
         mitarbeiterId: formData.mitarbeiterId,
         projektId: formData.projektId,
@@ -234,13 +271,13 @@ export default function AssignmentDialog() {
         geplantStunden: getGesamtStunden() || undefined,
         notizen: formData.notizen || undefined,
         bestaetigt: formData.bestaetigt,
-        // Aufbau-Planung (immer speichern)
-        aufbauVon: formData.aufbauVon || undefined,
-        aufbauBis: formData.aufbauBis || undefined,
+        // Aufbau-Planung MIT Uhrzeiten
+        aufbauVon: aufbauVonDateTime.toISOString(),
+        aufbauBis: aufbauBisDateTime.toISOString(),
         stundenAufbau: formData.stundenAufbau || undefined,
-        // Abbau-Planung (immer speichern)
-        abbauVon: formData.abbauVon || undefined,
-        abbauBis: formData.abbauBis || undefined,
+        // Abbau-Planung MIT Uhrzeiten
+        abbauVon: abbauVonDateTime?.toISOString() || undefined,
+        abbauBis: abbauBisDateTime?.toISOString() || undefined,
         stundenAbbau: formData.stundenAbbau || undefined
       }
       
@@ -376,35 +413,61 @@ export default function AssignmentDialog() {
               Bei Bestätigung werden automatisch Zeiterfassungs-Einträge erstellt
             </p>
             
-            {/* Aufbau */}
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="space-y-2">
-                <Label className="text-gray-700 font-medium">Aufbau: Von *</Label>
-                <Input
-                  type="date"
-                  value={formData.aufbauVon}
-                  onChange={(e) => handleChange('aufbauVon', e.target.value)}
-                  className="bg-white text-gray-900 border-gray-300"
-                />
+            {/* Aufbau Datum + Uhrzeit */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <Label className="text-blue-800 font-medium flex items-center gap-2 mb-3">
+                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                Aufbau
+              </Label>
+              
+              {/* Aufbau Von: Datum + Uhrzeit */}
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="space-y-1">
+                  <Label className="text-gray-600 text-xs">Datum Von *</Label>
+                  <Input
+                    type="date"
+                    value={formData.aufbauVonDatum}
+                    onChange={(e) => handleChange('aufbauVonDatum', e.target.value)}
+                    className="bg-white text-gray-900 border-gray-300"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-gray-600 text-xs">Uhrzeit Von</Label>
+                  <Input
+                    type="time"
+                    value={formData.aufbauVonZeit}
+                    onChange={(e) => handleChange('aufbauVonZeit', e.target.value)}
+                    className="bg-white text-gray-900 border-gray-300"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-gray-700 font-medium">Aufbau: Bis (optional)</Label>
-                <Input
-                  type="date"
-                  value={formData.aufbauBis}
-                  onChange={(e) => handleChange('aufbauBis', e.target.value)}
-                  className="bg-white text-gray-900 border-gray-300"
-                />
+              
+              {/* Aufbau Bis: Datum + Uhrzeit */}
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="space-y-1">
+                  <Label className="text-gray-600 text-xs">Datum Bis (optional)</Label>
+                  <Input
+                    type="date"
+                    value={formData.aufbauBisDatum}
+                    onChange={(e) => handleChange('aufbauBisDatum', e.target.value)}
+                    className="bg-white text-gray-900 border-gray-300"
+                    placeholder="Gleich wie Von"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-gray-600 text-xs">Uhrzeit Bis</Label>
+                  <Input
+                    type="time"
+                    value={formData.aufbauBisZeit}
+                    onChange={(e) => handleChange('aufbauBisZeit', e.target.value)}
+                    className="bg-white text-gray-900 border-gray-300"
+                  />
+                </div>
               </div>
-            </div>
-            
-            {/* Stunden Aufbau/Abbau */}
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="space-y-2">
-                <Label className="text-gray-700 font-medium flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                  Stunden Aufbau
-                </Label>
+              
+              {/* Stunden Aufbau */}
+              <div className="space-y-1">
+                <Label className="text-gray-600 text-xs">Geplante Stunden</Label>
                 <Input
                   type="number"
                   min="0"
@@ -414,13 +477,63 @@ export default function AssignmentDialog() {
                   placeholder="0"
                   className="bg-white text-gray-900 border-gray-300"
                 />
-                <p className="text-xs text-gray-500">Geplante Aufbau-Stunden</p>
               </div>
-              <div className="space-y-2">
-                <Label className="text-gray-700 font-medium flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  Stunden Abbau
-                </Label>
+            </div>
+            
+            {/* Abbau Datum + Uhrzeit */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <Label className="text-green-800 font-medium flex items-center gap-2 mb-3">
+                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                Abbau (optional)
+              </Label>
+              
+              {/* Abbau Von: Datum + Uhrzeit */}
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="space-y-1">
+                  <Label className="text-gray-600 text-xs">Datum Von</Label>
+                  <Input
+                    type="date"
+                    value={formData.abbauVonDatum}
+                    onChange={(e) => handleChange('abbauVonDatum', e.target.value)}
+                    className="bg-white text-gray-900 border-gray-300"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-gray-600 text-xs">Uhrzeit Von</Label>
+                  <Input
+                    type="time"
+                    value={formData.abbauVonZeit}
+                    onChange={(e) => handleChange('abbauVonZeit', e.target.value)}
+                    className="bg-white text-gray-900 border-gray-300"
+                  />
+                </div>
+              </div>
+              
+              {/* Abbau Bis: Datum + Uhrzeit */}
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="space-y-1">
+                  <Label className="text-gray-600 text-xs">Datum Bis (optional)</Label>
+                  <Input
+                    type="date"
+                    value={formData.abbauBisDatum}
+                    onChange={(e) => handleChange('abbauBisDatum', e.target.value)}
+                    className="bg-white text-gray-900 border-gray-300"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-gray-600 text-xs">Uhrzeit Bis</Label>
+                  <Input
+                    type="time"
+                    value={formData.abbauBisZeit}
+                    onChange={(e) => handleChange('abbauBisZeit', e.target.value)}
+                    className="bg-white text-gray-900 border-gray-300"
+                  />
+                </div>
+              </div>
+              
+              {/* Stunden Abbau */}
+              <div className="space-y-1">
+                <Label className="text-gray-600 text-xs">Geplante Stunden</Label>
                 <Input
                   type="number"
                   min="0"
@@ -430,114 +543,94 @@ export default function AssignmentDialog() {
                   placeholder="0"
                   className="bg-white text-gray-900 border-gray-300"
                 />
-                <p className="text-xs text-gray-500">Geplante Abbau-Stunden</p>
               </div>
             </div>
+          </div>
             
-            {/* Abbau */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-gray-700 font-medium">Abbau: Von (optional)</Label>
-                <Input
-                  type="date"
-                  value={formData.abbauVon}
-                  onChange={(e) => handleChange('abbauVon', e.target.value)}
-                  className="bg-white text-gray-900 border-gray-300"
-                />
+            {/* Gesamt-Stunden */}
+            <div className="border-t border-gray-200 pt-4 mt-4">
+              <div className="flex justify-between items-center mb-2">
+                <Label className="text-gray-900">Gesamt geplante Stunden:</Label>
+                <span className="text-xl font-bold text-gray-900">{getGesamtStunden()} Stunden</span>
               </div>
-              <div className="space-y-2">
-                <Label className="text-gray-700 font-medium">Abbau: Bis (optional)</Label>
-                <Input
-                  type="date"
-                  value={formData.abbauBis}
-                  onChange={(e) => handleChange('abbauBis', e.target.value)}
-                  className="bg-white text-gray-900 border-gray-300"
-                />
-              </div>
-            </div>
-            
-            {/* Gesamt-Stunden Anzeige */}
-            <div className="bg-gray-50 rounded-lg p-3 mt-4">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600 text-sm">Gesamt geplante Stunden:</span>
-                <span className="font-semibold text-lg text-gray-900">
-                  {getGesamtStunden()} Stunden
-                </span>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                (Aufbau: {formData.stundenAufbau || 0}h + Abbau: {formData.stundenAbbau || 0}h)
+              <p className="text-xs text-gray-500">
+                (Aufbau: {formData.stundenAufbau}h + Abbau: {formData.stundenAbbau}h)
               </p>
-              {istAbbauSeparat() && formData.stundenAbbau > 0 && (
-                <p className="text-xs text-blue-600 mt-2 font-medium">
-                  ℹ️ Aufbau und Abbau an verschiedenen Tagen → werden separat in der Timeline angezeigt
-                </p>
+              {istAbbauSeparat() && (
+                <div className="mt-2 flex items-center gap-2 text-blue-600 bg-blue-50 p-2 rounded-lg text-sm">
+                  <Info className="h-4 w-4" />
+                  Aufbau und Abbau an verschiedenen Tagen → werden separat in der Timeline angezeigt
+                </div>
               )}
             </div>
-          </div>
           
-          {/* Notizen */}
-          <div className="space-y-2">
-            <Label htmlFor="notizen" className="text-gray-900 font-medium">Notizen</Label>
-            <Textarea
-              id="notizen"
-              placeholder="Zusätzliche Hinweise..."
-              value={formData.notizen}
-              onChange={(e) => handleChange('notizen', e.target.value)}
-              className="bg-white text-gray-900 border-gray-300"
-              rows={2}
-            />
-          </div>
+            {/* Notizen */}
+            <div className="space-y-2 border-t border-gray-200 pt-4 mt-4">
+              <Label htmlFor="notizen" className="text-gray-900 font-medium">Notizen</Label>
+              <Input
+                id="notizen"
+                value={formData.notizen}
+                onChange={(e) => handleChange('notizen', e.target.value)}
+                placeholder="Optionale Hinweise..."
+                className="bg-white text-gray-900 border-gray-300"
+              />
+            </div>
           
-          {/* Bestätigt */}
-          <div className="flex items-center gap-2 pt-2">
-            <Checkbox
-              id="bestaetigt"
-              checked={formData.bestaetigt}
-              onCheckedChange={(checked) => handleChange('bestaetigt', !!checked)}
-            />
-            <label
-              htmlFor="bestaetigt"
-              className="text-sm text-gray-900 cursor-pointer"
-            >
-              Einsatz bestätigt
-            </label>
+          {/* Bestätigt-Checkbox - ALTE Abbau-Felder ENTFERNT */}
+          <div className="border-t border-gray-200 pt-4 mt-4">
+            <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <Checkbox
+                id="bestaetigt"
+                checked={formData.bestaetigt}
+                onCheckedChange={(checked) => handleChange('bestaetigt', !!checked)}
+              />
+              <Label htmlFor="bestaetigt" className="text-amber-800 font-medium cursor-pointer">
+                Einsatz bestätigt (Zeiterfassungen werden erstellt)
+              </Label>
+            </div>
             {formData.bestaetigt && (
-              <span className="text-xs text-blue-600 ml-2">
-                → Zeiterfassungen werden erstellt
-              </span>
+              <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+                <Info className="h-3 w-3" />
+                Bei Bestätigung werden automatisch Zeiterfassungs-Einträge für den Mitarbeiter erstellt
+              </p>
             )}
           </div>
+          
         </div>
-        
-        <DialogFooter className="flex justify-between">
-          <div>
-            {canDelete && (
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={isDeleting || isLoading}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                {isDeleting ? 'Löschen...' : 'Löschen'}
-              </Button>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={closeDialog} disabled={isLoading}>
-              Abbrechen
-            </Button>
+
+        <DialogFooter className="flex gap-2 pt-4 border-t border-gray-200 mt-4">
+          {dialogMode === 'edit' && (
             <Button
-              type="button"
-              onClick={handleSubmit}
-              disabled={isLoading}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting || createMutation.isPending || updateMutation.isPending}
+              className="mr-auto"
             >
-              {isLoading ? 'Speichern...' : 'Speichern'}
+              {isDeleting ? 'Löschen...' : 'Löschen'}
             </Button>
-          </div>
+          )}
+          <Button 
+            variant="outline" 
+            onClick={closeDialog}
+            className="bg-white text-gray-900 border-gray-300 hover:bg-gray-100"
+          >
+            Abbrechen
+          </Button>
+          <Button 
+            onClick={handleSubmit}
+            disabled={createMutation.isPending || updateMutation.isPending}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {createMutation.isPending || updateMutation.isPending
+              ? 'Speichern...'
+              : dialogMode === 'create'
+                ? 'Einsatz erstellen'
+                : 'Änderungen speichern'
+            }
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
 }
+
