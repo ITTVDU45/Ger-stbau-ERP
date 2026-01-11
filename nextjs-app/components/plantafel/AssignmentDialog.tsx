@@ -31,21 +31,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Calendar, User, Briefcase, Clock, Trash2 } from 'lucide-react'
+import { User, Briefcase, Trash2 } from 'lucide-react'
 import { usePlantafelStore } from '@/lib/stores/plantafelStore'
 import { useEmployees, useProjects, useCreateAssignment, useUpdateAssignment, useDeleteAssignment } from '@/lib/queries/plantafelQueries'
 
 interface AssignmentFormData {
   mitarbeiterId: string
   projektId: string
-  von: string // datetime-local
-  bis: string // datetime-local
   rolle: string
-  geplantStunden: number
   notizen: string
   bestaetigt: boolean
   // Aufbau/Abbau-Planung (wie MitarbeiterZuweisenDialog)
-  aufbauVon: string // date
+  aufbauVon: string // date (Pflicht)
   aufbauBis: string // date (optional)
   stundenAufbau: number
   abbauVon: string  // date (optional)
@@ -56,13 +53,10 @@ interface AssignmentFormData {
 const defaultFormData: AssignmentFormData = {
   mitarbeiterId: '',
   projektId: '',
-  von: '',
-  bis: '',
   rolle: '',
-  geplantStunden: 0,
   notizen: '',
   bestaetigt: false,
-  aufbauVon: '',
+  aufbauVon: new Date().toISOString().split('T')[0], // Heute als Standard
   aufbauBis: '',
   stundenAufbau: 0,
   abbauVon: '',
@@ -90,40 +84,46 @@ export default function AssignmentDialog() {
   const [formData, setFormData] = useState<AssignmentFormData>(defaultFormData)
   const [isDeleting, setIsDeleting] = useState(false)
   
-  // Berechne Stunden aus Von/Bis
-  const calculateHours = (von: string, bis: string): number => {
-    if (!von || !bis) return 0
-    try {
-      const vonDate = new Date(von)
-      const bisDate = new Date(bis)
-      const diffMs = bisDate.getTime() - vonDate.getTime()
-      const diffHours = diffMs / (1000 * 60 * 60)
-      return Math.max(0, Math.round(diffHours * 2) / 2) // Runde auf 0.5 Stunden
-    } catch {
-      return 0
-    }
+  // Berechne Gesamt-Stunden aus Aufbau + Abbau
+  const getGesamtStunden = (): number => {
+    return (formData.stundenAufbau || 0) + (formData.stundenAbbau || 0)
+  }
+  
+  // Berechne den Einsatz-Zeitraum aus Aufbau/Abbau-Daten
+  const getEinsatzZeitraum = () => {
+    const dates: Date[] = []
+    
+    if (formData.aufbauVon) dates.push(new Date(formData.aufbauVon))
+    if (formData.aufbauBis) dates.push(new Date(formData.aufbauBis))
+    if (formData.abbauVon) dates.push(new Date(formData.abbauVon))
+    if (formData.abbauBis) dates.push(new Date(formData.abbauBis))
+    
+    if (dates.length === 0) return { von: null, bis: null }
+    
+    const von = new Date(Math.min(...dates.map(d => d.getTime())))
+    const bis = new Date(Math.max(...dates.map(d => d.getTime())))
+    
+    // Setze Zeit auf 08:00 bzw. 17:00
+    von.setHours(8, 0, 0, 0)
+    bis.setHours(17, 0, 0, 0)
+    
+    return { von, bis }
   }
   
   // Formular initialisieren
   useEffect(() => {
     if (dialogMode === 'edit' && selectedEvent) {
       // Bearbeiten: Daten aus Event laden
-      const von = format(selectedEvent.start, "yyyy-MM-dd'T'HH:mm")
-      const bis = format(selectedEvent.end, "yyyy-MM-dd'T'HH:mm")
-      
       setFormData({
         mitarbeiterId: selectedEvent.mitarbeiterId || '',
         projektId: selectedEvent.projektId || '',
-        von,
-        bis,
         rolle: selectedEvent.rolle || '',
-        geplantStunden: calculateHours(von, bis),
         notizen: selectedEvent.notes || '',
         bestaetigt: selectedEvent.bestaetigt || false,
         // Aufbau/Abbau-Planung
         aufbauVon: selectedEvent.aufbauVon 
           ? format(new Date(selectedEvent.aufbauVon), 'yyyy-MM-dd') 
-          : '',
+          : format(selectedEvent.start, 'yyyy-MM-dd'),
         aufbauBis: selectedEvent.aufbauBis 
           ? format(new Date(selectedEvent.aufbauBis), 'yyyy-MM-dd') 
           : '',
@@ -138,15 +138,10 @@ export default function AssignmentDialog() {
       })
     } else if (dialogMode === 'create' && selectedSlot) {
       // Erstellen: Slot-Daten vorausfüllen
-      const von = format(selectedSlot.start, "yyyy-MM-dd'T'HH:mm")
-      const bis = format(selectedSlot.end, "yyyy-MM-dd'T'HH:mm")
       const aufbauVon = format(selectedSlot.start, 'yyyy-MM-dd')
       
       setFormData({
         ...defaultFormData,
-        von,
-        bis,
-        geplantStunden: calculateHours(von, bis),
         aufbauVon, // Vorausfüllen mit Startdatum
         // Je nach View den resourceId als Mitarbeiter oder Projekt vorauswählen
         mitarbeiterId: view === 'team' ? selectedSlot.resourceId : '',
@@ -158,18 +153,7 @@ export default function AssignmentDialog() {
   }, [dialogMode, selectedEvent, selectedSlot, view])
   
   const handleChange = (field: keyof AssignmentFormData, value: string | number | boolean) => {
-    setFormData(prev => {
-      const newData = { ...prev, [field]: value }
-      
-      // Automatisch Stunden berechnen wenn Von oder Bis geändert wird
-      if (field === 'von' || field === 'bis') {
-        const von = field === 'von' ? value as string : prev.von
-        const bis = field === 'bis' ? value as string : prev.bis
-        newData.geplantStunden = calculateHours(von, bis)
-      }
-      
-      return newData
-    })
+    setFormData(prev => ({ ...prev, [field]: value }))
   }
   
   const handleSubmit = async () => {
@@ -182,16 +166,12 @@ export default function AssignmentDialog() {
       toast.error('Bitte wählen Sie ein Projekt aus')
       return
     }
-    if (!formData.von || !formData.bis) {
-      toast.error('Bitte geben Sie Start- und Enddatum an')
+    if (!formData.aufbauVon) {
+      toast.error('Bitte geben Sie ein Aufbau-Startdatum an')
       return
     }
-    
-    const vonDate = new Date(formData.von)
-    const bisDate = new Date(formData.bis)
-    
-    if (vonDate >= bisDate) {
-      toast.error('Das Startdatum muss vor dem Enddatum liegen')
+    if (formData.stundenAufbau <= 0 && formData.stundenAbbau <= 0) {
+      toast.error('Bitte geben Sie Stunden für Aufbau oder Abbau an')
       return
     }
     
@@ -210,13 +190,20 @@ export default function AssignmentDialog() {
         }
       }
       
+      // Berechne automatisch den Einsatz-Zeitraum aus Aufbau/Abbau
+      const { von, bis } = getEinsatzZeitraum()
+      if (!von || !bis) {
+        toast.error('Konnte Einsatz-Zeitraum nicht berechnen')
+        return
+      }
+      
       const payload = {
         mitarbeiterId: formData.mitarbeiterId,
         projektId: formData.projektId,
-        von: vonDate.toISOString(),
-        bis: bisDate.toISOString(),
+        von: von.toISOString(),
+        bis: bis.toISOString(),
         rolle: formData.rolle || undefined,
-        geplantStunden: formData.geplantStunden || undefined,
+        geplantStunden: getGesamtStunden() || undefined,
         notizen: formData.notizen || undefined,
         bestaetigt: formData.bestaetigt,
         // Aufbau/Abbau-Planung (Datum + Stunden)
@@ -334,7 +321,7 @@ export default function AssignmentDialog() {
           
           {/* Rolle */}
           <div className="space-y-2">
-            <Label htmlFor="rolle" className="text-gray-900 font-medium">Rolle im Projekt</Label>
+            <Label htmlFor="rolle" className="text-gray-900 font-medium">Rolle im Projekt *</Label>
             <Select
               value={formData.rolle}
               onValueChange={(value) => handleChange('rolle', value)}
@@ -351,56 +338,10 @@ export default function AssignmentDialog() {
             </Select>
           </div>
           
-          {/* Einsatz-Zeitraum */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="von" className="text-gray-900 font-medium flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Von *
-              </Label>
-              <Input
-                id="von"
-                type="datetime-local"
-                value={formData.von}
-                onChange={(e) => handleChange('von', e.target.value)}
-                className="bg-white text-gray-900 border-gray-300"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="bis" className="text-gray-900 font-medium flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Bis *
-              </Label>
-              <Input
-                id="bis"
-                type="datetime-local"
-                value={formData.bis}
-                onChange={(e) => handleChange('bis', e.target.value)}
-                className="bg-white text-gray-900 border-gray-300"
-              />
-            </div>
-          </div>
-          
-          {/* Geplante Stunden */}
-          <div className="space-y-2">
-            <Label className="text-gray-900 font-medium flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Geplante Stunden (automatisch)
-            </Label>
-            <Input
-              type="text"
-              value={`${formData.geplantStunden || 0} Stunden`}
-              readOnly
-              disabled
-              className="bg-gray-100 text-gray-700 cursor-not-allowed border-gray-300"
-            />
-            <p className="text-xs text-gray-500">Wird automatisch aus Von/Bis berechnet</p>
-          </div>
-          
           {/* Aufbau/Abbau Planung */}
           <div className="border-t border-gray-200 pt-4">
             <Label className="text-gray-900 font-semibold mb-3 block">
-              Aufbau/Abbau Planung (optional)
+              Aufbau/Abbau Planung
             </Label>
             <p className="text-xs text-gray-500 mb-4">
               Bei Bestätigung werden automatisch Zeiterfassungs-Einträge erstellt
@@ -484,6 +425,19 @@ export default function AssignmentDialog() {
                   className="bg-white text-gray-900 border-gray-300"
                 />
               </div>
+            </div>
+            
+            {/* Gesamt-Stunden Anzeige */}
+            <div className="bg-gray-50 rounded-lg p-3 mt-4">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 text-sm">Gesamt geplante Stunden:</span>
+                <span className="font-semibold text-lg text-gray-900">
+                  {getGesamtStunden()} Stunden
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                (Aufbau: {formData.stundenAufbau || 0} + Abbau: {formData.stundenAbbau || 0})
+              </p>
             </div>
           </div>
           
