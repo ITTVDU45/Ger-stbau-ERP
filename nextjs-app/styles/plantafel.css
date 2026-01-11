@@ -35,16 +35,14 @@
 
 /* Header */
 .rbc-header {
-  padding: 12px 8px;
+  padding: 8px 4px;
   font-weight: 600;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #374151; /* gray-700 */
   background: #f9fafb; /* gray-50 */
   border-bottom: 1px solid #e5e7eb; /* gray-200 */
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 80px;
+  text-align: center;
 }
 
 .dark .rbc-header {
@@ -53,17 +51,50 @@
   border-color: #475569;
 }
 
-/* Zeit-Header (Tage-Zeile) */
+/* Zeit-Header (Tage-Zeile) - Fixe Breiten */
+.rbc-time-header {
+  overflow: visible !important;
+}
+
 .rbc-time-header-cell {
-  min-width: 100px;
+  min-width: 120px !important;
+  flex: 1 0 120px !important;
 }
 
 .rbc-time-header-content {
-  min-width: 100px;
+  min-width: 120px !important;
+  flex: 1 0 120px !important;
+}
+
+.rbc-header + .rbc-header {
+  border-left: 1px solid #e5e7eb;
+}
+
+.dark .rbc-header + .rbc-header {
+  border-left-color: #475569;
+}
+
+/* Tag-Spalten */
+.rbc-day-slot {
+  min-width: 120px !important;
+}
+
+.rbc-time-column {
+  min-width: 120px !important;
 }
 
 .rbc-row-bg .rbc-day-bg {
-  min-width: 100px;
+  min-width: 120px !important;
+}
+
+/* Zeit-Gutter (linke Spalte mit Uhrzeiten) */
+.rbc-time-gutter {
+  min-width: 60px !important;
+  max-width: 60px !important;
+}
+
+.rbc-time-gutter .rbc-timeslot-group {
+  min-width: 60px !important;
 }
 
 /* Arbeitszeit-Bereich */
