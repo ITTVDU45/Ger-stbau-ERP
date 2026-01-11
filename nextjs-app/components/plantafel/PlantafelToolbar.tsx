@@ -193,7 +193,7 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-64 p-0" align="start">
+          <PopoverContent className="w-64 p-0 bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 shadow-lg" align="start">
             <div className="p-3 border-b border-gray-200 dark:border-gray-700">
               <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Mitarbeiter filtern</p>
             </div>
@@ -232,7 +232,7 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-80 p-0" align="start">
+          <PopoverContent className="w-80 p-0 bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 shadow-lg" align="start">
             <div className="p-3 border-b border-gray-200 dark:border-gray-700">
               <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Projekte filtern</p>
             </div>

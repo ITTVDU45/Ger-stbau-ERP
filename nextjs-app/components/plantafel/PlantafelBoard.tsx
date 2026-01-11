@@ -287,7 +287,7 @@ export default function PlantafelBoard() {
   // ============================================================================
   
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)]">
+    <div className="flex flex-col h-[calc(100vh-80px)] min-h-[600px]">
       {/* Toolbar */}
       <PlantafelToolbar 
         conflictCount={conflicts.length}
@@ -295,7 +295,7 @@ export default function PlantafelBoard() {
       />
       
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0">
         {/* Calendar */}
         <div className="flex-1 overflow-auto p-4 bg-gray-50 dark:bg-slate-900">
           {error ? (

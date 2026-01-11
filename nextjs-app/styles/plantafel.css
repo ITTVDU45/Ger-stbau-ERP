@@ -15,6 +15,17 @@
   font-family: inherit;
   background: white;
   border-radius: 8px;
+  min-height: 500px;
+}
+
+/* Kalender-Container scrollbar machen */
+.rbc-time-view,
+.rbc-month-view {
+  overflow: auto;
+}
+
+.rbc-time-content {
+  overflow-y: auto;
 }
 
 .dark .rbc-calendar {
