@@ -101,7 +101,7 @@ export const usePlantafelStore = create<PlantafelState>()(
     (set, get) => ({
       // Initial State
       view: 'team',
-      calendarView: 'week',
+      calendarView: 'day',
       dateRange: getDefaultDateRange(),
       currentDate: new Date(),
       filters: defaultFilters,

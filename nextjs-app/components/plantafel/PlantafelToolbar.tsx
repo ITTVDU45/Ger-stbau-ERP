@@ -80,19 +80,19 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
   const activeFilterCount = filters.employeeIds.length + filters.projectIds.length
   
   return (
-    <div className="flex flex-col gap-4 p-4 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-gray-700">
+    <div className="flex flex-col gap-4 p-4 bg-white text-gray-900 border-b border-gray-200 shadow-sm">
       {/* Obere Reihe: View-Switch, Datum-Navigation, Aktionen */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         {/* View-Switch */}
         <div className="flex items-center gap-2">
-          <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 p-1 bg-gray-100 dark:bg-gray-800">
+          <div className="flex rounded-lg border border-gray-200 p-1 bg-gray-100">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setView('team')}
               className={view === 'team' 
-                ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm' 
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}
+                ? 'bg-white text-gray-900 shadow-sm' 
+                : 'text-gray-600 hover:text-gray-900'}
             >
               <Users className="h-4 w-4 mr-2" />
               Team
@@ -102,8 +102,8 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
               size="sm"
               onClick={() => setView('project')}
               className={view === 'project' 
-                ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm' 
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}
+                ? 'bg-white text-gray-900 shadow-sm' 
+                : 'text-gray-600 hover:text-gray-900'}
             >
               <Briefcase className="h-4 w-4 mr-2" />
               Projekte
@@ -113,7 +113,7 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
           <Separator orientation="vertical" className="h-8 mx-2" />
           
           {/* Kalender-View */}
-          <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 p-1 bg-gray-100 dark:bg-gray-800">
+          <div className="flex rounded-lg border border-gray-200 p-1 bg-gray-100">
             {(['day', 'week', 'month'] as const).map((v) => (
               <Button
                 key={v}
@@ -121,8 +121,8 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
                 size="sm"
                 onClick={() => setCalendarView(v)}
                 className={calendarView === v 
-                  ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm' 
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}
+                  ? 'bg-white text-gray-900 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'}
               >
                 {v === 'day' ? 'Tag' : v === 'week' ? 'Woche' : 'Monat'}
               </Button>
@@ -133,16 +133,16 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
         {/* Datum-Navigation */}
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={goToPrevious}>
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-4 w-4 text-gray-600" />
           </Button>
           <Button variant="outline" size="sm" onClick={goToToday}>
-            <Calendar className="h-4 w-4 mr-2" />
+            <Calendar className="h-4 w-4 mr-2 text-gray-600" />
             Heute
           </Button>
           <Button variant="outline" size="sm" onClick={goToNext}>
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-4 w-4 text-gray-600" />
           </Button>
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100 min-w-[200px] text-center">
+          <span className="text-sm font-semibold text-gray-900 min-w-[200px] text-center">
             {getDisplayDate()}
           </span>
         </div>
@@ -154,9 +154,9 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
             variant={isConflictPanelOpen ? 'default' : 'outline'}
             size="sm"
             onClick={toggleConflictPanel}
-            className={conflictCount > 0 ? 'border-red-300 text-red-700' : ''}
+            className={conflictCount > 0 ? 'border-red-300 text-red-700 bg-red-50' : 'text-gray-700 border-gray-200'}
           >
-            <AlertTriangle className={`h-4 w-4 mr-2 ${conflictCount > 0 ? 'text-red-500' : ''}`} />
+            <AlertTriangle className={`h-4 w-4 mr-2 ${conflictCount > 0 ? 'text-red-500' : 'text-gray-500'}`} />
             Konflikte
             {conflictCount > 0 && (
               <Badge variant="destructive" className="ml-2">
@@ -166,7 +166,7 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
           </Button>
           
           {/* Neuer Einsatz */}
-          <Button onClick={onCreateClick} className="bg-green-600 hover:bg-green-700 text-white">
+          <Button onClick={onCreateClick} className="bg-green-600 hover:bg-green-700 text-white shadow-md">
             <Plus className="h-4 w-4 mr-2" />
             Neuer Einsatz
           </Button>
@@ -182,14 +182,14 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
             placeholder="Mitarbeiter oder Projekt suchen..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 bg-gray-50 border-gray-200 text-gray-900"
           />
         </div>
         
         {/* Mitarbeiter-Filter */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="border-gray-200 text-gray-700 bg-white">
               <Users className="h-4 w-4 mr-2" />
               Mitarbeiter
               {filters.employeeIds.length > 0 && (
@@ -199,9 +199,9 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-64 p-0 bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 shadow-lg" align="start">
-            <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Mitarbeiter filtern</p>
+          <PopoverContent className="w-64 p-0 bg-white border border-gray-200 shadow-xl" align="start">
+            <div className="p-3 border-b border-gray-100">
+              <p className="text-sm font-semibold text-gray-900">Mitarbeiter filtern</p>
             </div>
             <ScrollArea className="h-64">
               <div className="p-3 space-y-2">
@@ -214,7 +214,7 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
                     />
                     <label
                       htmlFor={`emp-${employee._id}`}
-                      className="text-sm text-gray-900 dark:text-gray-100 cursor-pointer"
+                      className="text-sm text-gray-700 cursor-pointer"
                     >
                       {employee.vorname} {employee.nachname}
                     </label>
@@ -228,7 +228,7 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
         {/* Projekt-Filter */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="border-gray-200 text-gray-700 bg-white">
               <Briefcase className="h-4 w-4 mr-2" />
               Projekte
               {filters.projectIds.length > 0 && (
@@ -238,9 +238,9 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-80 p-0 bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 shadow-lg" align="start">
-            <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Projekte filtern</p>
+          <PopoverContent className="w-80 p-0 bg-white border border-gray-200 shadow-xl" align="start">
+            <div className="p-3 border-b border-gray-100">
+              <p className="text-sm font-semibold text-gray-900">Projekte filtern</p>
             </div>
             <ScrollArea className="h-64">
               <div className="p-3 space-y-2">
@@ -253,16 +253,44 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
                     />
                     <label
                       htmlFor={`proj-${project._id}`}
-                      className="text-sm text-gray-900 dark:text-gray-100 cursor-pointer"
+                      className="text-sm text-gray-700 cursor-pointer"
                     >
                       {project.projektname}
-                      <span className="text-xs text-gray-500 ml-1">({project.projektnummer})</span>
+                      <span className="text-xs text-gray-400 ml-1">({project.projektnummer})</span>
                     </label>
                   </div>
                 ))}
               </div>
             </ScrollArea>
           </PopoverContent>
+        </Popover>
+        
+        {/* Abwesenheiten Toggle */}
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="show-absences"
+            checked={filters.showAbsences}
+            onCheckedChange={(checked) => setFilters({ showAbsences: !!checked })}
+          />
+          <label
+            htmlFor="show-absences"
+            className="text-sm text-gray-700 cursor-pointer"
+          >
+            Abwesenheiten anzeigen
+          </label>
+        </div>
+        
+        {/* Filter zurücksetzen */}
+        {activeFilterCount > 0 && (
+          <Button variant="ghost" size="sm" onClick={resetFilters} className="text-gray-500 hover:text-gray-900">
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Filter zurücksetzen
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
         </Popover>
         
         {/* Abwesenheiten Toggle */}

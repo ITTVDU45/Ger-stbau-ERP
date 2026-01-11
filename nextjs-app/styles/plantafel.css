@@ -39,7 +39,7 @@
   font-weight: 600;
   font-size: 0.7rem;
   color: #374151; /* gray-700 */
-  background: #f9fafb; /* gray-50 */
+  background: #f8fafc; /* slate-50 */
   border-bottom: 1px solid #e5e7eb; /* gray-200 */
   white-space: nowrap;
   text-align: center;
@@ -95,6 +95,42 @@
 
 .rbc-time-gutter .rbc-timeslot-group {
   min-width: 60px !important;
+}
+
+/* Resource Header (Mitarbeiter/Projekte) */
+.rbc-resource-header {
+  padding: 6px 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #f8fafc; /* hell */
+  color: #0f172a;
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 44px;
+}
+
+.dark .rbc-resource-header {
+  background: #334155;
+  color: #e2e8f0;
+  border-right-color: #475569;
+}
+
+/* Kalender-Grundflächen hell erzwingen */
+.rbc-time-view,
+.rbc-month-view,
+.rbc-time-header,
+.rbc-time-content,
+.rbc-agenda-view {
+  background: #ffffff;
+}
+
+.rbc-allday-cell {
+  background: #f8fafc;
 }
 
 /* Arbeitszeit-Bereich */
