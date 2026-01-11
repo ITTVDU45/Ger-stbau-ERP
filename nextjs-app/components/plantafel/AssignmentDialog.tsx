@@ -193,12 +193,12 @@ export default function AssignmentDialog() {
   
   return (
     <Dialog open={isDialogOpen} onOpenChange={(open) => !open && closeDialog()}>
-      <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-800">
+      <DialogContent className="sm:max-w-[500px] bg-white text-gray-900">
         <DialogHeader>
-          <DialogTitle className="text-gray-900 dark:text-gray-100">
+          <DialogTitle className="text-gray-900">
             {dialogMode === 'create' ? 'Neuer Einsatz' : 'Einsatz bearbeiten'}
           </DialogTitle>
-          <DialogDescription className="text-gray-600 dark:text-gray-400">
+          <DialogDescription className="text-gray-600">
             {dialogMode === 'create'
               ? 'Planen Sie einen neuen Mitarbeiter-Einsatz auf einem Projekt'
               : 'Bearbeiten Sie die Details des Einsatzes'}
@@ -208,7 +208,7 @@ export default function AssignmentDialog() {
         <div className="grid gap-4 py-4">
           {/* Mitarbeiter */}
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="mitarbeiter" className="text-right text-gray-900 dark:text-gray-100">
+            <Label htmlFor="mitarbeiter" className="text-right text-gray-900">
               <User className="h-4 w-4 inline mr-2" />
               Mitarbeiter
             </Label>
@@ -216,10 +216,10 @@ export default function AssignmentDialog() {
               value={formData.mitarbeiterId}
               onValueChange={(value) => handleChange('mitarbeiterId', value)}
             >
-              <SelectTrigger className="col-span-3">
+              <SelectTrigger className="col-span-3 bg-white text-gray-900">
                 <SelectValue placeholder="Mitarbeiter auswählen" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white text-gray-900">
                 {employees.filter(e => e.aktiv).map((employee) => (
                   <SelectItem key={employee._id} value={employee._id || ''}>
                     {employee.vorname} {employee.nachname}
@@ -231,7 +231,7 @@ export default function AssignmentDialog() {
           
           {/* Projekt */}
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="projekt" className="text-right text-gray-900 dark:text-gray-100">
+            <Label htmlFor="projekt" className="text-right text-gray-900">
               <Briefcase className="h-4 w-4 inline mr-2" />
               Projekt
             </Label>
@@ -239,10 +239,10 @@ export default function AssignmentDialog() {
               value={formData.projektId}
               onValueChange={(value) => handleChange('projektId', value)}
             >
-              <SelectTrigger className="col-span-3">
+              <SelectTrigger className="col-span-3 bg-white text-gray-900">
                 <SelectValue placeholder="Projekt auswählen" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white text-gray-900">
                 {projects.filter(p => ['in_planung', 'aktiv'].includes(p.status)).map((project) => (
                   <SelectItem key={project._id} value={project._id || ''}>
                     {project.projektname} ({project.projektnummer})
@@ -254,7 +254,7 @@ export default function AssignmentDialog() {
           
           {/* Start-Datum */}
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="von" className="text-right text-gray-900 dark:text-gray-100">
+            <Label htmlFor="von" className="text-right text-gray-900">
               <Calendar className="h-4 w-4 inline mr-2" />
               Von
             </Label>
@@ -263,13 +263,13 @@ export default function AssignmentDialog() {
               type="datetime-local"
               value={formData.von}
               onChange={(e) => handleChange('von', e.target.value)}
-              className="col-span-3"
+              className="col-span-3 bg-white text-gray-900"
             />
           </div>
           
           {/* End-Datum */}
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="bis" className="text-right text-gray-900 dark:text-gray-100">
+            <Label htmlFor="bis" className="text-right text-gray-900">
               <Calendar className="h-4 w-4 inline mr-2" />
               Bis
             </Label>
@@ -278,13 +278,13 @@ export default function AssignmentDialog() {
               type="datetime-local"
               value={formData.bis}
               onChange={(e) => handleChange('bis', e.target.value)}
-              className="col-span-3"
+              className="col-span-3 bg-white text-gray-900"
             />
           </div>
           
           {/* Rolle */}
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="rolle" className="text-right text-gray-900 dark:text-gray-100">
+            <Label htmlFor="rolle" className="text-right text-gray-900">
               Rolle
             </Label>
             <Input
@@ -292,13 +292,13 @@ export default function AssignmentDialog() {
               placeholder="z.B. Vorarbeiter, Helfer"
               value={formData.rolle}
               onChange={(e) => handleChange('rolle', e.target.value)}
-              className="col-span-3"
+              className="col-span-3 bg-white text-gray-900"
             />
           </div>
           
           {/* Geplante Stunden */}
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="stunden" className="text-right text-gray-900 dark:text-gray-100">
+            <Label htmlFor="stunden" className="text-right text-gray-900">
               <Clock className="h-4 w-4 inline mr-2" />
               Std. geplant
             </Label>
@@ -309,13 +309,13 @@ export default function AssignmentDialog() {
               step="0.5"
               value={formData.geplantStunden || ''}
               onChange={(e) => handleChange('geplantStunden', parseFloat(e.target.value) || 0)}
-              className="col-span-3"
+              className="col-span-3 bg-white text-gray-900"
             />
           </div>
           
           {/* Notizen */}
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="notizen" className="text-right text-gray-900 dark:text-gray-100">
+            <Label htmlFor="notizen" className="text-right text-gray-900">
               Notizen
             </Label>
             <Textarea
@@ -323,7 +323,7 @@ export default function AssignmentDialog() {
               placeholder="Zusätzliche Hinweise..."
               value={formData.notizen}
               onChange={(e) => handleChange('notizen', e.target.value)}
-              className="col-span-3"
+              className="col-span-3 bg-white text-gray-900"
               rows={2}
             />
           </div>
@@ -339,7 +339,7 @@ export default function AssignmentDialog() {
               />
               <label
                 htmlFor="bestaetigt"
-                className="text-sm text-gray-900 dark:text-gray-100 cursor-pointer"
+                className="text-sm text-gray-900 cursor-pointer"
               >
                 Einsatz bestätigt
               </label>
