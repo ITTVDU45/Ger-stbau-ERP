@@ -3,6 +3,7 @@ import { getDatabase } from '@/lib/db/client'
 import { Budget } from '@/lib/db/types'
 import { ObjectId } from 'mongodb'
 
+// GET /api/finanzen/budgets/[id] - Einzelnes Budget abrufen
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -39,6 +40,7 @@ export async function GET(
   }
 }
 
+// PUT /api/finanzen/budgets/[id] - Budget aktualisieren
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -54,22 +56,18 @@ export async function PUT(
     }
     
     const body = await request.json()
-    
     const db = await getDatabase()
     const collection = db.collection<Budget>('budgets')
     
-    const updateData = {
-      ...body,
-      zuletztGeaendert: new Date()
-    }
-    
-    // Verhindere Änderung bestimmter Felder
-    delete updateData._id
-    delete updateData.erstelltAm
-    
+    // Aktualisiere das Budget
     const result = await collection.updateOne(
       { _id: new ObjectId(id) },
-      { $set: updateData }
+      {
+        $set: {
+          ...body,
+          zuletztGeaendert: new Date()
+        }
+      }
     )
     
     if (result.matchedCount === 0) {
@@ -91,6 +89,7 @@ export async function PUT(
   }
 }
 
+// DELETE /api/finanzen/budgets/[id] - Budget löschen
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -108,16 +107,31 @@ export async function DELETE(
     const db = await getDatabase()
     const collection = db.collection<Budget>('budgets')
     
-    const result = await collection.deleteOne({ _id: new ObjectId(id) })
+    // Prüfe ob Budget existiert
+    const existingBudget = await collection.findOne({ _id: new ObjectId(id) })
     
-    if (result.deletedCount === 0) {
+    if (!existingBudget) {
       return NextResponse.json(
         { erfolg: false, fehler: 'Budget nicht gefunden' },
         { status: 404 }
       )
     }
     
-    return NextResponse.json({ erfolg: true })
+    // Lösche das Budget
+    const result = await collection.deleteOne({ _id: new ObjectId(id) })
+    
+    if (result.deletedCount === 0) {
+      return NextResponse.json(
+        { erfolg: false, fehler: 'Budget konnte nicht gelöscht werden' },
+        { status: 500 }
+      )
+    }
+    
+    return NextResponse.json({ 
+      erfolg: true, 
+      message: 'Budget erfolgreich gelöscht',
+      budget: existingBudget
+    })
   } catch (error) {
     console.error('Fehler beim Löschen des Budgets:', error)
     return NextResponse.json(
@@ -126,4 +140,3 @@ export async function DELETE(
     )
   }
 }
-

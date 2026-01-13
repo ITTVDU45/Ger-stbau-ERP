@@ -133,18 +133,26 @@ export default function BudgetVerwaltung({ mandantId, zeitraum, refreshTrigger }
   }
 
   const handleDelete = async () => {
-    if (!budgetToDelete?._id) return
+    // Verwende budgetId (aus Status-API) statt _id
+    const budgetId = budgetToDelete?._id || budgetToDelete?.budgetId
+    
+    if (!budgetId) {
+      toast.error('Budget-ID nicht gefunden')
+      return
+    }
 
     try {
-      const res = await fetch(`/api/finanzen/budgets/${budgetToDelete._id}`, {
+      const res = await fetch(`/api/finanzen/budgets/${budgetId}`, {
         method: 'DELETE'
       })
 
       if (res.ok) {
         toast.success('Budget erfolgreich gelöscht')
         loadBudgetStatus()
+        loadStats()
       } else {
-        toast.error('Fehler beim Löschen des Budgets')
+        const data = await res.json()
+        toast.error(data.fehler || 'Fehler beim Löschen des Budgets')
       }
     } catch (error) {
       console.error('Fehler beim Löschen:', error)
