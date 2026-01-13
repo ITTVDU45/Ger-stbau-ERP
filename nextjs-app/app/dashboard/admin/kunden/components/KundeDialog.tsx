@@ -315,13 +315,18 @@ export default function KundeDialog({ open, kunde, onClose }: KundeDialogProps) 
               </div>
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-3 py-2">
               <Switch
                 id="aktiv"
                 checked={formData.aktiv}
                 onCheckedChange={(checked) => handleChange('aktiv', checked)}
               />
-              <Label htmlFor="aktiv">Aktiv</Label>
+              <Label 
+                htmlFor="aktiv"
+                className="cursor-pointer font-medium text-sm"
+              >
+                Aktiv
+              </Label>
             </div>
           </TabsContent>
 

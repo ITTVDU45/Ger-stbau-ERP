@@ -85,10 +85,20 @@ export async function GET(request: NextRequest) {
       {
         $addFields: {
           projektnummerJahr: {
-            $toInt: { $arrayElemAt: ['$projektnummerParts', 0] }
+            $convert: {
+              input: { $arrayElemAt: ['$projektnummerParts', 0] },
+              to: 'int',
+              onError: 0, // Fallback auf 0 wenn Konvertierung fehlschlägt
+              onNull: 0
+            }
           },
           projektnummerNummer: {
-            $toInt: { $arrayElemAt: ['$projektnummerParts', 1] }
+            $convert: {
+              input: { $arrayElemAt: ['$projektnummerParts', 1] },
+              to: 'int',
+              onError: 0, // Fallback auf 0 wenn Konvertierung fehlschlägt
+              onNull: 0
+            }
           }
         }
       },

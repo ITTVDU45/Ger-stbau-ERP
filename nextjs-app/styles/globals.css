@@ -132,23 +132,23 @@
    Tailwind-Farben für Dark Mode
    ============================================ */
 
-/* Hintergründe */
-.dark .bg-white {
+/* Hintergründe - nur für standard Elemente, nicht für Radix UI */
+.dark .bg-white:not([data-radix-select-trigger]):not([data-radix-dropdown-menu-trigger]):not([role]) {
   background-color: var(--color-card) !important;
 }
 
-.dark .bg-gray-50,
-.dark .bg-slate-50 {
+.dark .bg-gray-50:not([role]),
+.dark .bg-slate-50:not([role]) {
   background-color: #0f172a !important;
 }
 
-.dark .bg-gray-100,
-.dark .bg-slate-100 {
+.dark .bg-gray-100:not([role]),
+.dark .bg-slate-100:not([role]) {
   background-color: #1e293b !important;
 }
 
-.dark .bg-gray-200,
-.dark .bg-slate-200 {
+.dark .bg-gray-200:not([role]),
+.dark .bg-slate-200:not([role]) {
   background-color: #334155 !important;
 }
 
@@ -234,42 +234,41 @@
   --tw-ring-color: #334155 !important;
 }
 
-/* Inputs & Form Elements im Dark Mode */
-.dark input,
-.dark textarea,
-.dark select {
-  background-color: #1e293b !important;
-  border-color: #334155 !important;
-  color: #f8fafc !important;
+/* Inputs & Form Elements im Dark Mode - nur für standard Input-Felder */
+.dark input:not([role]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]),
+.dark textarea:not([role]),
+.dark select:not([role]) {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f8fafc;
 }
 
-.dark input::placeholder,
-.dark textarea::placeholder {
-  color: #64748b !important;
+.dark input:not([role])::placeholder,
+.dark textarea:not([role])::placeholder {
+  color: #64748b;
 }
 
-.dark input:focus,
-.dark textarea:focus,
-.dark select:focus {
-  border-color: var(--color-ring) !important;
-  outline-color: var(--color-ring) !important;
+.dark input:not([role]):not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):focus,
+.dark textarea:not([role]):focus,
+.dark select:not([role]):focus {
+  border-color: var(--color-ring);
+  outline-color: var(--color-ring);
 }
 
-/* Cards im Dark Mode */
-.dark [class*="CardContent"],
-.dark [class*="CardHeader"],
-.dark .rounded-lg.border.bg-white,
-.dark .rounded-xl.border.bg-white,
-.dark .shadow-sm.bg-white {
+/* Cards im Dark Mode - nur für Card-spezifische Elemente */
+.dark [class*="CardContent"]:not([data-radix-select-content]):not([data-radix-dropdown-menu-content]),
+.dark [class*="CardHeader"]:not([data-radix-select-content]):not([data-radix-dropdown-menu-content]),
+.dark .rounded-lg.border.bg-white:not([data-radix-select-content]):not([data-radix-dropdown-menu-content]):not([role]),
+.dark .rounded-xl.border.bg-white:not([data-radix-select-content]):not([data-radix-dropdown-menu-content]):not([role]),
+.dark .shadow-sm.bg-white:not([data-radix-select-content]):not([data-radix-dropdown-menu-content]):not([role]) {
   background-color: var(--color-card) !important;
 }
 
-/* Dropdown Menus */
-.dark [role="menu"],
-.dark [role="listbox"],
-.dark [data-radix-popper-content-wrapper] [role="dialog"] {
-  background-color: var(--color-popover) !important;
-  border-color: var(--color-border) !important;
+/* Dropdown Menus - Radix UI Komponenten */
+.dark [role="menu"]:not([data-radix-select-content]):not([data-radix-dropdown-menu-content]),
+.dark [role="listbox"]:not([data-radix-select-content]) {
+  background-color: var(--color-popover);
+  border-color: var(--color-border);
 }
 
 /* ============================================
@@ -278,51 +277,157 @@
 
 /* Light Mode - Dialog Hintergrund explizit weiß */
 [data-slot="dialog-content"],
-[data-radix-dialog-content],
-[role="dialog"] {
-  background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
+[data-radix-dialog-content] {
+  background-color: #ffffff;
+  border-color: #e2e8f0;
 }
 
 [data-slot="dialog-overlay"],
 [data-radix-dialog-overlay] {
-  background-color: rgba(0, 0, 0, 0.5) !important;
+  background-color: rgba(0, 0, 0, 0.5);
 }
 
 /* Dark Mode - Dialog */
 .dark [data-slot="dialog-content"],
-.dark [data-radix-dialog-content],
-.dark [role="dialog"]:not([data-radix-popper-content-wrapper] *) {
-  background-color: #1e293b !important;
-  border-color: #334155 !important;
+.dark [data-radix-dialog-content] {
+  background-color: #1e293b;
+  border-color: #334155;
 }
 
 .dark [data-slot="dialog-overlay"],
 .dark [data-radix-dialog-overlay] {
-  background-color: rgba(0, 0, 0, 0.75) !important;
+  background-color: rgba(0, 0, 0, 0.75);
 }
 
 /* AlertDialog - Light Mode */
 [data-slot="alert-dialog-content"],
 [data-radix-alert-dialog-content] {
-  background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
+  background-color: #ffffff;
+  border-color: #e2e8f0;
 }
 
 /* AlertDialog - Dark Mode */
 .dark [data-slot="alert-dialog-content"],
 .dark [data-radix-alert-dialog-content] {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+/* Popover/Command Content - explizit opak (nur für Popover, nicht für Select/Dropdown) */
+[data-radix-popover-content] {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.dark [data-radix-popover-content] {
   background-color: #1e293b !important;
   border-color: #334155 !important;
 }
 
-/* Popover/Command Content - explizit opak */
-[data-radix-popper-content-wrapper] > div {
-  background-color: #ffffff !important;
+/* Radix UI Select/Dropdown - explizite Styles für beide Modi */
+[data-radix-select-content],
+[data-radix-dropdown-menu-content],
+[data-radix-context-menu-content] {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
-.dark [data-radix-popper-content-wrapper] > div {
-  background-color: #1e293b !important;
+.dark [data-radix-select-content],
+.dark [data-radix-dropdown-menu-content],
+.dark [data-radix-context-menu-content] {
+  background-color: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+/* Select Items */
+[data-radix-select-item],
+[data-radix-dropdown-menu-item],
+[data-radix-context-menu-item] {
+  color: #0f172a;
+}
+
+.dark [data-radix-select-item],
+.dark [data-radix-dropdown-menu-item],
+.dark [data-radix-context-menu-item] {
+  color: #f8fafc;
+}
+
+[data-radix-select-item]:hover,
+[data-radix-dropdown-menu-item]:hover,
+[data-radix-context-menu-item]:hover {
+  background-color: #f1f5f9;
+}
+
+.dark [data-radix-select-item]:hover,
+.dark [data-radix-dropdown-menu-item]:hover,
+.dark [data-radix-context-menu-item]:hover {
+  background-color: #334155;
+}
+
+/* Switch/Toggle Komponenten - Farben werden jetzt in der Komponente selbst definiert */
+
+/* Checkbox Komponenten */
+[data-radix-checkbox-root] {
+  border-color: #e2e8f0;
+  background-color: transparent;
+}
+
+[data-radix-checkbox-root][data-state="checked"] {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.dark [data-radix-checkbox-root] {
+  border-color: #334155;
+}
+
+.dark [data-radix-checkbox-root][data-state="checked"] {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* Select Trigger im Dark Mode */
+.dark [data-radix-select-trigger] {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+.dark [data-radix-select-trigger]:hover {
+  background-color: #334155;
+}
+
+/* Button Farben beibehalten */
+.dark button[data-variant="default"]:not([data-radix-select-trigger]):not([data-radix-dropdown-menu-trigger]) {
+  background-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+.dark button[data-variant="destructive"] {
+  background-color: var(--color-destructive);
+  color: var(--color-destructive-foreground);
+}
+
+.dark button[data-variant="outline"] {
+  border-color: var(--color-border);
+  background-color: transparent;
+  color: var(--color-foreground);
+}
+
+.dark button[data-variant="secondary"] {
+  background-color: var(--color-secondary);
+  color: var(--color-secondary-foreground);
+}
+
+.dark button[data-variant="ghost"] {
+  background-color: transparent;
+  color: var(--color-foreground);
+}
+
+.dark button[data-variant="link"] {
+  color: var(--color-primary);
 }
 
 /* Scrollbar im Dark Mode */

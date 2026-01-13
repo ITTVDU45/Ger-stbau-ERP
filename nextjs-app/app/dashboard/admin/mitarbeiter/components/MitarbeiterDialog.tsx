@@ -87,31 +87,44 @@ export default function MitarbeiterDialog({ open, mitarbeiter, onClose }: Mitarb
   })
   const [mitarbeiterListe, setMitarbeiterListe] = useState<Mitarbeiter[]>([])
 
-  // Nächste Personalnummer laden, wenn neuer Mitarbeiter erstellt wird
+  // State wird nur beim Öffnen des Dialogs initialisiert
   useEffect(() => {
+    if (!open) {
+      // Reset bei Schließen
+      return
+    }
+
     const ladeNaechstePersonalnummer = async () => {
-      if (!mitarbeiter && open) {
-        setLoadingPersonalnummer(true)
-        try {
-          const response = await fetch('/api/mitarbeiter/naechste-personalnummer')
-          const data = await response.json()
-          if (data.erfolg) {
-            setFormData(prev => ({
-              ...prev,
-              personalnummer: data.personalnummer
-            }))
-          }
-        } catch (error) {
-          console.error('Fehler beim Laden der nächsten Personalnummer:', error)
-        } finally {
-          setLoadingPersonalnummer(false)
+      setLoadingPersonalnummer(true)
+      try {
+        const response = await fetch('/api/mitarbeiter/naechste-personalnummer')
+        const data = await response.json()
+        if (data.erfolg) {
+          setFormData(prev => ({
+            ...prev,
+            personalnummer: data.personalnummer
+          }))
         }
+      } catch (error) {
+        console.error('Fehler beim Laden der nächsten Personalnummer:', error)
+      } finally {
+        setLoadingPersonalnummer(false)
       }
     }
 
+    // Initialisiere Form-Daten beim Öffnen
     if (mitarbeiter) {
-      setFormData(mitarbeiter)
+      // Kopiere mitarbeiter-Daten (wichtig: neue Objekt-Referenz erstellen)
+      setFormData({
+        ...mitarbeiter,
+        aktiv: mitarbeiter.aktiv ?? true, // Fallback auf true
+        qualifikationen: mitarbeiter.qualifikationen || [],
+        adresse: mitarbeiter.adresse || {},
+        dokumente: mitarbeiter.dokumente || []
+      })
+      console.log('Mitarbeiter geladen:', mitarbeiter.aktiv)
     } else {
+      // Setze Standardwerte für neuen Mitarbeiter
       setFormData({
         vorname: '',
         nachname: '',
@@ -130,10 +143,16 @@ export default function MitarbeiterDialog({ open, mitarbeiter, onClose }: Mitarb
       })
       ladeNaechstePersonalnummer()
     }
-  }, [mitarbeiter, open])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, mitarbeiter?._id])
 
   const handleChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    console.log('handleChange called:', field, value)
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value }
+      console.log('Updated formData:', updated)
+      return updated
+    })
   }
 
   const handleAdresseChange = (field: string, value: string) => {
@@ -594,13 +613,21 @@ export default function MitarbeiterDialog({ open, mitarbeiter, onClose }: Mitarb
               />
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-3 py-2">
               <Switch
                 id="aktiv"
-                checked={formData.aktiv}
-                onCheckedChange={(checked) => handleChange('aktiv', checked)}
+                checked={formData.aktiv === true}
+                onCheckedChange={(checked) => {
+                  console.log('Switch toggled to:', checked)
+                  handleChange('aktiv', checked)
+                }}
               />
-              <Label htmlFor="aktiv">Aktiv</Label>
+              <Label 
+                htmlFor="aktiv"
+                className="cursor-pointer font-medium text-sm"
+              >
+                Aktiv {formData.aktiv ? '(Ja)' : '(Nein)'}
+              </Label>
             </div>
           </TabsContent>
 

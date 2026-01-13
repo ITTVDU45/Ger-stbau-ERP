@@ -44,7 +44,11 @@ export default function BudgetVerwaltung({ mandantId, zeitraum, refreshTrigger }
       const data = await res.json()
 
       if (data.erfolg) {
-        setBudgetStatus(data.budgets)
+        // Deduplizierung basierend auf budgetId als zusätzlicher Schutz
+        const uniqueBudgets = Array.from(
+          new Map(data.budgets.map((b: any) => [b.budgetId, b])).values()
+        )
+        setBudgetStatus(uniqueBudgets)
       }
     } catch (error) {
       console.error('Fehler beim Laden des Budget-Status:', error)
@@ -221,7 +225,7 @@ export default function BudgetVerwaltung({ mandantId, zeitraum, refreshTrigger }
       <div className="space-y-4">
         {budgetStatus.map((budget) => (
           <div
-            key={budget.kategorieId}
+            key={budget.budgetId}
             className={cn(
               'p-4 rounded-lg border-2',
               budget.ueberschritten ? 'border-red-200 bg-red-50' :

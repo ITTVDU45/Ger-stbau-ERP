@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
       const warnungAktiv = prozentAusgelastet >= budget.warnungBeiProzent
       
       budgetStatus.push({
-        budgetId: budget._id,
+        budgetId: budget._id.toString(),
         kategorieId: budget.kategorieId,
         kategorieName: budget.kategorieName,
         budgetBetrag: budget.betrag,
