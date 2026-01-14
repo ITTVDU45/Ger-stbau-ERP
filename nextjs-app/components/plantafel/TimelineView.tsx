@@ -37,7 +37,7 @@ interface TimelineViewProps {
 }
 
 // Feste Breiten in Pixeln für perfekte Ausrichtung
-const RESOURCE_WIDTH = 240 // px
+const RESOURCE_WIDTH = 320 // px - Erhöht für vollständige Projektinformationen
 const DAY_WIDTH = 180 // px
 
 export default function TimelineView({
@@ -289,11 +289,22 @@ export default function TimelineView({
                             <span className="text-xs font-bold text-green-700">P</span>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
+                            <p className="text-sm font-medium text-gray-900 break-words">
                               {resource.resourceTitle}
                             </p>
+                            {/* Vollständige Adresse anzeigen */}
+                            {(resource.adresse || resource.plz || resource.ort) && (
+                              <p className="text-xs text-gray-600 break-words mt-0.5">
+                                {[
+                                  resource.adresse,
+                                  resource.plz && resource.ort 
+                                    ? `${resource.plz} ${resource.ort}`
+                                    : resource.plz || resource.ort
+                                ].filter(Boolean).join(', ')}
+                              </p>
+                            )}
                             {resource.kundeName && (
-                              <p className="text-xs text-gray-500 truncate">{resource.kundeName}</p>
+                              <p className="text-xs text-gray-500 break-words mt-0.5">{resource.kundeName}</p>
                             )}
                           </div>
                         </>

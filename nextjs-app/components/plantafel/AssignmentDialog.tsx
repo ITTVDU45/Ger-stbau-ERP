@@ -22,16 +22,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -90,7 +80,6 @@ export default function AssignmentDialog() {
   
   const [formData, setFormData] = useState<AssignmentFormData>(defaultFormData)
   const [activeTab, setActiveTab] = useState<'setup' | 'dismantle'>('setup')
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   
   // Formular initialisieren
@@ -166,13 +155,28 @@ export default function AssignmentDialog() {
         dismantleDate: formData.dismantleDate || undefined
       }
       
+      // Berechne von/bis: Wenn nur ein Datum, dann gleicher Tag für Start und Ende
+      const dates = [formData.setupDate, formData.dismantleDate].filter(Boolean)
+      if (dates.length === 0) {
+        toast.error('Bitte geben Sie mindestens ein Aufbau- oder Abbau-Datum an')
+        return
+      }
+      
+      // Wenn nur ein Datum: von und bis auf den gleichen Tag
+      // Wenn zwei Daten: von = früheres, bis = späteres
+      const sortedDates = dates.sort()
+      const vonDate = sortedDates[0]
+      const bisDate = sortedDates.length === 1 ? sortedDates[0] : sortedDates[sortedDates.length - 1]
+      
+      // Erstelle Date-Objekte in lokaler Zeitzone (nicht UTC)
+      const von = new Date(vonDate)
+      von.setHours(0, 0, 0, 0)
+      
+      const bis = new Date(bisDate)
+      bis.setHours(23, 59, 59, 999)
+      
       if (dialogMode === 'edit' && selectedEvent) {
         // Bearbeitungsmodus: Aktualisiere bestehenden Einsatz
-        // Bestimme von/bis basierend auf gesetzten Daten
-        const dates = [formData.setupDate, formData.dismantleDate].filter(Boolean)
-        const von = new Date(dates[0] + 'T00:00:00.000Z')
-        const bis = new Date(dates[dates.length - 1] + 'T23:59:59.999Z')
-        
         const payload = {
           ...baseData,
           von: von.toISOString(),
@@ -184,10 +188,6 @@ export default function AssignmentDialog() {
         toast.success('Einsatz erfolgreich aktualisiert')
       } else {
         // Erstell-Modus: Erstelle Einsatz mit setup/dismantle
-        const dates = [formData.setupDate, formData.dismantleDate].filter(Boolean)
-        const von = new Date(dates[0] + 'T00:00:00.000Z')
-        const bis = new Date(dates[dates.length - 1] + 'T23:59:59.999Z')
-        
         const payload = {
           ...baseData,
           von: von.toISOString(),
@@ -211,11 +211,20 @@ export default function AssignmentDialog() {
     setIsDeleting(true)
     try {
       const realId = selectedEvent.sourceId
+      console.log('[AssignmentDialog] Löschen - sourceId:', realId)
+      console.log('[AssignmentDialog] Löschen - selectedEvent:', selectedEvent)
+      
+      if (!realId) {
+        toast.error('Keine gültige Einsatz-ID gefunden')
+        setIsDeleting(false)
+        return
+      }
+      
       await deleteMutation.mutateAsync(realId)
       toast.success('Einsatz erfolgreich gelöscht')
-      setShowDeleteConfirm(false)
       closeDialog()
     } catch (error: unknown) {
+      console.error('[AssignmentDialog] Löschen-Fehler:', error)
       const errorMessage = error instanceof Error ? error.message : 'Fehler beim Löschen'
       toast.error(errorMessage)
     } finally {
@@ -235,32 +244,14 @@ export default function AssignmentDialog() {
       <Dialog open={isDialogOpen} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white text-gray-900">
           <DialogHeader>
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <DialogTitle className="text-gray-900">
-                  {dialogMode === 'create' ? 'Neuer Einsatz' : 'Einsatz bearbeiten'}
-                </DialogTitle>
-                <DialogDescription className="text-gray-600">
-                  {dialogMode === 'create'
-                    ? 'Planen Sie Aufbau und/oder Abbau für ein Projekt. Wählen Sie nur Datum (keine Uhrzeit).'
-                    : 'Bearbeiten Sie die Details des Einsatzes'}
-                </DialogDescription>
-              </div>
-              
-              {/* Löschen-Button im Header - immer sichtbar im Edit-Modus */}
-              {dialogMode === 'edit' && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  disabled={isLoading}
-                  className="flex items-center gap-2"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Löschen
-                </Button>
-              )}
-            </div>
+            <DialogTitle className="text-gray-900">
+              {dialogMode === 'create' ? 'Neuer Einsatz' : 'Einsatz bearbeiten'}
+            </DialogTitle>
+            <DialogDescription className="text-gray-600">
+              {dialogMode === 'create'
+                ? 'Planen Sie Aufbau und/oder Abbau für ein Projekt. Wählen Sie nur Datum (keine Uhrzeit).'
+                : 'Bearbeiten Sie die Details des Einsatzes'}
+            </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-6 py-4">
@@ -468,7 +459,51 @@ export default function AssignmentDialog() {
             </div>
           </div>
 
-          <DialogFooter className="flex gap-2 pt-4 border-t border-gray-200 mt-4">
+          {/* Sicherheitswarnung für Löschen - nur im Edit-Modus */}
+          {dialogMode === 'edit' && (
+            <div className="border-t-2 border-red-200 pt-4 mt-6">
+              <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4 space-y-3 mb-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 mt-0.5">
+                    <svg 
+                      className="h-6 w-6 text-red-600" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
+                      />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-red-900 font-bold text-base mb-1">
+                      ⚠️ SICHERHEITSWARNUNG - EINTRAG LÖSCHEN
+                    </h4>
+                    <ul className="text-red-800 text-sm space-y-1 list-disc list-inside mb-3">
+                      <li>Der Einsatz wird <strong>permanent gelöscht</strong></li>
+                      <li>Alle verknüpften <strong>Zeiterfassungen</strong> werden entfernt</li>
+                      <li>Daten können <strong>nicht wiederhergestellt</strong> werden</li>
+                    </ul>
+                    <Button
+                      variant="destructive"
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                      className="w-full font-semibold flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white border-red-700"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {isDeleting ? 'Wird gelöscht...' : 'Unwiderruflich löschen'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex gap-2 pt-4 border-t border-gray-200">
             <Button 
               variant="outline" 
               onClick={closeDialog}
@@ -491,71 +526,6 @@ export default function AssignmentDialog() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
-      {/* Lösch-Bestätigung mit Sicherheitswarnung */}
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent className="bg-white text-gray-900 max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-600 flex items-center gap-2 text-xl">
-              <Trash2 className="h-6 w-6" />
-              Einsatz wirklich löschen?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-700 space-y-3">
-              <p className="text-base">
-                Dieser Vorgang kann <strong>nicht rückgängig gemacht</strong> werden.
-              </p>
-              
-              {/* SICHERHEITSWARNUNG - Sehr deutlich in Rot */}
-              <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4 space-y-2">
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 mt-0.5">
-                    <svg 
-                      className="h-6 w-6 text-red-600" 
-                      fill="none" 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
-                      />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-red-900 font-bold text-base mb-1">
-                      ⚠️ SICHERHEITSWARNUNG
-                    </h4>
-                    <ul className="text-red-800 text-sm space-y-1 list-disc list-inside">
-                      <li>Der Einsatz wird <strong>permanent gelöscht</strong></li>
-                      <li>Alle verknüpften <strong>Zeiterfassungen</strong> werden entfernt</li>
-                      <li>Daten können <strong>nicht wiederhergestellt</strong> werden</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-              
-              <p className="text-gray-600 text-sm italic">
-                Bitte bestätigen Sie, dass Sie diesen Einsatz unwiderruflich löschen möchten.
-              </p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2">
-            <AlertDialogCancel className="bg-white text-gray-900 border-gray-300 hover:bg-gray-100">
-              Abbrechen
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700 text-white font-semibold"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              {isDeleting ? 'Wird gelöscht...' : 'Unwiderruflich löschen'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   )
 }

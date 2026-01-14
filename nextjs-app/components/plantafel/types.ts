@@ -105,6 +105,9 @@ export interface PlantafelResource {
   projektname?: string
   kundeName?: string
   status?: string
+  adresse?: string
+  plz?: string
+  ort?: string
   
   // Verfügbarkeits-Info (wird berechnet)
   availability?: {
@@ -310,10 +313,15 @@ export function mapEinsatzToEvents(einsatz: Einsatz, view: PlantafelView): Plant
 
   // NEU: Prüfe zuerst simplified setup/dismantle
   if (einsatz.setupDate || einsatz.dismantleDate) {
-    // Nutze neue date-only Logik
+    // Nutze neue date-only Logik - WICHTIG: Lokale Zeitzone verwenden!
     if (einsatz.setupDate) {
-      const setupStart = new Date(einsatz.setupDate + 'T00:00:00.000Z')
-      const setupEnd = new Date(einsatz.setupDate + 'T23:59:59.999Z')
+      // Parse Datum in lokaler Zeitzone (nicht UTC!)
+      const setupDate = new Date(einsatz.setupDate)
+      const setupStart = new Date(setupDate)
+      setupStart.setHours(0, 0, 0, 0) // 00:00:00 Lokalzeit
+      
+      const setupEnd = new Date(setupDate)
+      setupEnd.setHours(23, 59, 59, 999) // 23:59:59 Lokalzeit
       
       events.push({
         ...baseEvent,
@@ -327,8 +335,13 @@ export function mapEinsatzToEvents(einsatz: Einsatz, view: PlantafelView): Plant
     }
     
     if (einsatz.dismantleDate) {
-      const dismantleStart = new Date(einsatz.dismantleDate + 'T00:00:00.000Z')
-      const dismantleEnd = new Date(einsatz.dismantleDate + 'T23:59:59.999Z')
+      // Parse Datum in lokaler Zeitzone (nicht UTC!)
+      const dismantleDate = new Date(einsatz.dismantleDate)
+      const dismantleStart = new Date(dismantleDate)
+      dismantleStart.setHours(0, 0, 0, 0) // 00:00:00 Lokalzeit
+      
+      const dismantleEnd = new Date(dismantleDate)
+      dismantleEnd.setHours(23, 59, 59, 999) // 23:59:59 Lokalzeit
       
       events.push({
         ...baseEvent,
@@ -485,13 +498,31 @@ export function mapMitarbeiterToResource(mitarbeiter: Mitarbeiter): PlantafelRes
  * Mappt ein Projekt auf eine PlantafelResource
  */
 export function mapProjektToResource(projekt: Projekt): PlantafelResource {
+  // Vollständige Adresse zusammenstellen
+  const adresseTeile: string[] = []
+  if (projekt.bauvorhaben?.adresse) {
+    adresseTeile.push(projekt.bauvorhaben.adresse)
+  }
+  if (projekt.bauvorhaben?.plz && projekt.bauvorhaben?.ort) {
+    adresseTeile.push(`${projekt.bauvorhaben.plz} ${projekt.bauvorhaben.ort}`)
+  } else if (projekt.bauvorhaben?.plz) {
+    adresseTeile.push(projekt.bauvorhaben.plz)
+  } else if (projekt.bauvorhaben?.ort) {
+    adresseTeile.push(projekt.bauvorhaben.ort)
+  }
+  
+  const vollstaendigeAdresse = adresseTeile.length > 0 ? adresseTeile.join(', ') : undefined
+  
   return {
     resourceId: projekt._id || '',
     resourceTitle: projekt.projektname,
     type: 'project',
     projektname: projekt.projektname,
     kundeName: projekt.kundeName,
-    status: projekt.status
+    status: projekt.status,
+    adresse: projekt.bauvorhaben?.adresse,
+    plz: projekt.bauvorhaben?.plz,
+    ort: projekt.bauvorhaben?.ort
   }
 }
 
