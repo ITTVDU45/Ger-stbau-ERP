@@ -16,6 +16,7 @@ import {
   startOfDay, 
   endOfDay, 
   subDays,
+  addDays,
   startOfMonth,
   endOfMonth,
   subMonths,
@@ -79,6 +80,18 @@ export default function DateRangeFilter({
         return {
           start: startOfDay(yesterday),
           end: endOfDay(yesterday)
+        }
+      }
+    },
+    {
+      label: 'Die nächsten 2 Wochen',
+      icon: '📅',
+      getValue: () => {
+        const today = new Date()
+        const twoWeeksLater = addDays(today, 14)
+        return {
+          start: startOfDay(today),
+          end: endOfDay(twoWeeksLater)
         }
       }
     },
