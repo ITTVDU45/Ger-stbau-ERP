@@ -224,13 +224,11 @@ export default function AssignmentDialog() {
   }
   
   const isLoading = createMutation.isPending || updateMutation.isPending
-  // Löschen-Button im Edit-Modus anzeigen (außer bei Urlauben)
-  const canDelete = dialogMode === 'edit' && selectedEvent?.sourceType !== 'urlaub'
   
   // Debug-Logging
   console.log('[AssignmentDialog] dialogMode:', dialogMode)
-  console.log('[AssignmentDialog] selectedEvent:', selectedEvent)
-  console.log('[AssignmentDialog] canDelete:', canDelete)
+  console.log('[AssignmentDialog] isDialogOpen:', isDialogOpen)
+  console.log('[AssignmentDialog] selectedEvent:', selectedEvent ? { id: selectedEvent.id, sourceType: selectedEvent.sourceType } : null)
   
   return (
     <>
@@ -453,7 +451,8 @@ export default function AssignmentDialog() {
           </div>
 
           <DialogFooter className="flex gap-2 pt-4 border-t border-gray-200 mt-4">
-            {canDelete && (
+            {/* Löschen-Button - Zeige im Edit-Modus (außer bei Urlauben) */}
+            {dialogMode === 'edit' && (
               <Button
                 variant="destructive"
                 onClick={() => setShowDeleteConfirm(true)}
