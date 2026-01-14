@@ -212,7 +212,8 @@ export default function AssignmentDialog() {
   }
   
   const isLoading = createMutation.isPending || updateMutation.isPending
-  const canDelete = dialogMode === 'edit' && selectedEvent?.sourceType === 'einsatz'
+  // Löschen-Button im Edit-Modus anzeigen (außer bei Urlauben)
+  const canDelete = dialogMode === 'edit' && selectedEvent?.sourceType !== 'urlaub'
   
   return (
     <>
