@@ -28,9 +28,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
-    if (!body.mitarbeiterId || !body.projektId || !body.von || !body.bis) {
+    // Nur Projekt, Von und Bis sind Pflichtfelder
+    if (!body.projektId || !body.von || !body.bis) {
       return NextResponse.json(
-        { erfolg: false, fehler: 'Mitarbeiter, Projekt, Von und Bis sind erforderlich' },
+        { erfolg: false, fehler: 'Projekt, Von und Bis sind erforderlich' },
         { status: 400 }
       )
     }

@@ -11,9 +11,8 @@
  * - Suche
  */
 
-import { format, startOfDay, endOfDay } from 'date-fns'
+import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -25,10 +24,8 @@ import { Label } from '@/components/ui/label'
 import {
   ChevronLeft,
   ChevronRight,
-  Calendar,
   Users,
   Briefcase,
-  Filter,
   Search,
   AlertTriangle,
   Plus,
@@ -37,6 +34,7 @@ import {
 import { usePlantafelStore } from '@/lib/stores/plantafelStore'
 import { useEmployees, useProjects } from '@/lib/queries/plantafelQueries'
 import { PlantafelView } from './types'
+import DateRangeFilter from './filters/DateRangeFilter'
 
 interface PlantafelToolbarProps {
   conflictCount?: number
@@ -53,6 +51,7 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
     goToToday,
     goToPrevious,
     goToNext,
+    dateRange,
     filters,
     setFilters,
     toggleEmployeeFilter,
@@ -68,42 +67,48 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
   const { data: employees = [] } = useEmployees()
   const { data: projects = [] } = useProjects()
   
-  const [customDateFrom, setCustomDateFrom] = useState('')
-  const [customDateTo, setCustomDateTo] = useState('')
-  const [dateFilterOpen, setDateFilterOpen] = useState(false)
-  
-  // Formatiere das angezeigte Datum basierend auf der Ansicht
+  // Formatiere das angezeigte Datum basierend auf dem aktiven Zeitraum
   const getDisplayDate = () => {
-    if (calendarView === 'week') {
-      const weekStart = format(currentDate, 'dd.MM.', { locale: de })
-      return `KW ${format(currentDate, 'w', { locale: de })} • ${format(currentDate, 'MMMM yyyy', { locale: de })}`
-    } else if (calendarView === 'month') {
-      return format(currentDate, 'MMMM yyyy', { locale: de })
-    } else {
-      return format(currentDate, 'EEEE, dd. MMMM yyyy', { locale: de })
+    const start = dateRange.start
+    const end = dateRange.end
+    
+    // Formatiere Start und Ende
+    const startStr = format(start, 'dd.MM.yyyy', { locale: de })
+    const endStr = format(end, 'dd.MM.yyyy', { locale: de })
+    
+    // Prüfe ob Start und Ende am selben Tag sind (z.B. "Heute" oder "Gestern")
+    if (format(start, 'yyyy-MM-dd') === format(end, 'yyyy-MM-dd')) {
+      // Einzelner Tag
+      const dayName = format(start, 'EEEE', { locale: de })
+      return `${dayName}, ${startStr}`
     }
+    
+    // Prüfe ob im gleichen Monat
+    if (format(start, 'yyyy-MM') === format(end, 'yyyy-MM')) {
+      const monthName = format(start, 'MMMM yyyy', { locale: de })
+      return `${format(start, 'dd.', { locale: de })} - ${format(end, 'dd. MMMM yyyy', { locale: de })}`
+    }
+    
+    // Prüfe ob im gleichen Jahr
+    if (format(start, 'yyyy') === format(end, 'yyyy')) {
+      return `${format(start, 'dd. MMM', { locale: de })} - ${format(end, 'dd. MMM yyyy', { locale: de })}`
+    }
+    
+    // Unterschiedliche Jahre
+    return `${startStr} - ${endStr}`
   }
   
-  // Prüfe ob aktuell "Heute" angezeigt wird
-  const isToday = () => {
+  // Prüfe ob ein benutzerdefinierter Zeitraum aktiv ist (nicht "heute")
+  const isCustomDateRange = () => {
     const today = new Date()
-    return currentDate.toDateString() === today.toDateString()
+    const isToday = 
+      currentDate.toDateString() === today.toDateString() ||
+      (dateRange.start.toDateString() === new Date(today.setHours(0,0,0,0)).toDateString() &&
+       dateRange.end.toDateString() === new Date(today.setHours(23,59,59,999)).toDateString())
+    return !isToday
   }
   
   const activeFilterCount = filters.employeeIds.length + filters.projectIds.length
-  
-  // Setze benutzerdefinierten Zeitraum
-  const applyCustomDateRange = () => {
-    if (customDateFrom && customDateTo) {
-      const from = startOfDay(new Date(customDateFrom))
-      const to = endOfDay(new Date(customDateTo))
-      
-      if (from <= to) {
-        setDateRange({ start: from, end: to })
-        setDateFilterOpen(false)
-      }
-    }
-  }
   
   return (
     <div className="flex flex-col gap-4 p-4 bg-white text-gray-900 border-b border-gray-200 shadow-sm">
@@ -162,87 +167,12 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
             <ChevronLeft className="h-4 w-4 text-gray-600" />
           </Button>
           
-          {/* Datum-Filter Dropdown */}
-          <Popover open={dateFilterOpen} onOpenChange={setDateFilterOpen}>
-            <PopoverTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="sm"
-                className={!isToday() ? 'bg-blue-50 border-blue-300 text-blue-700' : ''}
-              >
-                <Calendar className="h-4 w-4 mr-2 text-gray-600" />
-                {isToday() ? 'Heute' : 'Filter aktiv'}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80 p-0 bg-white border border-gray-200 shadow-xl" align="start">
-              <div className="p-3 border-b border-gray-100">
-                <p className="text-sm font-semibold text-gray-900">Zeitraum auswählen</p>
-              </div>
-              
-              <div className="p-4 space-y-3">
-                {/* Schnell-Optionen */}
-                <div className="space-y-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start text-gray-700 hover:bg-gray-100"
-                    onClick={() => {
-                      goToToday()
-                      setDateFilterOpen(false)
-                    }}
-                  >
-                    📅 Heute
-                  </Button>
-                  
-                  <Separator />
-                  
-                  {/* Benutzerdefinierter Zeitraum */}
-                  <div className="space-y-3 pt-2">
-                    <Label className="text-sm font-medium text-gray-900">
-                      Benutzerdefiniert
-                    </Label>
-                    
-                    <div className="grid gap-2">
-                      <div>
-                        <Label htmlFor="date-from" className="text-xs text-gray-600">
-                          Von
-                        </Label>
-                        <Input
-                          id="date-from"
-                          type="date"
-                          value={customDateFrom}
-                          onChange={(e) => setCustomDateFrom(e.target.value)}
-                          className="text-sm"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="date-to" className="text-xs text-gray-600">
-                          Bis
-                        </Label>
-                        <Input
-                          id="date-to"
-                          type="date"
-                          value={customDateTo}
-                          onChange={(e) => setCustomDateTo(e.target.value)}
-                          className="text-sm"
-                        />
-                      </div>
-                    </div>
-                    
-                    <Button
-                      size="sm"
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                      onClick={applyCustomDateRange}
-                      disabled={!customDateFrom || !customDateTo}
-                    >
-                      Zeitraum anwenden
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+          {/* Erweiterte Zeitraumauswahl */}
+          <DateRangeFilter
+            currentRange={dateRange}
+            onRangeChange={setDateRange}
+            isActive={isCustomDateRange()}
+          />
           
           <Button variant="outline" size="sm" onClick={goToNext}>
             <ChevronRight className="h-4 w-4 text-gray-600" />

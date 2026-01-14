@@ -100,6 +100,27 @@ async function fetchConflicts(from: string, to: string): Promise<ConflictsRespon
   
   const data = await response.json()
   
+  console.log('[Plantafel Query] API Response:', {
+    totalEvents: data.events?.length || 0,
+    totalEinsaetze: data.meta?.totalEinsaetze || 0,
+    totalUrlaube: data.meta?.totalUrlaube || 0,
+    totalResources: data.resources?.length || 0,
+    conflicts: data.conflicts?.length || 0
+  })
+  
+  // Zeige Urlaube separat
+  const urlaubEvents = data.events?.filter((e: any) => e.sourceType === 'urlaub') || []
+  if (urlaubEvents.length > 0) {
+    console.log('[Plantafel Query] Urlaub Events:', urlaubEvents.map((e: any) => ({
+      id: e.id,
+      title: e.title,
+      type: e.type,
+      resourceId: e.resourceId,
+      start: e.start,
+      end: e.end
+    })))
+  }
+  
   return {
     ...data,
     conflicts: data.conflicts.map((c: any) => ({

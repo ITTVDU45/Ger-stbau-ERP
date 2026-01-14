@@ -314,14 +314,87 @@
 }
 
 /* Popover/Command Content - explizit opak (nur für Popover, nicht für Select/Dropdown) */
-[data-radix-popover-content] {
+[data-radix-popover-content],
+[data-radix-popper-content-wrapper] > div[role="dialog"] {
   background-color: #ffffff !important;
   border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
 }
 
-.dark [data-radix-popover-content] {
+.dark [data-radix-popover-content],
+.dark [data-radix-popper-content-wrapper] > div[role="dialog"] {
   background-color: #1e293b !important;
   border-color: #334155 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Command Komponente (Kunden-Suche) */
+[cmdk-root],
+.cmdk-root,
+[data-radix-popover-content] [cmdk-root] {
+  background-color: #ffffff !important;
+}
+
+.dark [cmdk-root],
+.dark .cmdk-root,
+.dark [data-radix-popover-content] [cmdk-root] {
+  background-color: #1e293b !important;
+}
+
+/* Command List */
+[cmdk-list] {
+  background-color: #ffffff !important;
+}
+
+.dark [cmdk-list] {
+  background-color: #1e293b !important;
+}
+
+/* Command Items */
+[cmdk-item] {
+  background-color: transparent !important;
+}
+
+[cmdk-item]:hover,
+[cmdk-item][data-selected="true"] {
+  background-color: #f1f5f9 !important;
+}
+
+.dark [cmdk-item]:hover,
+.dark [cmdk-item][data-selected="true"] {
+  background-color: #334155 !important;
+}
+
+/* Command Group Headings */
+[cmdk-group-heading] {
+  background-color: #f8fafc !important;
+  color: #64748b !important;
+}
+
+.dark [cmdk-group-heading] {
+  background-color: #0f172a !important;
+  color: #94a3b8 !important;
+}
+
+/* Command Input Wrapper */
+[cmdk-input-wrapper] {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.dark [cmdk-input-wrapper] {
+  background-color: #1e293b !important;
+  border-bottom: 1px solid #334155 !important;
+}
+
+/* Command Input */
+[cmdk-input] {
+  background-color: transparent !important;
+  color: #0f172a !important;
+}
+
+.dark [cmdk-input] {
+  color: #f8fafc !important;
 }
 
 /* Radix UI Select/Dropdown - explizite Styles für beide Modi */

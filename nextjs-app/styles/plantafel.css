@@ -280,36 +280,38 @@
 
 /* Abwesenheiten */
 .plantafel-event-urlaub {
-  background: repeating-linear-gradient(
-    45deg,
-    #94a3b8,
-    #94a3b8 4px,
-    #9ca3af 4px,
-    #9ca3af 8px
-  );
-  color: #1f2937;
+  background: linear-gradient(135deg, #fb923c, #f97316);
+  color: white;
+  border-left: 4px solid #ea580c;
+  font-weight: 600;
 }
 
 .plantafel-event-krankheit {
-  background: repeating-linear-gradient(
-    45deg,
-    #f87171,
-    #f87171 4px,
-    #fca5a5 4px,
-    #fca5a5 8px
-  );
-  color: #1f2937;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border-left: 4px solid #b91c1c;
+  font-weight: 600;
 }
 
 .plantafel-event-sonderurlaub {
-  background: repeating-linear-gradient(
-    45deg,
-    #a78bfa,
-    #a78bfa 4px,
-    #c4b5fd 4px,
-    #c4b5fd 8px
-  );
+  background: linear-gradient(135deg, #a78bfa, #9333ea);
+  color: white;
+  border-left: 4px solid #7c3aed;
+  font-weight: 600;
+}
+
+.plantafel-event-unbezahlt {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
   color: #1f2937;
+  border-left: 4px solid #d97706;
+  font-weight: 600;
+}
+
+.plantafel-event-sonstiges {
+  background: linear-gradient(135deg, #94a3b8, #64748b);
+  color: white;
+  border-left: 4px solid #475569;
+  font-weight: 600;
 }
 
 /* Konflikt-Markierung */

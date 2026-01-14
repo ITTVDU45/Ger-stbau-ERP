@@ -34,8 +34,10 @@ const PlantafelBoard = dynamic(
 
 export default function KalenderPage() {
   return (
-    <QueryProvider>
-      <PlantafelBoard />
-    </QueryProvider>
+    <div className="-m-4 sm:-m-6 lg:-m-8 h-[calc(100vh-4rem)] md:h-screen">
+      <QueryProvider>
+        <PlantafelBoard />
+      </QueryProvider>
+    </div>
   )
 }

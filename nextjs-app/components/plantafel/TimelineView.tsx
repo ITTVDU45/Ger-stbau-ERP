@@ -37,8 +37,8 @@ interface TimelineViewProps {
 }
 
 // Feste Breiten in Pixeln für perfekte Ausrichtung
-const RESOURCE_WIDTH = 208 // px
-const DAY_WIDTH = 160 // px
+const RESOURCE_WIDTH = 240 // px
+const DAY_WIDTH = 180 // px
 
 export default function TimelineView({
   resources,
@@ -197,9 +197,9 @@ export default function TimelineView({
   const totalWidth = RESOURCE_WIDTH + (days.length * DAY_WIDTH)
   
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full w-full bg-white">
       {/* Scrollbarer Container */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto w-full">
         {/* Content mit fester Breite */}
         <div style={{ width: `${totalWidth}px` }}>
           

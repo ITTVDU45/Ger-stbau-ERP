@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase } from '@/lib/db/client'
 import { Einsatz, Urlaub, Mitarbeiter, Projekt } from '@/lib/db/types'
 import { ObjectId } from 'mongodb'
+import { format } from 'date-fns'
 import {
   PlantafelEvent,
   PlantafelResource,
@@ -178,10 +179,39 @@ export async function GET(request: NextRequest) {
     // Lade Urlaube (falls gewünscht)
     let urlaube: Urlaub[] = []
     if (showAbsences) {
+      // Erst mal ALLE Urlaube laden um zu sehen was in der DB ist
+      const alleUrlaube = await db.collection<Urlaub>('urlaub')
+        .find({})
+        .limit(5)
+        .toArray()
+      
+      console.log(`[Plantafel DEBUG] Erste 5 Urlaube aus DB:`, 
+        alleUrlaube.map(u => ({
+          _id: u._id,
+          mitarbeiterId: u.mitarbeiterId,
+          mitarbeiterName: u.mitarbeiterName,
+          von: u.von,
+          bis: u.bis,
+          typ: u.typ,
+          status: u.status,
+          vonType: typeof u.von,
+          bisType: typeof u.bis
+        }))
+      )
+      
+      // Query für alle genehmigten Abwesenheiten (alle Typen)
+      // Akzeptiere verschiedene Schreibweisen des Status
+      // WICHTIG: Daten können als String oder Date gespeichert sein
+      const fromStr = format(fromDate, 'yyyy-MM-dd')
+      const toStr = format(toDate, 'yyyy-MM-dd')
+      
       const urlaubQuery: any = {
-        status: 'genehmigt',
+        status: { $in: ['genehmigt', 'Genehmigt', 'GENEHMIGT'] },
         $or: [
-          { von: { $lte: toDate }, bis: { $gte: fromDate } }
+          // Date-Objekte
+          { von: { $lte: toDate }, bis: { $gte: fromDate } },
+          // String-Format (YYYY-MM-DD)
+          { von: { $lte: toStr }, bis: { $gte: fromStr } }
         ]
       }
       
@@ -189,9 +219,58 @@ export async function GET(request: NextRequest) {
         urlaubQuery.mitarbeiterId = { $in: employeeIds }
       }
       
-      urlaube = await db.collection<Urlaub>('urlaub')
+      console.log(`[Plantafel] Suche Urlaube mit Query:`, {
+        fromStr,
+        toStr,
+        fromDate: fromDate.toISOString(),
+        toDate: toDate.toISOString()
+      })
+      
+      const urlaubeRaw = await db.collection<Urlaub>('urlaub')
         .find(urlaubQuery)
         .toArray()
+      
+      console.log(`[Plantafel] Gefundene Urlaube mit Status 'genehmigt': ${urlaubeRaw.length}`, {
+        query: urlaubQuery,
+        zeitraum: `${fromDate.toISOString()} - ${toDate.toISOString()}`
+      })
+      
+      // Lade Mitarbeiternamen für Urlaube, falls nicht vorhanden
+      urlaube = await Promise.all(
+        urlaubeRaw.map(async (u) => {
+          let mitarbeiterName = u.mitarbeiterName
+          
+          if (!mitarbeiterName && u.mitarbeiterId) {
+            try {
+              // Versuche mit ObjectId
+              const mitarbeiter = await db.collection<Mitarbeiter>('mitarbeiter')
+                .findOne({ _id: new ObjectId(u.mitarbeiterId) })
+              
+              if (mitarbeiter) {
+                mitarbeiterName = `${mitarbeiter.vorname} ${mitarbeiter.nachname}`
+              }
+            } catch (error) {
+              // Falls ObjectId fehlschlägt, versuche als String
+              const mitarbeiter = await db.collection<Mitarbeiter>('mitarbeiter')
+                .findOne({ _id: u.mitarbeiterId } as any)
+              
+              if (mitarbeiter) {
+                mitarbeiterName = `${mitarbeiter.vorname} ${mitarbeiter.nachname}`
+              }
+            }
+          }
+          
+          return {
+            ...u,
+            mitarbeiterName: mitarbeiterName || 'Unbekannt',
+            _id: u._id?.toString()
+          }
+        })
+      )
+      
+      console.log(`[Plantafel] Urlaube mit Namen: ${urlaube.length}`, 
+        urlaube.map(u => ({ name: u.mitarbeiterName, typ: u.typ, von: u.von, bis: u.bis }))
+      )
     }
     
     // Lade Ressourcen basierend auf View
@@ -243,15 +322,24 @@ export async function GET(request: NextRequest) {
       }, view)
     )
     
-    const urlaubEvents = urlaube.map(u => ({
-      ...mapUrlaubToEvent({
+    const urlaubEvents = urlaube.map(u => {
+      const event = mapUrlaubToEvent({
         ...u,
         _id: u._id?.toString()
-      }),
-      resourceId: u.mitarbeiterId
-    }))
+      })
+      return {
+        ...event,
+        resourceId: u.mitarbeiterId
+      }
+    })
+    
+    console.log(`[Plantafel] Urlaub Events erstellt: ${urlaubEvents.length}`, 
+      urlaubEvents.map(e => ({ id: e.id, title: e.title, resourceId: e.resourceId }))
+    )
     
     const events: PlantafelEvent[] = [...einsatzEvents, ...urlaubEvents]
+    
+    console.log(`[Plantafel] Gesamt Events: ${events.length} (Einsätze: ${einsatzEvents.length}, Urlaube: ${urlaubEvents.length})`)
     
     // Berechne Konflikte
     const conflicts = calculateConflicts(events)
@@ -265,6 +353,8 @@ export async function GET(request: NextRequest) {
         from: fromDate.toISOString(),
         to: toDate.toISOString(),
         totalEvents: events.length,
+        totalEinsaetze: einsatzEvents.length,
+        totalUrlaube: urlaubEvents.length,
         totalConflicts: conflicts.length
       }
     })
@@ -305,10 +395,10 @@ export async function POST(request: NextRequest) {
       stundenAbbau
     } = body
     
-    // Validierung
-    if (!mitarbeiterId || !projektId || !von || !bis) {
+    // Validierung - nur Projekt, von und bis sind Pflichtfelder
+    if (!projektId || !von || !bis) {
       return NextResponse.json(
-        { erfolg: false, fehler: 'mitarbeiterId, projektId, von und bis sind erforderlich' },
+        { erfolg: false, fehler: 'projektId, von und bis sind erforderlich' },
         { status: 400 }
       )
     }
@@ -332,19 +422,25 @@ export async function POST(request: NextRequest) {
     
     const db = await getDatabase()
     
-    // Lade Mitarbeiter- und Projekt-Namen
-    const mitarbeiter = await db.collection<Mitarbeiter>('mitarbeiter')
-      .findOne({ _id: new ObjectId(mitarbeiterId) })
+    // Lade Mitarbeiter- und Projekt-Namen (Mitarbeiter ist optional)
+    let mitarbeiter = null
+    let mitarbeiterName = ''
+    
+    if (mitarbeiterId) {
+      mitarbeiter = await db.collection<Mitarbeiter>('mitarbeiter')
+        .findOne({ _id: new ObjectId(mitarbeiterId) })
+      
+      if (!mitarbeiter) {
+        return NextResponse.json(
+          { erfolg: false, fehler: 'Mitarbeiter nicht gefunden' },
+          { status: 404 }
+        )
+      }
+      mitarbeiterName = `${mitarbeiter.vorname} ${mitarbeiter.nachname}`
+    }
     
     const projekt = await db.collection<Projekt>('projekte')
       .findOne({ _id: new ObjectId(projektId) })
-    
-    if (!mitarbeiter) {
-      return NextResponse.json(
-        { erfolg: false, fehler: 'Mitarbeiter nicht gefunden' },
-        { status: 404 }
-      )
-    }
     
     if (!projekt) {
       return NextResponse.json(
@@ -355,8 +451,8 @@ export async function POST(request: NextRequest) {
     
     // Erstelle Einsatz
     const neuerEinsatz: Omit<Einsatz, '_id'> = {
-      mitarbeiterId,
-      mitarbeiterName: `${mitarbeiter.vorname} ${mitarbeiter.nachname}`,
+      mitarbeiterId: mitarbeiterId || undefined,
+      mitarbeiterName: mitarbeiterName || 'Nicht zugewiesen',
       projektId,
       projektName: projekt.projektname,
       von: vonDate,

@@ -109,8 +109,8 @@ export default function EinsatzDialog({ open, einsatz, onClose }: EinsatzDialogP
   }
 
   const handleSubmit = async () => {
-    if (!formData.mitarbeiterId || !formData.projektId || !formData.von || !formData.bis) {
-      alert('Bitte füllen Sie alle Pflichtfelder aus')
+    if (!formData.projektId || !formData.von || !formData.bis) {
+      alert('Bitte füllen Sie alle Pflichtfelder aus (Projekt, Von, Bis)')
       return
     }
 
@@ -152,7 +152,7 @@ export default function EinsatzDialog({ open, einsatz, onClose }: EinsatzDialogP
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="mitarbeiter">Mitarbeiter *</Label>
+              <Label htmlFor="mitarbeiter">Mitarbeiter</Label>
               <Select value={formData.mitarbeiterId} onValueChange={handleMitarbeiterChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Mitarbeiter auswählen" />
@@ -204,13 +204,24 @@ export default function EinsatzDialog({ open, einsatz, onClose }: EinsatzDialogP
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="rolle">Rolle auf Baustelle</Label>
-              <Input
-                id="rolle"
-                value={formData.rolle || ''}
-                onChange={(e) => handleChange('rolle', e.target.value)}
-                placeholder="z.B. Teamleiter, Gerüstbauer"
-              />
+              <Label htmlFor="rolle">Rolle im Projekt</Label>
+              <Select value={formData.rolle || ''} onValueChange={(value) => handleChange('rolle', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Rolle auswählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Bauleiter">Bauleiter</SelectItem>
+                  <SelectItem value="Teamleiter">Teamleiter</SelectItem>
+                  <SelectItem value="Polier">Polier</SelectItem>
+                  <SelectItem value="Gerüstbauer">Gerüstbauer</SelectItem>
+                  <SelectItem value="Monteur">Monteur</SelectItem>
+                  <SelectItem value="Vorarbeiter">Vorarbeiter</SelectItem>
+                  <SelectItem value="Facharbeiter">Facharbeiter</SelectItem>
+                  <SelectItem value="Helfer">Helfer</SelectItem>
+                  <SelectItem value="Auszubildender">Auszubildender</SelectItem>
+                  <SelectItem value="Sicherheitsbeauftragter">Sicherheitsbeauftragter</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

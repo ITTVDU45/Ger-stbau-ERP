@@ -451,8 +451,16 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0 z-[9999]" align="start" sideOffset={4}>
-                  <Command>
+                <PopoverContent 
+                  className="w-[400px] p-0 z-[9999]" 
+                  align="start" 
+                  sideOffset={4}
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #e2e8f0'
+                  }}
+                >
+                  <Command style={{ backgroundColor: '#FFFFFF' }}>
                     <CommandInput 
                       placeholder="Kunde suchen..." 
                       value={kundeSearchQuery}

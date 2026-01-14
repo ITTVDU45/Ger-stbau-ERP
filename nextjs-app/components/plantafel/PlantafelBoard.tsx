@@ -306,7 +306,7 @@ export default function PlantafelBoard() {
   // ============================================================================
   
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] min-h-[600px] bg-white text-gray-900">
+    <div className="flex flex-col h-full min-h-[600px] w-full bg-white text-gray-900">
       {/* Toolbar */}
       <PlantafelToolbar 
         conflictCount={conflicts.length}
@@ -314,9 +314,9 @@ export default function PlantafelBoard() {
       />
       
       {/* Main Content */}
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 w-full">
         {/* Calendar */}
-        <div className="flex-1 overflow-auto p-4 bg-white">
+        <div className="flex-1 overflow-auto px-2 py-4 bg-white min-w-0">
           {error ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center p-8 bg-white dark:bg-slate-800 rounded-lg shadow">
@@ -410,7 +410,7 @@ export default function PlantafelBoard() {
               draggableAccessor={() => true}
               resizableAccessor={(event) => event.sourceType === 'einsatz'}
               
-              style={{ height: '100%', minWidth: '800px' }}
+              style={{ height: '100%', width: '100%' }}
             />
           )}
         </div>

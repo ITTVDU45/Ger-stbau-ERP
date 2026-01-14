@@ -133,16 +133,6 @@ export default function AssignmentDialog() {
     return { von, bis }
   }
   
-  // Prüfe ob Abbau an anderen Tagen als Aufbau ist
-  const istAbbauSeparat = (): boolean => {
-    if (!formData.abbauVonDatum || !formData.aufbauVonDatum) return false
-    
-    const aufbauEnd = formData.aufbauBisDatum || formData.aufbauVonDatum
-    
-    // Abbau ist separat wenn abbauVon > aufbauBis (oder aufbauVon)
-    return new Date(formData.abbauVonDatum) > new Date(aufbauEnd)
-  }
-  
   // Formular initialisieren
   useEffect(() => {
     if (dialogMode === 'edit' && selectedEvent) {
@@ -204,25 +194,22 @@ export default function AssignmentDialog() {
   
   const handleSubmit = async () => {
     // Validierung
-    if (!formData.mitarbeiterId) {
-      toast.error('Bitte wählen Sie einen Mitarbeiter aus')
-      return
-    }
     if (!formData.projektId) {
       toast.error('Bitte wählen Sie ein Projekt aus')
       return
     }
-    if (!formData.aufbauVonDatum) {
-      toast.error('Bitte geben Sie ein Aufbau-Startdatum an')
-      return
-    }
-    if (formData.stundenAufbau <= 0 && formData.stundenAbbau <= 0) {
-      toast.error('Bitte geben Sie Stunden für Aufbau oder Abbau an')
+    
+    // Prüfe ob mindestens Aufbau ODER Abbau ausgefüllt ist
+    const hatAufbau = formData.aufbauVonDatum && formData.stundenAufbau > 0
+    const hatAbbau = formData.abbauVonDatum && formData.stundenAbbau > 0
+    
+    if (!hatAufbau && !hatAbbau) {
+      toast.error('Bitte geben Sie mindestens Aufbau oder Abbau an')
       return
     }
     
     try {
-      // Aufbau/Abbau-Datum Validierung (wenn beide gesetzt)
+      // Aufbau/Abbau-Datum Validierung (wenn gesetzt)
       if (formData.aufbauVonDatum && formData.aufbauBisDatum) {
         if (new Date(formData.aufbauVonDatum) > new Date(formData.aufbauBisDatum)) {
           toast.error('Aufbau: Startdatum muss vor Enddatum liegen')
@@ -236,62 +223,94 @@ export default function AssignmentDialog() {
         }
       }
       
-      // Berechne Gesamt-Zeitraum (frühestes bis spätestes Datum)
-      const aufbauZeitraum = getAufbauZeitraum()
-      const abbauZeitraum = getAbbauZeitraum()
-      
-      if (!aufbauZeitraum.von || !aufbauZeitraum.bis) {
-        toast.error('Bitte geben Sie ein Aufbau-Startdatum an')
-        return
-      }
-      
-      // Gesamt-Zeitraum berechnen (für Filter in der Plantafel)
-      const allDates: Date[] = [aufbauZeitraum.von, aufbauZeitraum.bis]
-      if (abbauZeitraum.von) allDates.push(abbauZeitraum.von)
-      if (abbauZeitraum.bis) allDates.push(abbauZeitraum.bis)
-      
-      const gesamtVon = new Date(Math.min(...allDates.map(d => d.getTime())))
-      const gesamtBis = new Date(Math.max(...allDates.map(d => d.getTime())))
-      
-      // Ein Einsatz mit allen Daten (Aufbau + Abbau)
-      // Aufbau-Zeiten mit Datum kombinieren
-      const aufbauVonDateTime = aufbauZeitraum.von!
-      const aufbauBisDateTime = aufbauZeitraum.bis!
-      
-      // Abbau-Zeiten mit Datum kombinieren (falls vorhanden)
-      const abbauVonDateTime = abbauZeitraum.von
-      const abbauBisDateTime = abbauZeitraum.bis
-      
-      const payload = {
-        mitarbeiterId: formData.mitarbeiterId,
+      const baseData = {
+        mitarbeiterId: formData.mitarbeiterId || undefined,
         projektId: formData.projektId,
-        von: gesamtVon.toISOString(),
-        bis: gesamtBis.toISOString(),
         rolle: formData.rolle || undefined,
-        geplantStunden: getGesamtStunden() || undefined,
         notizen: formData.notizen || undefined,
-        bestaetigt: formData.bestaetigt,
-        // Aufbau-Planung MIT Uhrzeiten
-        aufbauVon: aufbauVonDateTime.toISOString(),
-        aufbauBis: aufbauBisDateTime.toISOString(),
-        stundenAufbau: formData.stundenAufbau || undefined,
-        // Abbau-Planung MIT Uhrzeiten
-        abbauVon: abbauVonDateTime?.toISOString() || undefined,
-        abbauBis: abbauBisDateTime?.toISOString() || undefined,
-        stundenAbbau: formData.stundenAbbau || undefined
+        bestaetigt: formData.bestaetigt
       }
       
-      if (dialogMode === 'create') {
-        await createMutation.mutateAsync(payload)
-        toast.success(formData.bestaetigt 
-          ? 'Einsatz erstellt und Zeiterfassungen angelegt' 
-          : 'Einsatz erfolgreich erstellt')
-      } else if (selectedEvent) {
+      if (dialogMode === 'edit' && selectedEvent) {
+        // Bearbeitungsmodus: Aktualisiere bestehenden Einsatz
+        const aufbauZeitraum = getAufbauZeitraum()
+        const abbauZeitraum = getAbbauZeitraum()
+        
+        // Bestimme Gesamt-Zeitraum
+        const allDates: Date[] = []
+        if (aufbauZeitraum.von) allDates.push(aufbauZeitraum.von, aufbauZeitraum.bis!)
+        if (abbauZeitraum.von) allDates.push(abbauZeitraum.von, abbauZeitraum.bis!)
+        
+        const gesamtVon = new Date(Math.min(...allDates.map(d => d.getTime())))
+        const gesamtBis = new Date(Math.max(...allDates.map(d => d.getTime())))
+        
+        const payload = {
+          ...baseData,
+          von: gesamtVon.toISOString(),
+          bis: gesamtBis.toISOString(),
+          geplantStunden: getGesamtStunden() || undefined,
+          // Aufbau-Daten (falls vorhanden)
+          aufbauVon: aufbauZeitraum.von?.toISOString() || undefined,
+          aufbauBis: aufbauZeitraum.bis?.toISOString() || undefined,
+          stundenAufbau: formData.stundenAufbau || undefined,
+          // Abbau-Daten (falls vorhanden)
+          abbauVon: abbauZeitraum.von?.toISOString() || undefined,
+          abbauBis: abbauZeitraum.bis?.toISOString() || undefined,
+          stundenAbbau: formData.stundenAbbau || undefined
+        }
+        
         const realId = selectedEvent.sourceId
         await updateMutation.mutateAsync({ id: realId, data: payload })
-        toast.success(formData.bestaetigt 
-          ? 'Einsatz aktualisiert und Zeiterfassungen synchronisiert' 
-          : 'Einsatz erfolgreich aktualisiert')
+        toast.success('Einsatz erfolgreich aktualisiert')
+      } else {
+        // Erstell-Modus: Erstelle separate Einträge für Aufbau und Abbau
+        const einsaetze = []
+        
+        // Aufbau-Einsatz (falls ausgefüllt)
+        if (hatAufbau) {
+          const aufbauZeitraum = getAufbauZeitraum()
+          if (aufbauZeitraum.von && aufbauZeitraum.bis) {
+            einsaetze.push({
+              ...baseData,
+              von: aufbauZeitraum.von.toISOString(),
+              bis: aufbauZeitraum.bis.toISOString(),
+              geplantStunden: formData.stundenAufbau,
+              aufbauVon: aufbauZeitraum.von.toISOString(),
+              aufbauBis: aufbauZeitraum.bis.toISOString(),
+              stundenAufbau: formData.stundenAufbau,
+              notizen: formData.notizen ? `[AUFBAU] ${formData.notizen}` : '[AUFBAU]'
+            })
+          }
+        }
+        
+        // Abbau-Einsatz (falls ausgefüllt)
+        if (hatAbbau) {
+          const abbauZeitraum = getAbbauZeitraum()
+          if (abbauZeitraum.von && abbauZeitraum.bis) {
+            einsaetze.push({
+              ...baseData,
+              von: abbauZeitraum.von.toISOString(),
+              bis: abbauZeitraum.bis.toISOString(),
+              geplantStunden: formData.stundenAbbau,
+              abbauVon: abbauZeitraum.von.toISOString(),
+              abbauBis: abbauZeitraum.bis.toISOString(),
+              stundenAbbau: formData.stundenAbbau,
+              notizen: formData.notizen ? `[ABBAU] ${formData.notizen}` : '[ABBAU]'
+            })
+          }
+        }
+        
+        // Erstelle alle Einsätze
+        for (const einsatz of einsaetze) {
+          await createMutation.mutateAsync(einsatz)
+        }
+        
+        const anzahl = einsaetze.length
+        toast.success(
+          anzahl === 1 
+            ? 'Einsatz erfolgreich erstellt' 
+            : `${anzahl} Einsätze erfolgreich erstellt (Aufbau + Abbau)`
+        )
       }
       
       closeDialog()
@@ -330,7 +349,7 @@ export default function AssignmentDialog() {
           </DialogTitle>
           <DialogDescription className="text-gray-600">
             {dialogMode === 'create'
-              ? 'Planen Sie einen neuen Mitarbeiter-Einsatz auf einem Projekt'
+              ? 'Planen Sie Aufbau und/oder Abbau für ein Projekt. Jeder wird als separater Eintrag angezeigt.'
               : 'Bearbeiten Sie die Details des Einsatzes'}
           </DialogDescription>
         </DialogHeader>
@@ -340,7 +359,7 @@ export default function AssignmentDialog() {
           <div className="space-y-2">
             <Label htmlFor="mitarbeiter" className="text-gray-900 font-medium flex items-center gap-2">
               <User className="h-4 w-4" />
-              Mitarbeiter *
+              Mitarbeiter
             </Label>
             <Select
               value={formData.mitarbeiterId}
@@ -387,7 +406,7 @@ export default function AssignmentDialog() {
           
           {/* Rolle */}
           <div className="space-y-2">
-            <Label htmlFor="rolle" className="text-gray-900 font-medium">Rolle im Projekt *</Label>
+            <Label htmlFor="rolle" className="text-gray-900 font-medium">Rolle im Projekt</Label>
             <Select
               value={formData.rolle}
               onValueChange={(value) => handleChange('rolle', value)}
@@ -396,10 +415,16 @@ export default function AssignmentDialog() {
                 <SelectValue placeholder="Rolle auswählen" />
               </SelectTrigger>
               <SelectContent className="bg-white text-gray-900">
-                <SelectItem value="kolonnenfuehrer">Kolonnenführer</SelectItem>
-                <SelectItem value="vorarbeiter">Vorarbeiter</SelectItem>
-                <SelectItem value="monteur">Monteur</SelectItem>
-                <SelectItem value="helfer">Helfer</SelectItem>
+                <SelectItem value="Bauleiter">Bauleiter</SelectItem>
+                <SelectItem value="Teamleiter">Teamleiter</SelectItem>
+                <SelectItem value="Polier">Polier</SelectItem>
+                <SelectItem value="Gerüstbauer">Gerüstbauer</SelectItem>
+                <SelectItem value="Monteur">Monteur</SelectItem>
+                <SelectItem value="Vorarbeiter">Vorarbeiter</SelectItem>
+                <SelectItem value="Facharbeiter">Facharbeiter</SelectItem>
+                <SelectItem value="Helfer">Helfer</SelectItem>
+                <SelectItem value="Auszubildender">Auszubildender</SelectItem>
+                <SelectItem value="Sicherheitsbeauftragter">Sicherheitsbeauftragter</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -410,20 +435,20 @@ export default function AssignmentDialog() {
               Aufbau/Abbau Planung
             </Label>
             <p className="text-xs text-gray-500 mb-4">
-              Bei Bestätigung werden automatisch Zeiterfassungs-Einträge erstellt
+              Füllen Sie mindestens Aufbau ODER Abbau aus. Beide werden als separate Einträge in der Plantafel angezeigt.
             </p>
             
             {/* Aufbau Datum + Uhrzeit */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
               <Label className="text-blue-800 font-medium flex items-center gap-2 mb-3">
                 <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                Aufbau
+                Aufbau (optional)
               </Label>
               
               {/* Aufbau Von: Datum + Uhrzeit */}
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div className="space-y-1">
-                  <Label className="text-gray-600 text-xs">Datum Von *</Label>
+                  <Label className="text-gray-600 text-xs">Datum Von</Label>
                   <Input
                     type="date"
                     value={formData.aufbauVonDatum}
@@ -556,10 +581,22 @@ export default function AssignmentDialog() {
               <p className="text-xs text-gray-500">
                 (Aufbau: {formData.stundenAufbau}h + Abbau: {formData.stundenAbbau}h)
               </p>
-              {istAbbauSeparat() && (
+              {formData.aufbauVonDatum && formData.abbauVonDatum && (
                 <div className="mt-2 flex items-center gap-2 text-blue-600 bg-blue-50 p-2 rounded-lg text-sm">
                   <Info className="h-4 w-4" />
-                  Aufbau und Abbau an verschiedenen Tagen → werden separat in der Timeline angezeigt
+                  Aufbau und Abbau werden als separate Einträge in der Plantafel angezeigt
+                </div>
+              )}
+              {!formData.aufbauVonDatum && formData.abbauVonDatum && (
+                <div className="mt-2 flex items-center gap-2 text-green-600 bg-green-50 p-2 rounded-lg text-sm">
+                  <Info className="h-4 w-4" />
+                  Nur Abbau wird in der Plantafel angezeigt
+                </div>
+              )}
+              {formData.aufbauVonDatum && !formData.abbauVonDatum && (
+                <div className="mt-2 flex items-center gap-2 text-blue-600 bg-blue-50 p-2 rounded-lg text-sm">
+                  <Info className="h-4 w-4" />
+                  Nur Aufbau wird in der Plantafel angezeigt
                 </div>
               )}
             </div>
@@ -576,7 +613,7 @@ export default function AssignmentDialog() {
               />
             </div>
           
-          {/* Bestätigt-Checkbox - ALTE Abbau-Felder ENTFERNT */}
+          {/* Bestätigt-Checkbox */}
           <div className="border-t border-gray-200 pt-4 mt-4">
             <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
               <Checkbox
@@ -585,13 +622,13 @@ export default function AssignmentDialog() {
                 onCheckedChange={(checked) => handleChange('bestaetigt', !!checked)}
               />
               <Label htmlFor="bestaetigt" className="text-amber-800 font-medium cursor-pointer">
-                Einsatz bestätigt (Zeiterfassungen werden erstellt)
+                Einsatz(e) bestätigt (Zeiterfassungen werden erstellt)
               </Label>
             </div>
             {formData.bestaetigt && (
               <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
                 <Info className="h-3 w-3" />
-                Bei Bestätigung werden automatisch Zeiterfassungs-Einträge für den Mitarbeiter erstellt
+                Bei Bestätigung werden automatisch Zeiterfassungs-Einträge erstellt
               </p>
             )}
           </div>

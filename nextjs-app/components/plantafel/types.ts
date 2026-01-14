@@ -269,7 +269,12 @@ export function mapEinsatzToEvent(einsatz: Einsatz, view: PlantafelView): Planta
  */
 export function mapEinsatzToEvents(einsatz: Einsatz, view: PlantafelView): PlantafelEvent[] {
   const events: PlantafelEvent[] = []
-  const baseTitle = view === 'team' ? einsatz.projektName : einsatz.mitarbeiterName
+  // Titel-Logik: Wenn kein Mitarbeiter zugewiesen ist, immer Projektname anzeigen
+  const baseTitle = view === 'team' 
+    ? einsatz.projektName 
+    : (einsatz.mitarbeiterId && einsatz.mitarbeiterName !== 'Nicht zugewiesen')
+      ? einsatz.mitarbeiterName 
+      : einsatz.projektName
   const resourceId = view === 'team' ? einsatz.mitarbeiterId : einsatz.projektId
   
   const baseEvent = {
@@ -367,18 +372,44 @@ export function mapUrlaubToEvent(urlaub: Urlaub): PlantafelEvent {
   }
   
   const colorMap: Record<string, string> = {
-    'urlaub': '#94a3b8', // slate-400
-    'krankheit': '#f87171', // red-400
-    'sonderurlaub': '#a78bfa', // violet-400
-    'unbezahlt': '#fbbf24', // amber-400
-    'sonstiges': '#9ca3af' // gray-400
+    'urlaub': '#fb923c', // orange-400 - Orange für Urlaub
+    'krankheit': '#ef4444', // red-500 - Rot für Krankheit
+    'sonderurlaub': '#a78bfa', // violet-400 - Violett für Sonderurlaub
+    'unbezahlt': '#fbbf24', // amber-400 - Gelb für unbezahlt
+    'sonstiges': '#94a3b8' // slate-400 - Grau für Sonstiges
   }
+  
+  // Titel mit Mitarbeitername und Typ
+  const typLabel = titleMap[urlaub.typ] || 'Abwesend'
+  const title = urlaub.mitarbeiterName 
+    ? `${urlaub.mitarbeiterName} (${typLabel})`
+    : typLabel
+  
+  // Parse Datum - kann String oder Date sein
+  const parseDate = (dateValue: any): Date => {
+    if (dateValue instanceof Date) {
+      return dateValue
+    }
+    if (typeof dateValue === 'string') {
+      // Wenn nur Datum (YYYY-MM-DD), füge Zeit hinzu für korrektes Parsing
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+        return new Date(`${dateValue}T00:00:00.000Z`)
+      }
+      return new Date(dateValue)
+    }
+    return new Date()
+  }
+  
+  const startDate = parseDate(urlaub.von)
+  const endDate = parseDate(urlaub.bis)
+  // Für Ganztags-Events: Ende auf 23:59:59 setzen
+  endDate.setHours(23, 59, 59, 999)
   
   return {
     id: `urlaub-${urlaub._id}`,
-    title: titleMap[urlaub.typ] || 'Abwesend',
-    start: new Date(urlaub.von),
-    end: new Date(urlaub.bis),
+    title,
+    start: startDate,
+    end: endDate,
     resourceId: urlaub.mitarbeiterId,
     
     type: typeMap[urlaub.typ] || 'sonstiges',
@@ -389,7 +420,7 @@ export function mapUrlaubToEvent(urlaub: Urlaub): PlantafelEvent {
     mitarbeiterName: urlaub.mitarbeiterName,
     
     urlaubTyp: urlaub.typ,
-    color: colorMap[urlaub.typ] || '#9ca3af',
+    color: colorMap[urlaub.typ] || '#94a3b8',
     
     notes: urlaub.grund,
     hasConflict: false
