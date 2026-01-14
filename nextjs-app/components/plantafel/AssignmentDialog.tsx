@@ -97,14 +97,26 @@ export default function AssignmentDialog() {
   useEffect(() => {
     if (dialogMode === 'edit' && selectedEvent) {
       // Bearbeiten: Daten aus Event laden
+      // Unterstütze sowohl neue (setupDate/dismantleDate) als auch alte Felder (aufbauVon/abbauVon)
+      let setupDate = selectedEvent.setupDate || ''
+      let dismantleDate = selectedEvent.dismantleDate || ''
+      
+      // Fallback: Konvertiere alte Felder zu neuem Format
+      if (!setupDate && selectedEvent.aufbauVon) {
+        setupDate = format(new Date(selectedEvent.aufbauVon), 'yyyy-MM-dd')
+      }
+      if (!dismantleDate && selectedEvent.abbauVon) {
+        dismantleDate = format(new Date(selectedEvent.abbauVon), 'yyyy-MM-dd')
+      }
+      
       setFormData({
         mitarbeiterId: selectedEvent.mitarbeiterId || '',
         projektId: selectedEvent.projektId || '',
         rolle: selectedEvent.rolle || '',
         notizen: selectedEvent.notes || '',
         bestaetigt: selectedEvent.bestaetigt || false,
-        setupDate: selectedEvent.setupDate || '',
-        dismantleDate: selectedEvent.dismantleDate || ''
+        setupDate,
+        dismantleDate
       })
     } else if (dialogMode === 'create' && selectedSlot) {
       // Erstellen: Slot-Daten vorausfüllen
@@ -214,6 +226,11 @@ export default function AssignmentDialog() {
   const isLoading = createMutation.isPending || updateMutation.isPending
   // Löschen-Button im Edit-Modus anzeigen (außer bei Urlauben)
   const canDelete = dialogMode === 'edit' && selectedEvent?.sourceType !== 'urlaub'
+  
+  // Debug-Logging
+  console.log('[AssignmentDialog] dialogMode:', dialogMode)
+  console.log('[AssignmentDialog] selectedEvent:', selectedEvent)
+  console.log('[AssignmentDialog] canDelete:', canDelete)
   
   return (
     <>
