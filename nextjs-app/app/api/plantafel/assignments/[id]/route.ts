@@ -41,7 +41,10 @@ export async function PATCH(
       geplantStunden, 
       notizen, 
       bestaetigt,
-      // Aufbau/Abbau-Planung (Datum + Stunden)
+      // NEU: Simplified date-only Felder
+      setupDate,
+      dismantleDate,
+      // LEGACY: Aufbau/Abbau-Planung (Datum + Stunden)
       aufbauVon,
       aufbauBis,
       stundenAufbau,
@@ -139,7 +142,11 @@ export async function PATCH(
     if (notizen !== undefined) updateData.notizen = notizen
     if (bestaetigt !== undefined) updateData.bestaetigt = bestaetigt
     
-    // Aufbau/Abbau-Planung (Datum + Stunden)
+    // NEU: Simplified date-only Felder
+    if (setupDate !== undefined) updateData.setupDate = setupDate || undefined
+    if (dismantleDate !== undefined) updateData.dismantleDate = dismantleDate || undefined
+    
+    // LEGACY: Aufbau/Abbau-Planung (Datum + Stunden)
     if (aufbauVon !== undefined) updateData.aufbauVon = aufbauVon ? new Date(aufbauVon) : undefined
     if (aufbauBis !== undefined) updateData.aufbauBis = aufbauBis ? new Date(aufbauBis) : undefined
     if (stundenAufbau !== undefined) updateData.stundenAufbau = stundenAufbau || undefined

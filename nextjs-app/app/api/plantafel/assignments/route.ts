@@ -337,7 +337,37 @@ export async function GET(request: NextRequest) {
       urlaubEvents.map(e => ({ id: e.id, title: e.title, resourceId: e.resourceId }))
     )
     
-    const events: PlantafelEvent[] = [...einsatzEvents, ...urlaubEvents]
+    let events: PlantafelEvent[] = [...einsatzEvents, ...urlaubEvents]
+    
+    // DEDUPLIZIERUNG: Im Projekt-View Events nach Projekt+Datum+Typ gruppieren
+    if (view === 'project') {
+      const grouped = new Map<string, PlantafelEvent>()
+      
+      events.forEach(event => {
+        // Nur Einsatz-Events gruppieren (keine Urlaube)
+        if (event.sourceType !== 'einsatz') {
+          grouped.set(event.id, event)
+          return
+        }
+        
+        // Gruppierungs-Schlüssel: projektId + Datum + Typ (Aufbau/Abbau)
+        const dateStr = format(event.start, 'yyyy-MM-dd')
+        const typ = event.id.includes('-setup') ? 'setup' : event.id.includes('-dismantle') ? 'dismantle' : 'default'
+        const groupKey = `${event.projektId}-${dateStr}-${typ}`
+        
+        if (!grouped.has(groupKey)) {
+          // Erstes Event dieser Gruppe - speichern
+          grouped.set(groupKey, {
+            ...event,
+            id: groupKey // Neue eindeutige ID
+          })
+        }
+        // Weitere Events mit gleichem Key werden ignoriert (dedupliziert)
+      })
+      
+      events = Array.from(grouped.values())
+      console.log(`[Plantafel] Nach Gruppierung (Projekt-View): ${events.length} Events (dedupliziert von ${einsatzEvents.length + urlaubEvents.length})`)
+    }
     
     console.log(`[Plantafel] Gesamt Events: ${events.length} (Einsätze: ${einsatzEvents.length}, Urlaube: ${urlaubEvents.length})`)
     
@@ -386,7 +416,10 @@ export async function POST(request: NextRequest) {
       geplantStunden, 
       notizen, 
       bestaetigt,
-      // Aufbau/Abbau-Planung (Datum + Stunden)
+      // NEU: Simplified date-only Felder
+      setupDate,
+      dismantleDate,
+      // LEGACY: Aufbau/Abbau-Planung (Datum + Stunden)
       aufbauVon,
       aufbauBis,
       stundenAufbau,
@@ -461,7 +494,10 @@ export async function POST(request: NextRequest) {
       geplantStunden: geplantStunden || undefined,
       notizen: notizen || undefined,
       bestaetigt: bestaetigt || false,
-      // Aufbau/Abbau-Planung (Datum + Stunden)
+      // NEU: Simplified date-only Felder
+      setupDate: setupDate || undefined,
+      dismantleDate: dismantleDate || undefined,
+      // LEGACY: Aufbau/Abbau-Planung (Datum + Stunden)
       aufbauVon: aufbauVon ? new Date(aufbauVon) : undefined,
       aufbauBis: aufbauBis ? new Date(aufbauBis) : undefined,
       stundenAufbau: stundenAufbau || undefined,

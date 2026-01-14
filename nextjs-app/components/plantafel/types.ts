@@ -46,32 +46,36 @@ export interface PlantafelEvent {
   start: Date
   end: Date
   resourceId: string // mitarbeiterId (Team-View) oder projektId (Projekt-View)
-  
+
   // Zusätzliche Metadaten
   type: PlantafelEventType
   sourceType: 'einsatz' | 'urlaub' // Woher stammt das Event?
   sourceId: string // Original-ID in der DB
-  
+
   // Für Einsätze
   mitarbeiterId?: string
   mitarbeiterName?: string
   projektId?: string
   projektName?: string
-  
+
   // Für Urlaub/Abwesenheit
   urlaubTyp?: 'urlaub' | 'krankheit' | 'sonderurlaub' | 'unbezahlt' | 'sonstiges'
-  
+
   // Styling
   color?: string // Projektfarbe oder Abwesenheits-Farbe
   hasConflict?: boolean // Konflikt erkannt?
   conflictReason?: string // Grund für Konflikt
-  
+
   // Zusätzliche Infos
   notes?: string
   bestaetigt?: boolean
   rolle?: string
-  
-  // Aufbau/Abbau-Planung (für Zeiterfassung-Sync)
+
+  // NEU: Simplified Aufbau/Abbau (date-only)
+  setupDate?: string      // Aufbau-Datum (YYYY-MM-DD)
+  dismantleDate?: string  // Abbau-Datum (YYYY-MM-DD)
+
+  // LEGACY: Aufbau/Abbau-Planung (für Abwärtskompatibilität)
   aufbauVon?: Date
   aufbauBis?: Date
   stundenAufbau?: number
@@ -269,14 +273,17 @@ export function mapEinsatzToEvent(einsatz: Einsatz, view: PlantafelView): Planta
  */
 export function mapEinsatzToEvents(einsatz: Einsatz, view: PlantafelView): PlantafelEvent[] {
   const events: PlantafelEvent[] = []
-  // Titel-Logik: Wenn kein Mitarbeiter zugewiesen ist, immer Projektname anzeigen
-  const baseTitle = view === 'team' 
-    ? einsatz.projektName 
-    : (einsatz.mitarbeiterId && einsatz.mitarbeiterName !== 'Nicht zugewiesen')
-      ? einsatz.mitarbeiterName 
-      : einsatz.projektName
-  const resourceId = view === 'team' ? einsatz.mitarbeiterId : einsatz.projektId
   
+  // Titel-Logik (UMGEDREHT nach Kundenwunsch):
+  // - Team-View: Zeilen = Mitarbeiter → Events zeigen MITARBEITER-Namen
+  // - Projekt-View: Zeilen = Projekte → Events zeigen PROJEKT-Namen
+  const baseTitle = view === 'team'
+    ? (einsatz.mitarbeiterId && einsatz.mitarbeiterName !== 'Nicht zugewiesen')
+      ? einsatz.mitarbeiterName
+      : 'Nicht zugewiesen'
+    : einsatz.projektName
+  const resourceId = view === 'team' ? einsatz.mitarbeiterId : einsatz.projektId
+
   const baseEvent = {
     type: 'einsatz' as PlantafelEventType,
     sourceType: 'einsatz' as const,
@@ -289,7 +296,10 @@ export function mapEinsatzToEvents(einsatz: Einsatz, view: PlantafelView): Plant
     bestaetigt: einsatz.bestaetigt,
     rolle: einsatz.rolle,
     hasConflict: false,
-    // Alle Aufbau/Abbau-Daten für Dialog
+    // NEU: Simplified date-only Felder
+    setupDate: einsatz.setupDate,
+    dismantleDate: einsatz.dismantleDate,
+    // LEGACY: Alte Felder für Abwärtskompatibilität
     aufbauVon: einsatz.aufbauVon ? new Date(einsatz.aufbauVon) : undefined,
     aufbauBis: einsatz.aufbauBis ? new Date(einsatz.aufbauBis) : undefined,
     stundenAufbau: einsatz.stundenAufbau,
@@ -297,15 +307,48 @@ export function mapEinsatzToEvents(einsatz: Einsatz, view: PlantafelView): Plant
     abbauBis: einsatz.abbauBis ? new Date(einsatz.abbauBis) : undefined,
     stundenAbbau: einsatz.stundenAbbau
   }
-  
-  // Prüfe ob Aufbau vorhanden
-  // WICHTIG: Die Uhrzeiten sind jetzt in aufbauVon/aufbauBis enthalten!
-  if (einsatz.aufbauVon && einsatz.stundenAufbau && einsatz.stundenAufbau > 0) {
-    // aufbauVon enthält bereits Datum + Uhrzeit (z.B. 2026-01-07T08:00:00)
-    const aufbauStart = new Date(einsatz.aufbauVon)
-    // aufbauBis enthält bereits Datum + Uhrzeit (z.B. 2026-01-07T11:00:00)
-    const aufbauEnd = einsatz.aufbauBis ? new Date(einsatz.aufbauBis) : new Date(einsatz.aufbauVon)
+
+  // NEU: Prüfe zuerst simplified setup/dismantle
+  if (einsatz.setupDate || einsatz.dismantleDate) {
+    // Nutze neue date-only Logik
+    if (einsatz.setupDate) {
+      const setupStart = new Date(einsatz.setupDate + 'T00:00:00.000Z')
+      const setupEnd = new Date(einsatz.setupDate + 'T23:59:59.999Z')
+      
+      events.push({
+        ...baseEvent,
+        id: `einsatz-${einsatz._id}-setup`,
+        title: `${baseTitle} (Aufbau)`,
+        start: setupStart,
+        end: setupEnd,
+        resourceId,
+        color: '#3b82f6' // Blau für Aufbau
+      })
+    }
     
+    if (einsatz.dismantleDate) {
+      const dismantleStart = new Date(einsatz.dismantleDate + 'T00:00:00.000Z')
+      const dismantleEnd = new Date(einsatz.dismantleDate + 'T23:59:59.999Z')
+      
+      events.push({
+        ...baseEvent,
+        id: `einsatz-${einsatz._id}-dismantle`,
+        title: `${baseTitle} (Abbau)`,
+        start: dismantleStart,
+        end: dismantleEnd,
+        resourceId,
+        color: '#22c55e' // Grün für Abbau
+      })
+    }
+    
+    return events
+  }
+
+  // LEGACY: Alte Logik für Aufbau/Abbau mit Uhrzeiten (Abwärtskompatibilität)
+  if (einsatz.aufbauVon && einsatz.stundenAufbau && einsatz.stundenAufbau > 0) {
+    const aufbauStart = new Date(einsatz.aufbauVon)
+    const aufbauEnd = einsatz.aufbauBis ? new Date(einsatz.aufbauBis) : new Date(einsatz.aufbauVon)
+
     events.push({
       ...baseEvent,
       id: `einsatz-${einsatz._id}-aufbau`,
@@ -313,18 +356,14 @@ export function mapEinsatzToEvents(einsatz: Einsatz, view: PlantafelView): Plant
       start: aufbauStart,
       end: aufbauEnd,
       resourceId,
-      color: '#3b82f6' // Blau für Aufbau
+      color: '#3b82f6'
     })
   }
-  
-  // Prüfe ob Abbau vorhanden
-  // WICHTIG: Die Uhrzeiten sind jetzt in abbauVon/abbauBis enthalten!
+
   if (einsatz.abbauVon && einsatz.stundenAbbau && einsatz.stundenAbbau > 0) {
-    // abbauVon enthält bereits Datum + Uhrzeit
     const abbauStart = new Date(einsatz.abbauVon)
-    // abbauBis enthält bereits Datum + Uhrzeit
     const abbauEnd = einsatz.abbauBis ? new Date(einsatz.abbauBis) : new Date(einsatz.abbauVon)
-    
+
     events.push({
       ...baseEvent,
       id: `einsatz-${einsatz._id}-abbau`,
@@ -332,10 +371,10 @@ export function mapEinsatzToEvents(einsatz: Einsatz, view: PlantafelView): Plant
       start: abbauStart,
       end: abbauEnd,
       resourceId,
-      color: '#22c55e' // Grün für Abbau
+      color: '#22c55e'
     })
   }
-  
+
   // Fallback: Wenn keine Aufbau/Abbau-Daten, nutze Gesamt-Zeitraum
   if (events.length === 0) {
     events.push({
@@ -347,7 +386,7 @@ export function mapEinsatzToEvents(einsatz: Einsatz, view: PlantafelView): Plant
       resourceId
     })
   }
-  
+
   return events
 }
 

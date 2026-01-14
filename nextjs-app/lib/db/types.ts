@@ -713,15 +713,19 @@ export interface Einsatz {
   bis: Date
   rolle?: string
   geplantStunden?: number
+
+  // NEU: Aufbau/Abbau-Planung (date-only, simplified)
+  setupDate?: string      // Aufbau-Datum (YYYY-MM-DD)
+  dismantleDate?: string  // Abbau-Datum (YYYY-MM-DD)
   
-  // NEU: Aufbau/Abbau-Planung (optional)
+  // LEGACY: Alte Felder (für Abwärtskompatibilität, werden entfernt)
   aufbauVon?: Date    // Aufbau-Startdatum
   aufbauBis?: Date    // Aufbau-Enddatum (optional)
   stundenAufbau?: number  // Geplante Aufbau-Stunden
   abbauVon?: Date     // Abbau-Startdatum (optional)
   abbauBis?: Date     // Abbau-Enddatum (optional)
   stundenAbbau?: number   // Geplante Abbau-Stunden
-  
+
   notizen?: string
   bestaetigt: boolean
   erstelltAm: Date
