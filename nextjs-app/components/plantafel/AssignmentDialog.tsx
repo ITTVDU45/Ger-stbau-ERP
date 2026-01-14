@@ -469,28 +469,66 @@ export default function AssignmentDialog() {
         </DialogContent>
       </Dialog>
       
-      {/* Lösch-Bestätigung */}
+      {/* Lösch-Bestätigung mit Sicherheitswarnung */}
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent className="bg-white text-gray-900">
+        <AlertDialogContent className="bg-white text-gray-900 max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-600 flex items-center gap-2">
-              <Trash2 className="h-5 w-5" />
+            <AlertDialogTitle className="text-red-600 flex items-center gap-2 text-xl">
+              <Trash2 className="h-6 w-6" />
               Einsatz wirklich löschen?
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-600">
-              Dieser Vorgang kann nicht rückgängig gemacht werden. Alle zugehörigen Zeiterfassungen werden ebenfalls gelöscht.
+            <AlertDialogDescription className="text-gray-700 space-y-3">
+              <p className="text-base">
+                Dieser Vorgang kann <strong>nicht rückgängig gemacht</strong> werden.
+              </p>
+              
+              {/* SICHERHEITSWARNUNG - Sehr deutlich in Rot */}
+              <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4 space-y-2">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 mt-0.5">
+                    <svg 
+                      className="h-6 w-6 text-red-600" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
+                      />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-red-900 font-bold text-base mb-1">
+                      ⚠️ SICHERHEITSWARNUNG
+                    </h4>
+                    <ul className="text-red-800 text-sm space-y-1 list-disc list-inside">
+                      <li>Der Einsatz wird <strong>permanent gelöscht</strong></li>
+                      <li>Alle verknüpften <strong>Zeiterfassungen</strong> werden entfernt</li>
+                      <li>Daten können <strong>nicht wiederhergestellt</strong> werden</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              
+              <p className="text-gray-600 text-sm italic">
+                Bitte bestätigen Sie, dass Sie diesen Einsatz unwiderruflich löschen möchten.
+              </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="gap-2">
             <AlertDialogCancel className="bg-white text-gray-900 border-gray-300 hover:bg-gray-100">
               Abbrechen
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold"
             >
-              {isDeleting ? 'Löschen...' : 'Löschen'}
+              <Trash2 className="h-4 w-4 mr-2" />
+              {isDeleting ? 'Wird gelöscht...' : 'Unwiderruflich löschen'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
