@@ -235,14 +235,32 @@ export default function AssignmentDialog() {
       <Dialog open={isDialogOpen} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white text-gray-900">
           <DialogHeader>
-            <DialogTitle className="text-gray-900">
-              {dialogMode === 'create' ? 'Neuer Einsatz' : 'Einsatz bearbeiten'}
-            </DialogTitle>
-            <DialogDescription className="text-gray-600">
-              {dialogMode === 'create'
-                ? 'Planen Sie Aufbau und/oder Abbau für ein Projekt. Wählen Sie nur Datum (keine Uhrzeit).'
-                : 'Bearbeiten Sie die Details des Einsatzes'}
-            </DialogDescription>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <DialogTitle className="text-gray-900">
+                  {dialogMode === 'create' ? 'Neuer Einsatz' : 'Einsatz bearbeiten'}
+                </DialogTitle>
+                <DialogDescription className="text-gray-600">
+                  {dialogMode === 'create'
+                    ? 'Planen Sie Aufbau und/oder Abbau für ein Projekt. Wählen Sie nur Datum (keine Uhrzeit).'
+                    : 'Bearbeiten Sie die Details des Einsatzes'}
+                </DialogDescription>
+              </div>
+              
+              {/* Löschen-Button im Header - immer sichtbar im Edit-Modus */}
+              {dialogMode === 'edit' && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={isLoading}
+                  className="flex items-center gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Löschen
+                </Button>
+              )}
+            </div>
           </DialogHeader>
           
           <div className="space-y-6 py-4">
@@ -451,18 +469,6 @@ export default function AssignmentDialog() {
           </div>
 
           <DialogFooter className="flex gap-2 pt-4 border-t border-gray-200 mt-4">
-            {/* Löschen-Button - Zeige im Edit-Modus (außer bei Urlauben) */}
-            {dialogMode === 'edit' && (
-              <Button
-                variant="destructive"
-                onClick={() => setShowDeleteConfirm(true)}
-                disabled={isLoading}
-                className="mr-auto flex items-center gap-2"
-              >
-                <Trash2 className="h-4 w-4" />
-                Eintrag löschen
-              </Button>
-            )}
             <Button 
               variant="outline" 
               onClick={closeDialog}
