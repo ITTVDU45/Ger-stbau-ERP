@@ -14,8 +14,10 @@
 .rbc-calendar {
   font-family: inherit;
   background: white;
-  border-radius: 8px;
+  border-radius: 0;
   min-height: 500px;
+  width: 100%;
+  max-width: 100%;
 }
 
 /* Kalender-Container scrollbar machen */
@@ -136,8 +138,12 @@
 /* Arbeitszeit-Bereich */
 .rbc-time-view {
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
   overflow: hidden;
+  width: 100%;
+  max-width: 100%;
 }
 
 .dark .rbc-time-view {
@@ -418,8 +424,12 @@
 
 .rbc-month-view {
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
   overflow: hidden;
+  width: 100%;
+  max-width: 100%;
 }
 
 .dark .rbc-month-view {

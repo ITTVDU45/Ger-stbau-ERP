@@ -316,7 +316,7 @@ export default function PlantafelBoard() {
       {/* Main Content */}
       <div className="flex flex-1 min-h-0 w-full">
         {/* Calendar */}
-        <div className="flex-1 overflow-auto px-2 py-4 bg-white min-w-0">
+        <div className="flex-1 overflow-auto px-0 py-4 bg-white min-w-0 w-full">
           {error ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center p-8 bg-white dark:bg-slate-800 rounded-lg shadow">

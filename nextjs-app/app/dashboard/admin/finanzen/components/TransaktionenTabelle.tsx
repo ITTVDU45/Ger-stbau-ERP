@@ -3,11 +3,10 @@
 import { useState, useMemo } from 'react'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Edit, Trash2, ArrowUpDown, Search, RefreshCw, MoreVertical, FileText } from 'lucide-react'
+import { Edit, Trash2, Search, RefreshCw, MoreVertical, FileText } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { format } from 'date-fns'
+import { format, isToday, isYesterday } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -40,9 +39,6 @@ interface TransaktionenTabelleProps {
   onDelete?: (id: string) => void
 }
 
-type SortKey = 'datum' | 'betrag' | 'kategorieName'
-type SortOrder = 'asc' | 'desc'
-
 export default function TransaktionenTabelle({
   transaktionen,
   loading = false,
@@ -53,8 +49,6 @@ export default function TransaktionenTabelle({
 }: TransaktionenTabelleProps) {
   const [activeTab, setActiveTab] = useState<'alle' | 'einnahmen' | 'ausgaben'>('alle')
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortKey, setSortKey] = useState<SortKey>('datum')
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [transaktionToDelete, setTransaktionToDelete] = useState<Transaktion | null>(null)
   const [filters, setFilters] = useState<TransaktionsFilters>({
@@ -104,15 +98,6 @@ export default function TransaktionenTabelle({
     } finally {
       setDeleteDialogOpen(false)
       setTransaktionToDelete(null)
-    }
-  }
-
-  const handleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortKey(key)
-      setSortOrder('asc')
     }
   }
 
@@ -174,25 +159,44 @@ export default function TransaktionenTabelle({
       )
     }
 
-    // Sortierung
-    filtered.sort((a, b) => {
-      let aVal: any = a[sortKey]
-      let bVal: any = b[sortKey]
-
-      if (sortKey === 'datum') {
-        aVal = new Date(aVal).getTime()
-        bVal = new Date(bVal).getTime()
-      }
-
-      if (sortOrder === 'asc') {
-        return aVal > bVal ? 1 : -1
-      } else {
-        return aVal < bVal ? 1 : -1
-      }
-    })
+    // Sortierung: Neueste zuerst
+    filtered.sort((a, b) => new Date(b.datum).getTime() - new Date(a.datum).getTime())
 
     return filtered
-  }, [transaktionen, activeTab, searchQuery, sortKey, sortOrder, filters])
+  }, [transaktionen, activeTab, searchQuery, filters])
+
+  const groupedTransaktionen = useMemo(() => {
+    const groups: Array<{
+      dateKey: string
+      label: string
+      items: Transaktion[]
+    }> = []
+    const groupMap = new Map<string, number>()
+
+    filteredTransaktionen.forEach((transaktion) => {
+      const dateObj = new Date(transaktion.datum)
+      const dateKey = format(dateObj, 'yyyy-MM-dd')
+      const existingIndex = groupMap.get(dateKey)
+
+      if (existingIndex !== undefined) {
+        groups[existingIndex].items.push(transaktion)
+        return
+      }
+
+      let label = format(dateObj, 'dd.MM.yyyy', { locale: de })
+      if (isToday(dateObj)) label = 'Heute'
+      if (isYesterday(dateObj)) label = 'Gestern'
+
+      groups.push({
+        dateKey,
+        label,
+        items: [transaktion]
+      })
+      groupMap.set(dateKey, groups.length - 1)
+    })
+
+    return groups
+  }, [filteredTransaktionen])
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -254,8 +258,8 @@ export default function TransaktionenTabelle({
   }
 
   return (
-    <Card className="p-4 md:p-6 bg-white border-2 border-gray-200">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-4">
+    <Card className="p-4 md:p-6 bg-white border-2 border-gray-200 flex flex-col" style={{ height: 'calc(100vh - 200px)', maxHeight: '900px' }}>
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-4 flex-shrink-0">
         <h2 className="text-xl md:text-2xl font-bold text-gray-900">Transaktionsübersicht</h2>
         <div className="flex gap-2">
           <div className="relative flex-1 md:flex-none">
@@ -274,14 +278,16 @@ export default function TransaktionenTabelle({
       </div>
 
       {/* Filter-Komponente */}
-      <TransaktionsFilter
-        filters={filters}
-        onFiltersChange={setFilters}
-        activeTab={activeTab}
-      />
+      <div className="flex-shrink-0">
+        <TransaktionsFilter
+          filters={filters}
+          onFiltersChange={setFilters}
+          activeTab={activeTab}
+        />
+      </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-        <div className="overflow-x-auto mb-4">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex flex-col flex-1 min-h-0">
+        <div className="overflow-x-auto mb-4 flex-shrink-0">
           <TabsList className="bg-gray-100 w-full md:w-auto inline-flex">
             <TabsTrigger value="alle" className="text-gray-900 data-[state=active]:bg-white data-[state=active]:text-gray-900 font-semibold text-sm md:text-base">
               Alle ({transaktionen.length})
@@ -295,154 +301,115 @@ export default function TransaktionenTabelle({
           </TabsList>
         </div>
 
-        <TabsContent value={activeTab} className="mt-0">
-          <div className="rounded-md border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-gray-50">
-                  <TableHead className="w-[100px] text-gray-900 font-semibold">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSort('datum')}
-                      className="h-8 p-0 hover:bg-transparent text-gray-900 font-semibold"
-                    >
-                      Datum
-                      <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="text-gray-900 font-semibold">Typ</TableHead>
-                  <TableHead className="text-gray-900 font-semibold">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSort('betrag')}
-                      className="h-8 p-0 hover:bg-transparent text-gray-900 font-semibold"
-                    >
-                      Betrag
-                      <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="text-gray-900 font-semibold">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSort('kategorieName')}
-                      className="h-8 p-0 hover:bg-transparent text-gray-900 font-semibold"
-                    >
-                      Kategorie
-                      <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="text-gray-900 font-semibold">Beschreibung</TableHead>
-                  <TableHead className="text-gray-900 font-semibold">Dokumente</TableHead>
-                  <TableHead className="text-gray-900 font-semibold">Verknüpfung</TableHead>
-                  <TableHead className="text-gray-900 font-semibold">Zahlungsart</TableHead>
-                  <TableHead className="text-gray-900 font-semibold">Quelle</TableHead>
-                  <TableHead className="text-gray-900 font-semibold">Status</TableHead>
-                  <TableHead className="text-right text-gray-900 font-semibold">Aktionen</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredTransaktionen.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-gray-700 font-medium">
-                      Keine Transaktionen gefunden
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredTransaktionen.map((transaktion) => (
-                    <TableRow key={transaktion._id} className="hover:bg-gray-50">
-                      <TableCell className="font-medium text-gray-900">
-                        {formatDate(transaktion.datum)}
-                      </TableCell>
-                      <TableCell>{getTypBadge(transaktion.typ)}</TableCell>
-                      <TableCell className={cn(
-                        'font-semibold text-base',
-                        transaktion.typ === 'einnahme' ? 'text-green-700' : 'text-red-700'
-                      )}>
-                        {transaktion.typ === 'einnahme' ? '+' : '-'}
-                        {formatCurrency(transaktion.betrag)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-gray-900 border-gray-300">{transaktion.kategorieName}</Badge>
-                      </TableCell>
-                      <TableCell className="max-w-xs truncate text-gray-900">
-                        {transaktion.beschreibung}
-                      </TableCell>
-                      <TableCell>
-                        {transaktion.dokumente && transaktion.dokumente.length > 0 ? (
-                          <Badge variant="outline" className="gap-1 text-gray-900 border-gray-300">
-                            <FileText className="h-3 w-3" />
-                            {transaktion.dokumente.length}
-                          </Badge>
-                        ) : (
-                          <span className="text-gray-400 text-sm">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm space-y-1">
-                          {transaktion.kundeName && (
-                            <div className="text-gray-800">👤 {transaktion.kundeName}</div>
-                          )}
-                          {transaktion.projektName && (
-                            <div className="text-gray-800">📁 {transaktion.projektName}</div>
-                          )}
-                          {transaktion.rechnungsnummer && (
-                            <div className="text-gray-800">📄 {transaktion.rechnungsnummer}</div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm text-gray-800 font-medium">
-                          {getZahlungsartLabel(transaktion.zahlungsart)}
-                        </span>
-                      </TableCell>
-                      <TableCell>{getQuelleBadge(transaktion.quelle)}</TableCell>
-                      <TableCell>{getStatusBadge(transaktion.status)}</TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                            >
-                              <MoreVertical className="h-4 w-4 text-gray-700" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem
-                              onClick={() => onEdit?.(transaktion)}
-                              disabled={transaktion.quelle === 'rechnung_automatisch'}
-                              className="cursor-pointer"
-                            >
-                              <Edit className="mr-2 h-4 w-4" />
-                              Bearbeiten
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleDeleteClick(transaktion)}
-                              disabled={transaktion.quelle === 'rechnung_automatisch'}
-                              className="cursor-pointer text-red-600 focus:text-red-600"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Löschen
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+        <TabsContent value={activeTab} className="mt-0 flex-1 min-h-0 overflow-hidden">
+          <div className="rounded-xl border bg-gray-50 h-full flex flex-col">
+            <div className="flex-1 overflow-y-auto">
+              {groupedTransaktionen.length === 0 ? (
+                <div className="py-8 text-center text-gray-700 font-medium">
+                  Keine Transaktionen gefunden
+                </div>
+              ) : (
+                <div className="space-y-6 p-4">
+                  {groupedTransaktionen.map((group) => (
+                    <div key={group.dateKey} className="rounded-xl border bg-white overflow-hidden">
+                      <div className="px-4 py-2 bg-gray-50 border-b text-sm font-semibold text-gray-800">
+                        {group.label}
+                      </div>
+                      <div className="divide-y">
+                        {group.items.map((transaktion) => (
+                          <div key={transaktion._id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
+                            <div className="h-10 w-10 rounded-full border bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-600">
+                              {transaktion.typ === 'einnahme' ? 'E' : 'A'}
+                            </div>
 
-          {filteredTransaktionen.length > 0 && (
-            <div className="mt-4 text-sm text-gray-900 font-medium text-right">
-              {filteredTransaktionen.length} von {transaktionen.length} Transaktionen
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-gray-900 truncate">
+                                  {transaktion.beschreibung}
+                                </span>
+                                {getTypBadge(transaktion.typ)}
+                              </div>
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                                {transaktion.kategorieName && (
+                                  <Badge variant="outline" className="text-gray-700 border-gray-300">
+                                    {transaktion.kategorieName}
+                                  </Badge>
+                                )}
+                                {transaktion.kundeName && <span>👤 {transaktion.kundeName}</span>}
+                                {transaktion.projektName && <span>📁 {transaktion.projektName}</span>}
+                                {transaktion.rechnungsnummer && <span>📄 {transaktion.rechnungsnummer}</span>}
+                                {transaktion.dokumente && transaktion.dokumente.length > 0 && (
+                                  <Badge variant="outline" className="gap-1 text-gray-700 border-gray-300">
+                                    <FileText className="h-3 w-3" />
+                                    {transaktion.dokumente.length}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="text-right">
+                              <div className={cn(
+                                'font-semibold text-base',
+                                transaktion.typ === 'einnahme' ? 'text-green-700' : 'text-red-700'
+                              )}>
+                                {transaktion.typ === 'einnahme' ? '+' : '-'}
+                                {formatCurrency(transaktion.betrag)}
+                              </div>
+                              <div className="mt-1 text-xs text-gray-500">
+                                {getZahlungsartLabel(transaktion.zahlungsart)}
+                              </div>
+                              <div className="mt-1 flex items-center gap-2 justify-end">
+                                {transaktion.status && getStatusBadge(transaktion.status)}
+                                {getQuelleBadge(transaktion.quelle || 'unbekannt')}
+                              </div>
+                            </div>
+
+                            <div className="pl-2">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                  >
+                                    <MoreVertical className="h-4 w-4 text-gray-700" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuItem
+                                    onClick={() => onEdit?.(transaktion)}
+                                    disabled={transaktion.quelle === 'rechnung_automatisch'}
+                                    className="cursor-pointer"
+                                  >
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Bearbeiten
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => handleDeleteClick(transaktion)}
+                                    disabled={transaktion.quelle === 'rechnung_automatisch'}
+                                    className="cursor-pointer text-red-600 focus:text-red-600"
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Löschen
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+            {/* Footer mit Anzahl */}
+            {filteredTransaktionen.length > 0 && (
+              <div className="flex-shrink-0 px-4 py-2 border-t bg-gray-100 text-sm text-gray-900 font-medium text-right">
+                {filteredTransaktionen.length} von {transaktionen.length} Transaktionen
+              </div>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
 
