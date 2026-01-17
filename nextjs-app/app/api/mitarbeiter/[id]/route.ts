@@ -102,6 +102,58 @@ export async function PUT(
   }
 }
 
+// PATCH - Partielle Aktualisierung (z.B. nur Jahresurlaub)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const body = await request.json()
+    
+    if (Object.keys(body).length === 0) {
+      return NextResponse.json(
+        { erfolg: false, fehler: 'Keine Daten zum Aktualisieren' },
+        { status: 400 }
+      )
+    }
+
+    const db = await getDatabase()
+    const mitarbeiterCollection = db.collection<Mitarbeiter>('mitarbeiter')
+    
+    // Entferne _id falls vorhanden
+    const { _id, ...updateData } = body
+    
+    const result = await mitarbeiterCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { 
+        $set: {
+          ...updateData,
+          zuletztGeaendert: new Date()
+        }
+      }
+    )
+    
+    if (result.matchedCount === 0) {
+      return NextResponse.json(
+        { erfolg: false, fehler: 'Mitarbeiter nicht gefunden' },
+        { status: 404 }
+      )
+    }
+    
+    return NextResponse.json({ 
+      erfolg: true,
+      message: 'Mitarbeiter erfolgreich aktualisiert'
+    })
+  } catch (error) {
+    console.error('Fehler beim Aktualisieren des Mitarbeiters:', error)
+    return NextResponse.json(
+      { erfolg: false, fehler: 'Fehler beim Aktualisieren des Mitarbeiters' },
+      { status: 500 }
+    )
+  }
+}
+
 // DELETE - Mitarbeiter löschen
 export async function DELETE(
   request: NextRequest,

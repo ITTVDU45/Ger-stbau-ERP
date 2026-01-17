@@ -181,7 +181,7 @@ export default function MitarbeiterDetailPage({ params }: { params: Promise<{ id
         </TabsList>
 
         <TabsContent value="uebersicht">
-          <MitarbeiterUebersicht mitarbeiterId={resolvedParams.id} mitarbeiter={mitarbeiter} />
+          <MitarbeiterUebersicht mitarbeiterId={resolvedParams.id} mitarbeiter={mitarbeiter} onMitarbeiterUpdated={loadMitarbeiter} />
         </TabsContent>
 
         <TabsContent value="projekte">

@@ -19,6 +19,7 @@ import ProjektAnfragenTab from '../components/ProjektAnfragenTab'
 import ProjektKalkulationTab from '../components/ProjektKalkulationTab'
 import ProjektAktivitaetenSidebar from '../components/ProjektAktivitaetenSidebar'
 import ManuelleRechnungDialog from '../components/ManuelleRechnungDialog'
+import ProjektFortschrittsbalken from '../components/ProjektFortschrittsbalken'
 
 export default function ProjektDetailPage() {
   const router = useRouter()
@@ -267,6 +268,9 @@ export default function ProjektDetailPage() {
           </p>
         </Card>
       </div>
+
+      {/* Fortschrittsbalken */}
+      <ProjektFortschrittsbalken projekt={projekt} />
 
       {/* Main Layout: Conditional basierend auf activeTab */}
       {activeTab === 'kalkulation' ? (

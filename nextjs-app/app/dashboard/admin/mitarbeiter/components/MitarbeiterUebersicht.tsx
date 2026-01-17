@@ -1,19 +1,126 @@
 "use client"
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Mitarbeiter } from '@/lib/db/types'
-import { Mail, Phone, MapPin, Calendar, Clock, Euro, FileText, CheckCircle2, XCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Mitarbeiter, Urlaub } from '@/lib/db/types'
+import { Mail, Phone, MapPin, Calendar, Clock, Euro, FileText, CheckCircle2, XCircle, Edit2, Save, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
+import { toast } from 'sonner'
 
 interface MitarbeiterUebersichtProps {
   mitarbeiterId: string
   mitarbeiter: Mitarbeiter
+  onMitarbeiterUpdated?: () => void
 }
 
-export default function MitarbeiterUebersicht({ mitarbeiterId, mitarbeiter }: MitarbeiterUebersichtProps) {
+export default function MitarbeiterUebersicht({ mitarbeiterId, mitarbeiter, onMitarbeiterUpdated }: MitarbeiterUebersichtProps) {
+  const [urlaubStats, setUrlaubStats] = useState({
+    jahresurlaub: mitarbeiter.jahresUrlaubstage || 0,
+    genommen: 0,
+    resturlaub: 0,
+    loading: true
+  })
+  const [editingUrlaub, setEditingUrlaub] = useState(false)
+  const [jahresurlaubInput, setJahresurlaubInput] = useState(mitarbeiter.jahresUrlaubstage?.toString() || '0')
+  const [saving, setSaving] = useState(false)
+
+  // Lade Urlaubsdaten und berechne Statistiken
+  useEffect(() => {
+    const loadUrlaubStats = async () => {
+      try {
+        // Lade alle genehmigten Urlaube für diesen Mitarbeiter im aktuellen Jahr
+        const currentYear = new Date().getFullYear()
+        const response = await fetch(`/api/urlaub?mitarbeiterId=${mitarbeiterId}`)
+        
+        if (response.ok) {
+          const data = await response.json()
+          const urlaube: Urlaub[] = data.urlaube || []
+          
+          // Filtere nur genehmigte Urlaube vom Typ 'urlaub' im aktuellen Jahr
+          const genehmigteUrlaube = urlaube.filter((u: Urlaub) => {
+            const urlaubJahr = new Date(u.von).getFullYear()
+            return u.status === 'genehmigt' && u.typ === 'urlaub' && urlaubJahr === currentYear
+          })
+          
+          // Summiere die genommenen Tage
+          const genommenerUrlaub = genehmigteUrlaube.reduce((sum: number, u: Urlaub) => sum + (u.anzahlTage || 0), 0)
+          
+          const jahresurlaub = mitarbeiter.jahresUrlaubstage || 0
+          const resturlaub = Math.max(0, jahresurlaub - genommenerUrlaub)
+          
+          setUrlaubStats({
+            jahresurlaub,
+            genommen: genommenerUrlaub,
+            resturlaub,
+            loading: false
+          })
+        } else {
+          // API-Fehler - zeige gespeicherte Werte
+          setUrlaubStats({
+            jahresurlaub: mitarbeiter.jahresUrlaubstage || 0,
+            genommen: mitarbeiter.genommenerUrlaub || 0,
+            resturlaub: mitarbeiter.resturlaub || 0,
+            loading: false
+          })
+        }
+      } catch (error) {
+        console.error('Fehler beim Laden der Urlaubsstats:', error)
+        setUrlaubStats({
+          jahresurlaub: mitarbeiter.jahresUrlaubstage || 0,
+          genommen: mitarbeiter.genommenerUrlaub || 0,
+          resturlaub: mitarbeiter.resturlaub || 0,
+          loading: false
+        })
+      }
+    }
+
+    loadUrlaubStats()
+  }, [mitarbeiterId, mitarbeiter.jahresUrlaubstage])
+
+  // Jahresurlaub speichern
+  const handleSaveJahresurlaub = async () => {
+    const neuerWert = parseInt(jahresurlaubInput) || 0
+    
+    if (neuerWert < 0 || neuerWert > 365) {
+      toast.error('Bitte geben Sie einen gültigen Wert ein (0-365)')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const response = await fetch(`/api/mitarbeiter/${mitarbeiterId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jahresUrlaubstage: neuerWert,
+          resturlaub: Math.max(0, neuerWert - urlaubStats.genommen)
+        })
+      })
+
+      if (response.ok) {
+        toast.success('Jahresurlaub aktualisiert')
+        setEditingUrlaub(false)
+        setUrlaubStats(prev => ({
+          ...prev,
+          jahresurlaub: neuerWert,
+          resturlaub: Math.max(0, neuerWert - prev.genommen)
+        }))
+        onMitarbeiterUpdated?.()
+      } else {
+        const data = await response.json()
+        toast.error(data.fehler || 'Fehler beim Speichern')
+      }
+    } catch (error) {
+      console.error('Fehler:', error)
+      toast.error('Fehler beim Speichern')
+    } finally {
+      setSaving(false)
+    }
+  }
   
   const getBeschaeftigungsartLabel = (art: string) => {
     const labels: Record<string, string> = {
@@ -148,38 +255,96 @@ export default function MitarbeiterUebersicht({ mitarbeiterId, mitarbeiter }: Mi
 
       {/* Urlaubsübersicht */}
       <Card className="bg-white border-gray-200">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-gray-900 flex items-center gap-2">
             <Calendar className="h-5 w-5 text-blue-600" />
             Urlaubsübersicht
           </CardTitle>
+          {!editingUrlaub && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setJahresurlaubInput(urlaubStats.jahresurlaub.toString())
+                setEditingUrlaub(true)
+              }}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <Edit2 className="h-4 w-4" />
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <p className="text-sm text-gray-600">Jahresurlaub</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {mitarbeiter.jahresUrlaubstage || 0}
-              </p>
-              <p className="text-xs text-gray-500">Tage</p>
+          {urlaubStats.loading ? (
+            <div className="text-center py-4">
+              <p className="text-gray-500 text-sm">Lade Urlaubsdaten...</p>
             </div>
-            
-            <div>
-              <p className="text-sm text-gray-600">Genommen</p>
-              <p className="text-2xl font-bold text-orange-600">
-                {mitarbeiter.genommenerUrlaub || 0}
-              </p>
-              <p className="text-xs text-gray-500">Tage</p>
+          ) : (
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <p className="text-sm text-gray-600">Jahresurlaub</p>
+                {editingUrlaub ? (
+                  <div className="flex items-center gap-2 mt-1">
+                    <Input
+                      type="number"
+                      min="0"
+                      max="365"
+                      value={jahresurlaubInput}
+                      onChange={(e) => setJahresurlaubInput(e.target.value)}
+                      className="w-20 h-8 text-center font-bold"
+                    />
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleSaveJahresurlaub}
+                      disabled={saving}
+                      className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    >
+                      <Save className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setEditingUrlaub(false)}
+                      disabled={saving}
+                      className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {urlaubStats.jahresurlaub}
+                    </p>
+                    <p className="text-xs text-gray-500">Tage</p>
+                  </>
+                )}
+              </div>
+              
+              <div>
+                <p className="text-sm text-gray-600">Genommen</p>
+                <p className="text-2xl font-bold text-orange-600">
+                  {urlaubStats.genommen}
+                </p>
+                <p className="text-xs text-gray-500">Tage</p>
+              </div>
+              
+              <div>
+                <p className="text-sm text-gray-600">Resturlaub</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {urlaubStats.resturlaub}
+                </p>
+                <p className="text-xs text-gray-500">Tage</p>
+              </div>
             </div>
-            
-            <div>
-              <p className="text-sm text-gray-600">Resturlaub</p>
-              <p className="text-2xl font-bold text-green-600">
-                {mitarbeiter.resturlaub || 0}
-              </p>
-              <p className="text-xs text-gray-500">Tage</p>
-            </div>
-          </div>
+          )}
+          
+          {!editingUrlaub && urlaubStats.jahresurlaub === 0 && !urlaubStats.loading && (
+            <p className="text-xs text-gray-500 mt-2">
+              Klicken Sie auf den Stift, um den Jahresurlaub festzulegen
+            </p>
+          )}
         </CardContent>
       </Card>
 
