@@ -29,6 +29,7 @@ import { de } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Transaktion } from '@/lib/db/types'
+import TransaktionsFilter, { TransaktionsFilters } from './filters/TransaktionsFilter'
 
 interface TransaktionenTabelleProps {
   transaktionen: Transaktion[]
@@ -56,6 +57,13 @@ export default function TransaktionenTabelle({
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [transaktionToDelete, setTransaktionToDelete] = useState<Transaktion | null>(null)
+  const [filters, setFilters] = useState<TransaktionsFilters>({
+    kategorie: null,
+    typ: null,
+    zahlungsart: null,
+    quelle: null,
+    zeitraum: { von: null, bis: null }
+  })
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('de-DE', {
@@ -112,11 +120,47 @@ export default function TransaktionenTabelle({
   const filteredTransaktionen = useMemo(() => {
     let filtered = [...transaktionen]
 
-    // Tab-Filter
-    if (activeTab === 'einnahmen') {
-      filtered = filtered.filter(t => t.typ === 'einnahme')
-    } else if (activeTab === 'ausgaben') {
-      filtered = filtered.filter(t => t.typ === 'ausgabe')
+    // Tab-Filter (nur wenn nicht durch Filter-Select überschrieben)
+    if (!filters.typ) {
+      if (activeTab === 'einnahmen') {
+        filtered = filtered.filter(t => t.typ === 'einnahme')
+      } else if (activeTab === 'ausgaben') {
+        filtered = filtered.filter(t => t.typ === 'ausgabe')
+      }
+    }
+
+    // Filter: Typ (wenn explizit gesetzt)
+    if (filters.typ && filters.typ !== 'alle') {
+      filtered = filtered.filter(t => t.typ === filters.typ)
+    }
+
+    // Filter: Kategorie
+    if (filters.kategorie) {
+      filtered = filtered.filter(t => t.kategorieId === filters.kategorie)
+    }
+
+    // Filter: Zahlungsart
+    if (filters.zahlungsart) {
+      filtered = filtered.filter(t => t.zahlungsart === filters.zahlungsart)
+    }
+
+    // Filter: Quelle (Manuell/KI)
+    if (filters.quelle && filters.quelle !== 'alle') {
+      if (filters.quelle === 'ki') {
+        filtered = filtered.filter(t => t.quelle === 'ki_automatisch')
+      } else if (filters.quelle === 'manuell') {
+        filtered = filtered.filter(t => t.quelle === 'manuell')
+      }
+    }
+
+    // Filter: Zeitraum
+    if (filters.zeitraum.von && filters.zeitraum.bis) {
+      filtered = filtered.filter(t => {
+        const datum = new Date(t.datum).getTime()
+        const von = filters.zeitraum.von!.getTime()
+        const bis = filters.zeitraum.bis!.getTime()
+        return datum >= von && datum <= bis
+      })
     }
 
     // Search-Filter
@@ -124,9 +168,9 @@ export default function TransaktionenTabelle({
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(t =>
         t.beschreibung.toLowerCase().includes(query) ||
-        t.kategorieName.toLowerCase().includes(query) ||
-        t.kundeName?.toLowerCase().includes(query) ||
-        t.projektName?.toLowerCase().includes(query)
+        (t.kategorieName && t.kategorieName.toLowerCase().includes(query)) ||
+        (t.kundeName && t.kundeName.toLowerCase().includes(query)) ||
+        (t.projektName && t.projektName.toLowerCase().includes(query))
       )
     }
 
@@ -148,7 +192,7 @@ export default function TransaktionenTabelle({
     })
 
     return filtered
-  }, [transaktionen, activeTab, searchQuery, sortKey, sortOrder])
+  }, [transaktionen, activeTab, searchQuery, sortKey, sortOrder, filters])
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -211,7 +255,7 @@ export default function TransaktionenTabelle({
 
   return (
     <Card className="p-4 md:p-6 bg-white border-2 border-gray-200">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-4">
         <h2 className="text-xl md:text-2xl font-bold text-gray-900">Transaktionsübersicht</h2>
         <div className="flex gap-2">
           <div className="relative flex-1 md:flex-none">
@@ -228,6 +272,13 @@ export default function TransaktionenTabelle({
           </Button>
         </div>
       </div>
+
+      {/* Filter-Komponente */}
+      <TransaktionsFilter
+        filters={filters}
+        onFiltersChange={setFilters}
+        activeTab={activeTab}
+      />
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
         <div className="overflow-x-auto mb-4">

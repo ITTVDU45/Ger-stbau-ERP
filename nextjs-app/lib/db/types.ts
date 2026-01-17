@@ -1251,10 +1251,11 @@ export interface Transaktion {
   betrag: number
   kategorie: string
   kategorieId?: string
+  kategorieName?: string // Für Anzeige
   beschreibung: string
   datum: Date
   belegnummer?: string
-  zahlungsart?: 'bar' | 'ueberweisung' | 'karte' | 'lastschrift' | 'sonstige'
+  zahlungsart?: 'bar' | 'ueberweisung' | 'karte' | 'lastschrift' | 'paypal' | 'sonstige'
   mwstSatz?: number
   nettoBetrag?: number
   bruttoBetrag?: number
@@ -1267,17 +1268,30 @@ export interface Transaktion {
     mimeType: string
     groesse: number
   }
+  dokumente?: Array<{
+    url: string
+    filename: string
+    mimeType: string
+    groesse: number
+  }>
   projekt?: {
     id: string
     name: string
   }
+  projektId?: string
+  projektName?: string
   kunde?: {
     id: string
     name: string
   }
+  kundeId?: string
+  kundeName?: string
+  rechnungId?: string
+  rechnungsnummer?: string
   notizen?: string
   tags?: string[]
   status?: 'ausstehend' | 'gebucht' | 'storniert'
+  quelle?: 'manuell' | 'ki_automatisch' | 'rechnung_automatisch' | 'wiederkehrend'
   erstelltAm: Date
   zuletztGeaendert: Date
   erstelltVon?: string
