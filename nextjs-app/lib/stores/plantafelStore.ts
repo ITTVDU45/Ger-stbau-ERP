@@ -45,6 +45,9 @@ interface PlantafelState {
   // Conflict Panel
   isConflictPanelOpen: boolean
   
+  // Sidebar Mode (Konflikte oder Projekte)
+  sidebarMode: 'conflicts' | 'projects'
+  
   // Actions
   setView: (view: PlantafelView) => void
   setCalendarView: (view: 'week' | 'month' | 'day') => void
@@ -71,6 +74,9 @@ interface PlantafelState {
   // Conflict Panel
   toggleConflictPanel: () => void
   setConflictPanelOpen: (open: boolean) => void
+  
+  // Sidebar Mode
+  setSidebarMode: (mode: 'conflicts' | 'projects') => void
 }
 
 // ============================================================================
@@ -111,6 +117,7 @@ export const usePlantafelStore = create<PlantafelState>()(
       dialogMode: 'create',
       selectedSlot: null,
       isConflictPanelOpen: false,
+      sidebarMode: 'projects',
       
       // View Actions
       setView: (view) => set({ view }),
@@ -264,7 +271,10 @@ export const usePlantafelStore = create<PlantafelState>()(
         isConflictPanelOpen: !state.isConflictPanelOpen
       })),
       
-      setConflictPanelOpen: (open) => set({ isConflictPanelOpen: open })
+      setConflictPanelOpen: (open) => set({ isConflictPanelOpen: open }),
+      
+      // Sidebar Mode
+      setSidebarMode: (mode) => set({ sidebarMode: mode, isConflictPanelOpen: mode === 'conflicts' })
     }),
     {
       name: 'plantafel-store',
@@ -274,6 +284,7 @@ export const usePlantafelStore = create<PlantafelState>()(
         view: state.view,
         calendarView: state.calendarView,
         isConflictPanelOpen: state.isConflictPanelOpen,
+        sidebarMode: state.sidebarMode,
         // Keine Datumsfelder persistieren - immer frisch starten
       }),
       // Datum-Strings korrekt parsen

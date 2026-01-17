@@ -276,12 +276,26 @@
 
 /* Einsatz (Standard) */
 .plantafel-event-einsatz {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  background: linear-gradient(135deg, #6b7280, #4b5563);
   color: white;
 }
 
 .plantafel-event-einsatz.bestaetigt {
   background: linear-gradient(135deg, #10b981, #059669);
+}
+
+/* Aufbau - Blau */
+.plantafel-event-aufbau {
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+  color: white;
+  border-left: 4px solid #1d4ed8;
+}
+
+/* Abbau - Grün */
+.plantafel-event-abbau {
+  background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+  color: white;
+  border-left: 4px solid #15803d;
 }
 
 /* Abwesenheiten */

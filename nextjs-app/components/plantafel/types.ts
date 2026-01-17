@@ -57,6 +57,11 @@ export interface PlantafelEvent {
   mitarbeiterName?: string
   projektId?: string
   projektName?: string
+  
+  // Bauvorhaben-Adresse (für vollständige Anzeige)
+  projektAdresse?: string
+  projektPlz?: string
+  projektOrt?: string
 
   // Für Urlaub/Abwesenheit
   urlaubTyp?: 'urlaub' | 'krankheit' | 'sonderurlaub' | 'unbezahlt' | 'sonstiges'
@@ -74,6 +79,11 @@ export interface PlantafelEvent {
   // NEU: Simplified Aufbau/Abbau (date-only)
   setupDate?: string      // Aufbau-Datum (YYYY-MM-DD)
   dismantleDate?: string  // Abbau-Datum (YYYY-MM-DD)
+  
+  // Gruppierung: Alle Mitarbeiter für dieses Projekt/Datum
+  allMitarbeiterIds?: string[]
+  allMitarbeiterNames?: string[]
+  sourceIds?: string[] // Alle Einsatz-IDs für gruppierte Events
 
   // LEGACY: Aufbau/Abbau-Planung (für Abwärtskompatibilität)
   aufbauVon?: Date
@@ -184,7 +194,7 @@ export interface AssignmentsResponse {
 
 /** POST /api/plantafel/assignments Request Body */
 export interface CreateAssignmentRequest {
-  mitarbeiterId: string
+  mitarbeiterId?: string // Optional - kann leer sein für nicht zugewiesene Einsätze
   projektId: string
   von: string // ISO-Datum
   bis: string // ISO-Datum
@@ -199,6 +209,9 @@ export interface CreateAssignmentRequest {
   abbauVon?: string  // ISO-Datum (optional)
   abbauBis?: string  // ISO-Datum (optional)
   stundenAbbau?: number
+  // Neue date-only Felder
+  setupDate?: string    // YYYY-MM-DD
+  dismantleDate?: string // YYYY-MM-DD
 }
 
 /** PATCH /api/plantafel/assignments/[id] Request Body */
@@ -277,14 +290,14 @@ export function mapEinsatzToEvent(einsatz: Einsatz, view: PlantafelView): Planta
 export function mapEinsatzToEvents(einsatz: Einsatz, view: PlantafelView): PlantafelEvent[] {
   const events: PlantafelEvent[] = []
   
-  // Titel-Logik (UMGEDREHT nach Kundenwunsch):
+  // Titel-Logik:
   // - Team-View: Zeilen = Mitarbeiter → Events zeigen MITARBEITER-Namen
   // - Projekt-View: Zeilen = Projekte → Events zeigen PROJEKT-Namen
   const baseTitle = view === 'team'
     ? (einsatz.mitarbeiterId && einsatz.mitarbeiterName !== 'Nicht zugewiesen')
       ? einsatz.mitarbeiterName
       : 'Nicht zugewiesen'
-    : einsatz.projektName
+    : einsatz.projektName || 'Unbekanntes Projekt'
   const resourceId = view === 'team' ? einsatz.mitarbeiterId : einsatz.projektId
 
   const baseEvent = {

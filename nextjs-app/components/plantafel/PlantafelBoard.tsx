@@ -7,10 +7,10 @@
  * Orchestriert: Toolbar, Kalender, Dialog, Conflict Panel
  */
 
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useState, useRef } from 'react'
 import { Calendar, dateFnsLocalizer, View, SlotInfo } from 'react-big-calendar'
-import withDragAndDrop, { withDragAndDropProps } from 'react-big-calendar/lib/addons/dragAndDrop'
-import { format, parse, startOfWeek, getDay } from 'date-fns'
+import withDragAndDrop, { withDragAndDropProps, EventInteractionArgs } from 'react-big-calendar/lib/addons/dragAndDrop'
+import { format, parse, startOfWeek, getDay, startOfMonth, endOfMonth, subDays, addDays } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { toast } from 'sonner'
 
@@ -24,10 +24,11 @@ import PlantafelToolbar from './PlantafelToolbar'
 import AssignmentDialog from './AssignmentDialog'
 import ConflictPanel from './ConflictPanel'
 import TimelineView from './TimelineView'
+import ProjektSidebar, { DraggedProject } from './ProjektSidebar'
 
 // State & Queries
 import { usePlantafelStore } from '@/lib/stores/plantafelStore'
-import { useAssignments, useUpdateAssignment } from '@/lib/queries/plantafelQueries'
+import { useAssignments, useUpdateAssignment, useCreateAssignment } from '@/lib/queries/plantafelQueries'
 
 // Types
 import { PlantafelEvent, PlantafelResource } from './types'
@@ -85,16 +86,37 @@ export default function PlantafelBoard() {
     searchTerm,
     openCreateDialog,
     openEditDialog,
-    setCurrentDate
+    setCurrentDate,
+    sidebarMode
   } = usePlantafelStore()
   
-  // Queries
-  const { data, isLoading, error } = useAssignments(dateRange, view, filters)
+  // Erweiterter Datumsbereich für die Monatsansicht
+  // (enthält auch Tage aus benachbarten Monaten die im Kalender sichtbar sind)
+  const effectiveDateRange = useMemo(() => {
+    if (calendarView === 'month') {
+      const monthStart = startOfMonth(currentDate)
+      const monthEnd = endOfMonth(currentDate)
+      // Erweitere um 7 Tage in beide Richtungen für sichtbare Randzellen
+      return {
+        start: subDays(monthStart, 7),
+        end: addDays(monthEnd, 7)
+      }
+    }
+    return dateRange
+  }, [calendarView, currentDate, dateRange])
+  
+  // Queries - verwende effektiven Bereich für Monatsansicht
+  const { data, isLoading, error } = useAssignments(effectiveDateRange, view, filters)
   const updateMutation = useUpdateAssignment()
+  const createMutation = useCreateAssignment()
+  
+  // Drag-Over State für externen Drop
+  const [isDragOver, setIsDragOver] = useState(false)
   
   // Gefilterte Events basierend auf Suchbegriff
+  // (Gruppierung wird jetzt von der API übernommen)
   const filteredEvents = useMemo(() => {
-    if (!data?.events) return []
+    if (!data?.events?.length) return []
     
     if (!searchTerm) return data.events
     
@@ -143,20 +165,36 @@ export default function PlantafelBoard() {
   /**
    * Event Drag & Drop
    */
-  const handleEventDrop: withDragAndDropProps<PlantafelEvent, PlantafelResource>['onEventDrop'] = useCallback(
-    async ({ event, start, end, resourceId }) => {
+  const handleEventDrop = useCallback(
+    async ({ event, start, end, resourceId }: EventInteractionArgs<PlantafelEvent>) => {
       // Nur Einsätze können verschoben werden
       if (event.sourceType === 'urlaub') {
         toast.error('Abwesenheiten können nicht verschoben werden')
         return
       }
       
+      // Stelle sicher dass wir eine gültige Source-ID haben
+      const einsatzId = event.sourceId
+      if (!einsatzId) {
+        console.error('[Plantafel] Keine gültige sourceId gefunden:', event)
+        toast.error('Einsatz kann nicht verschoben werden (keine ID)')
+        return
+      }
+      
+      // Berechne das neue Datum basierend auf dem Typ (Aufbau/Abbau)
+      const isAufbau = event.id.includes('-setup') || event.setupDate
+      const isAbbau = event.id.includes('-dismantle') || event.dismantleDate
+      const newDateStr = format(start as Date, 'yyyy-MM-dd')
+      
       try {
         await updateMutation.mutateAsync({
-          id: event.sourceId,
+          id: einsatzId,
           data: {
             von: (start as Date).toISOString(),
             bis: (end as Date).toISOString(),
+            // Aktualisiere auch das date-only Feld wenn es ein Aufbau/Abbau Event ist
+            ...(isAufbau && { setupDate: newDateStr }),
+            ...(isAbbau && { dismantleDate: newDateStr }),
             // Bei Resource-Änderung: Je nach View Mitarbeiter oder Projekt aktualisieren
             ...(resourceId && view === 'team' && { mitarbeiterId: resourceId as string }),
             ...(resourceId && view === 'project' && { projektId: resourceId as string })
@@ -164,6 +202,7 @@ export default function PlantafelBoard() {
         })
         toast.success('Einsatz verschoben')
       } catch (error: any) {
+        console.error('[Plantafel] Fehler beim Verschieben:', error)
         toast.error(error.message || 'Fehler beim Verschieben')
       }
     },
@@ -173,8 +212,8 @@ export default function PlantafelBoard() {
   /**
    * Event Resize
    */
-  const handleEventResize: withDragAndDropProps<PlantafelEvent, PlantafelResource>['onEventResize'] = useCallback(
-    async ({ event, start, end }) => {
+  const handleEventResize = useCallback(
+    async ({ event, start, end }: EventInteractionArgs<PlantafelEvent>) => {
       // Nur Einsätze können verändert werden
       if (event.sourceType === 'urlaub') {
         toast.error('Abwesenheiten können nicht verändert werden')
@@ -204,6 +243,94 @@ export default function PlantafelBoard() {
     setCurrentDate(newDate)
   }, [setCurrentDate])
   
+  /**
+   * Externe Drag & Drop Handler (für Projekte aus der Sidebar)
+   */
+  const handleExternalDragOver = useCallback((e: React.DragEvent) => {
+    // Nur akzeptieren wenn Daten vorhanden sind
+    if (e.dataTransfer.types.includes('application/json')) {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'copy'
+      setIsDragOver(true)
+    }
+  }, [])
+  
+  const handleExternalDragLeave = useCallback(() => {
+    setIsDragOver(false)
+  }, [])
+  
+  const handleExternalDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    
+    const jsonData = e.dataTransfer.getData('application/json')
+    if (!jsonData) return
+    
+    try {
+      const projektData: DraggedProject = JSON.parse(jsonData)
+      
+      // Versuche das Datum aus dem Drop-Ziel zu ermitteln (für Monatsansicht)
+      let targetDate = currentDate
+      
+      // Suche nach der nächsten Zelle mit einem Datum
+      const target = e.target as HTMLElement
+      const dateCell = target.closest('.rbc-date-cell, .rbc-day-bg') as HTMLElement
+      
+      if (dateCell) {
+        // Versuche das Datum aus dem data-date Attribut zu lesen
+        const dateAttr = dateCell.getAttribute('data-date')
+        if (dateAttr) {
+          targetDate = new Date(dateAttr)
+        } else {
+          // Alternativ: Finde das Datum aus der Zellenposition
+          const allDateCells = document.querySelectorAll('.rbc-date-cell')
+          const allDayBgCells = document.querySelectorAll('.rbc-day-bg')
+          
+          // Suche nach der entsprechenden day-bg Zelle
+          let cellIndex = -1
+          allDayBgCells.forEach((cell, idx) => {
+            if (cell === dateCell || cell.contains(target)) {
+              cellIndex = idx
+            }
+          })
+          
+          // Falls wir die Position haben, berechne das Datum
+          if (cellIndex >= 0 && allDateCells.length > 0) {
+            // Die erste Zelle im Monat könnte vom Vormonat sein
+            const firstDateCellContent = allDateCells[cellIndex]?.textContent
+            if (firstDateCellContent) {
+              const day = parseInt(firstDateCellContent)
+              if (!isNaN(day)) {
+                const newDate = new Date(currentDate)
+                newDate.setDate(day)
+                targetDate = newDate
+              }
+            }
+          }
+        }
+      }
+      
+      const startDate = new Date(targetDate)
+      startDate.setHours(8, 0, 0, 0)
+      
+      const endDate = new Date(targetDate)
+      endDate.setHours(17, 0, 0, 0)
+      
+      await createMutation.mutateAsync({
+        projektId: projektData.projektId,
+        von: startDate.toISOString(),
+        bis: endDate.toISOString(),
+        ...(projektData.typ === 'aufbau' && { setupDate: format(targetDate, 'yyyy-MM-dd') }),
+        ...(projektData.typ === 'abbau' && { dismantleDate: format(targetDate, 'yyyy-MM-dd') }),
+        notizen: `${projektData.typ === 'aufbau' ? 'Aufbau' : 'Abbau'} - ${projektData.projektName}`
+      })
+      
+      toast.success(`${projektData.typ === 'aufbau' ? 'Aufbau' : 'Abbau'} für "${projektData.projektName}" am ${format(targetDate, 'dd.MM.yyyy')} erstellt`)
+    } catch (error: any) {
+      toast.error(error.message || 'Fehler beim Erstellen des Einsatzes')
+    }
+  }, [currentDate, createMutation])
+  
   // ============================================================================
   // CUSTOM COMPONENTS
   // ============================================================================
@@ -219,20 +346,27 @@ export default function PlantafelBoard() {
     if (event.sourceType === 'urlaub') {
       classNames.push(`plantafel-event-${event.urlaubTyp || 'urlaub'}`)
     } else {
-      classNames.push('plantafel-event-einsatz')
-      if (event.bestaetigt) {
-        classNames.push('bestaetigt')
+      // Prüfe ob Aufbau oder Abbau
+      const title = (event.title || '').toLowerCase()
+      const notes = (event.notes || '').toLowerCase()
+      const isAufbau = event.setupDate || title.includes('aufbau') || notes.includes('aufbau') || event.id.includes('-setup')
+      const isAbbau = event.dismantleDate || title.includes('abbau') || notes.includes('abbau') || event.id.includes('-dismantle')
+      
+      if (isAufbau) {
+        classNames.push('plantafel-event-aufbau')
+      } else if (isAbbau) {
+        classNames.push('plantafel-event-abbau')
+      } else {
+        classNames.push('plantafel-event-einsatz')
+        if (event.bestaetigt) {
+          classNames.push('bestaetigt')
+        }
       }
     }
     
     // Konflikt-Markierung
     if (event.hasConflict) {
       classNames.push('plantafel-event-conflict')
-    }
-    
-    // Projekt-Farbe (falls vorhanden)
-    if (event.color && event.sourceType !== 'urlaub') {
-      style.backgroundColor = event.color
     }
     
     return {
@@ -287,6 +421,72 @@ export default function PlantafelBoard() {
       )}
     </div>
   ), [])
+  
+  // ============================================================================
+  // CUSTOM DATE CELL WRAPPER (für Drop auf einzelne Tage in Monatsansicht)
+  // ============================================================================
+  
+  const DateCellWrapper = useCallback(({ children, value }: { children: React.ReactNode, value: Date }) => {
+    const [isOver, setIsOver] = useState(false)
+    
+    const handleDragOver = (e: React.DragEvent) => {
+      if (e.dataTransfer.types.includes('application/json')) {
+        e.preventDefault()
+        e.stopPropagation()
+        e.dataTransfer.dropEffect = 'copy'
+        setIsOver(true)
+      }
+    }
+    
+    const handleDragLeave = (e: React.DragEvent) => {
+      e.stopPropagation()
+      setIsOver(false)
+    }
+    
+    const handleDrop = async (e: React.DragEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setIsOver(false)
+      
+      const jsonData = e.dataTransfer.getData('application/json')
+      if (!jsonData) return
+      
+      try {
+        const projektData: DraggedProject = JSON.parse(jsonData)
+        
+        const startDate = new Date(value)
+        startDate.setHours(8, 0, 0, 0)
+        
+        const endDate = new Date(value)
+        endDate.setHours(17, 0, 0, 0)
+        
+        await createMutation.mutateAsync({
+          projektId: projektData.projektId,
+          von: startDate.toISOString(),
+          bis: endDate.toISOString(),
+          ...(projektData.typ === 'aufbau' && { setupDate: format(value, 'yyyy-MM-dd') }),
+          ...(projektData.typ === 'abbau' && { dismantleDate: format(value, 'yyyy-MM-dd') }),
+          notizen: `${projektData.typ === 'aufbau' ? 'Aufbau' : 'Abbau'} - ${projektData.projektName}`
+        })
+        
+        toast.success(`${projektData.typ === 'aufbau' ? 'Aufbau' : 'Abbau'} für "${projektData.projektName}" am ${format(value, 'dd.MM.yyyy')} erstellt`)
+      } catch (error: any) {
+        toast.error(error.message || 'Fehler beim Erstellen')
+      }
+    }
+    
+    return (
+      <div 
+        className={`rbc-day-bg-wrapper h-full w-full ${isOver ? 'bg-blue-100 ring-2 ring-blue-400 ring-inset' : ''}`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        style={{ minHeight: '100%' }}
+      >
+        {children}
+      </div>
+    )
+  }, [createMutation])
   
   // ============================================================================
   // VIEW MAPPING
@@ -370,7 +570,8 @@ export default function PlantafelBoard() {
               eventPropGetter={eventPropGetter}
               
               components={{
-                resourceHeader
+                resourceHeader,
+                dateCellWrapper: DateCellWrapper
               }}
               
               // Deutsche Datumsformate
@@ -415,8 +616,12 @@ export default function PlantafelBoard() {
           )}
         </div>
         
-        {/* Conflict Panel */}
-        <ConflictPanel conflicts={conflicts} isLoading={isLoading} />
+        {/* Sidebar: Konflikte oder Projekte */}
+        {sidebarMode === 'conflicts' ? (
+          <ConflictPanel conflicts={conflicts} isLoading={isLoading} />
+        ) : (
+          <ProjektSidebar />
+        )}
       </div>
       
       {/* Assignment Dialog */}

@@ -13,8 +13,9 @@ import { de } from 'date-fns/locale'
 import { X, Trash2, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { PlantafelEvent, PlantafelResource, DateRange } from './types'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { useUpdateAssignment, useDeleteAssignment } from '@/lib/queries/plantafelQueries'
+import { DraggedProject } from './ProjektSidebar'
+// Avatar nicht mehr benötigt da keine Ressourcen-Spalte mehr
+import { useUpdateAssignment, useDeleteAssignment, useCreateAssignment } from '@/lib/queries/plantafelQueries'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,8 +38,7 @@ interface TimelineViewProps {
 }
 
 // Feste Breiten in Pixeln für perfekte Ausrichtung
-const RESOURCE_WIDTH = 320 // px - Erhöht für vollständige Projektinformationen
-const DAY_WIDTH = 180 // px
+const DAY_WIDTH = 220 // px - Breitere Spalten ohne Ressourcen-Spalte
 
 export default function TimelineView({
   resources,
@@ -55,6 +55,14 @@ export default function TimelineView({
   
   const updateMutation = useUpdateAssignment()
   const deleteMutation = useDeleteAssignment()
+  const createMutation = useCreateAssignment()
+  
+  // Prüfe ob Event an einem Tag aktiv ist
+  const isEventOnDay = (event: PlantafelEvent, day: Date): boolean => {
+    return isWithinInterval(day, { start: event.start, end: event.end }) ||
+           isSameDay(event.start, day) ||
+           isSameDay(event.end, day)
+  }
   
   // Tage im Zeitraum berechnen
   const days = useMemo(() => {
@@ -67,23 +75,27 @@ export default function TimelineView({
     })
   }, [dateRange])
   
-  // Events nach Ressource gruppieren
-  const eventsByResource = useMemo(() => {
+  // Events nach Tag gruppieren (keine Ressourcen-Gruppierung mehr)
+  const eventsByDay = useMemo(() => {
     const map = new Map<string, PlantafelEvent[]>()
-    resources.forEach(r => map.set(r.resourceId, []))
+    days.forEach(day => {
+      const dayKey = format(day, 'yyyy-MM-dd')
+      map.set(dayKey, [])
+    })
     events.forEach(event => {
-      const existing = map.get(event.resourceId) || []
-      map.set(event.resourceId, [...existing, event])
+      days.forEach(day => {
+        if (isEventOnDay(event, day)) {
+          const dayKey = format(day, 'yyyy-MM-dd')
+          const existing = map.get(dayKey) || []
+          // Duplikate vermeiden
+          if (!existing.find(e => e.id === event.id)) {
+            map.set(dayKey, [...existing, event])
+          }
+        }
+      })
     })
     return map
-  }, [resources, events])
-  
-  // Prüfe ob Event an einem Tag aktiv ist
-  const isEventOnDay = (event: PlantafelEvent, day: Date): boolean => {
-    return isWithinInterval(day, { start: event.start, end: event.end }) ||
-           isSameDay(event.start, day) ||
-           isSameDay(event.end, day)
-  }
+  }, [events, days])
   
   // Drag & Drop Handler
   const handleDragStart = (e: React.DragEvent, event: PlantafelEvent) => {
@@ -98,7 +110,8 @@ export default function TimelineView({
   
   const handleDragOver = (e: React.DragEvent, resourceId: string, day: Date) => {
     e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
+    // Externe Drops (von ProjektSidebar) haben 'copy' als effectAllowed
+    e.dataTransfer.dropEffect = draggedEvent ? 'move' : 'copy'
     setDragOverCell({ resourceId, day })
   }
   
@@ -109,6 +122,38 @@ export default function TimelineView({
   const handleDrop = async (e: React.DragEvent, targetResourceId: string, targetDay: Date) => {
     e.preventDefault()
     setDragOverCell(null)
+    
+    // Prüfe ob externes Projekt gedroppt wurde
+    const jsonData = e.dataTransfer.getData('application/json')
+    if (jsonData && !draggedEvent) {
+      try {
+        const projektData: DraggedProject = JSON.parse(jsonData)
+        
+        // Neuen Einsatz erstellen
+        const startDate = new Date(targetDay)
+        startDate.setHours(8, 0, 0, 0)
+        
+        const endDate = new Date(targetDay)
+        endDate.setHours(17, 0, 0, 0)
+        
+        await createMutation.mutateAsync({
+          projektId: projektData.projektId,
+          von: startDate.toISOString(),
+          bis: endDate.toISOString(),
+          // Je nach View und Typ
+          ...(view === 'team' && { mitarbeiterId: targetResourceId }),
+          ...(projektData.typ === 'aufbau' && { setupDate: format(targetDay, 'yyyy-MM-dd') }),
+          ...(projektData.typ === 'abbau' && { dismantleDate: format(targetDay, 'yyyy-MM-dd') }),
+          notizen: `${projektData.typ === 'aufbau' ? 'Aufbau' : 'Abbau'} - ${projektData.projektName}`
+        })
+        
+        toast.success(`${projektData.typ === 'aufbau' ? 'Aufbau' : 'Abbau'} für "${projektData.projektName}" erstellt`)
+        return
+      } catch (error: any) {
+        toast.error(error.message || 'Fehler beim Erstellen des Einsatzes')
+        return
+      }
+    }
     
     if (!draggedEvent) return
     
@@ -193,32 +238,24 @@ export default function TimelineView({
     }
   }
   
-  // Berechne Gesamtbreite
-  const totalWidth = RESOURCE_WIDTH + (days.length * DAY_WIDTH)
+  // Berechne Gesamtbreite - volle Breite ohne Ressourcen-Spalte
+  const totalWidth = days.length * DAY_WIDTH
   
   return (
     <div className="flex flex-col h-full w-full bg-white">
       {/* Scrollbarer Container */}
       <div className="flex-1 overflow-auto w-full">
-        {/* Content mit fester Breite */}
-        <div style={{ width: `${totalWidth}px` }}>
+        {/* Content mit fester Breite oder voller Breite */}
+        <div className="min-w-full" style={{ minWidth: `${totalWidth}px` }}>
           
           {/* HEADER ROW - Sticky */}
           <div className="flex sticky top-0 z-50 bg-white border-b-2 border-gray-300 shadow-md">
-            {/* Ressourcen-Header */}
-            <div 
-              style={{ width: `${RESOURCE_WIDTH}px`, minWidth: `${RESOURCE_WIDTH}px` }}
-              className="flex-shrink-0 sticky left-0 z-50 bg-gray-100 border-r-2 border-gray-300 px-4 py-3"
-            >
-              <span className="font-bold text-sm text-gray-800">Ressource</span>
-            </div>
-            
-            {/* Tage-Header */}
+            {/* Tage-Header - gleichmäßig verteilt */}
             {days.map((day, idx) => (
               <div
                 key={idx}
-                style={{ width: `${DAY_WIDTH}px`, minWidth: `${DAY_WIDTH}px` }}
-                className="flex-shrink-0 border-r border-gray-200 bg-gray-50 px-3 py-3 text-center"
+                className="flex-1 border-r border-gray-200 bg-gray-50 px-3 py-3 text-center"
+                style={{ minWidth: `${DAY_WIDTH}px` }}
               >
                 <div className="font-semibold text-sm text-gray-900">
                   {format(day, 'EEEE', { locale: de })}
@@ -230,109 +267,58 @@ export default function TimelineView({
             ))}
           </div>
           
-          {/* BODY ROWS */}
-          {resources.length === 0 ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="text-center p-8">
-                <p className="text-gray-500 text-sm">Keine Ressourcen vorhanden.</p>
-                <p className="text-gray-400 text-xs mt-1">Bitte Filter anpassen.</p>
-              </div>
-            </div>
-          ) : (
-            resources.map((resource, rowIdx) => {
-              const resourceEvents = eventsByResource.get(resource.resourceId) || []
+          {/* BODY - Tages-Spalten mit Events */}
+          <div className="flex min-h-[500px]">
+            {days.map((day, dayIdx) => {
+              const dayKey = format(day, 'yyyy-MM-dd')
+              const dayEvents = eventsByDay.get(dayKey) || []
+              const isToday = isSameDay(day, new Date())
               
               return (
                 <div
-                  key={resource.resourceId}
-                  className="flex border-b border-gray-200 min-h-[80px]"
+                  key={dayIdx}
+                  className={`
+                    flex-1 border-r border-gray-200 p-2
+                    cursor-pointer hover:bg-blue-50/50 transition-colors
+                    ${isToday ? 'bg-blue-50/30' : dayIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
+                    ${dragOverCell && isSameDay(dragOverCell.day, day) ? 'bg-blue-100 ring-2 ring-blue-400' : ''}
+                  `}
+                  style={{ minWidth: `${DAY_WIDTH}px` }}
+                  onClick={() => onSlotClick && onSlotClick('', day)}
+                  onDragOver={(e) => handleDragOver(e, '', day)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, '', day)}
                 >
-                  {/* Ressourcen-Name - Sticky Left */}
-                  <div 
-                    style={{ width: `${RESOURCE_WIDTH}px`, minWidth: `${RESOURCE_WIDTH}px` }}
-                    className={`
-                      flex-shrink-0 sticky left-0 z-40
-                      border-r-2 border-gray-300 px-4 py-3 shadow-sm
-                      ${rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
-                    `}
-                  >
-                    <div className="flex items-center gap-3 h-full">
-                      {resource.type === 'employee' ? (
-                        <>
-                          {resource.profilbildUrl ? (
-                            <Avatar className="h-8 w-8 flex-shrink-0">
-                              <AvatarImage src={resource.profilbildUrl} />
-                              <AvatarFallback className="text-xs">
-                                {resource.vorname?.[0]}{resource.nachname?.[0]}
-                              </AvatarFallback>
-                            </Avatar>
-                          ) : (
-                            <div className="h-8 w-8 flex-shrink-0 rounded-full bg-blue-100 flex items-center justify-center text-xs font-medium text-blue-700">
-                              {resource.vorname?.[0]}{resource.nachname?.[0]}
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {resource.resourceTitle}
-                            </p>
-                            {resource.availability && !resource.availability.available && (
-                              <p className="text-xs text-red-600 truncate">
-                                {resource.availability.reason === 'vacation' ? '🏖️ Urlaub' :
-                                 resource.availability.reason === 'sick' ? '🤒 Krank' : '⚠️ Nicht verfügbar'}
-                              </p>
-                            )}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="h-8 w-8 flex-shrink-0 rounded-full bg-green-100 flex items-center justify-center">
-                            <span className="text-xs font-bold text-green-700">P</span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 break-words">
-                              {resource.resourceTitle}
-                            </p>
-                            {/* Vollständige Adresse anzeigen */}
-                            {(resource.adresse || resource.plz || resource.ort) && (
-                              <p className="text-xs text-gray-600 break-words mt-0.5">
-                                {[
-                                  resource.adresse,
-                                  resource.plz && resource.ort 
-                                    ? `${resource.plz} ${resource.ort}`
-                                    : resource.plz || resource.ort
-                                ].filter(Boolean).join(', ')}
-                              </p>
-                            )}
-                            {resource.kundeName && (
-                              <p className="text-xs text-gray-500 break-words mt-0.5">{resource.kundeName}</p>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Timeline-Zellen */}
-                  {days.map((day, dayIdx) => {
-                    const dayEvents = resourceEvents.filter(e => isEventOnDay(e, day))
-                    
-                    return (
-                      <div
-                        key={dayIdx}
-                        style={{ width: `${DAY_WIDTH}px`, minWidth: `${DAY_WIDTH}px` }}
-                        className={`
-                          flex-shrink-0 border-r border-gray-200 p-2
-                          cursor-pointer hover:bg-blue-50 transition-colors
-                          ${rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
-                          ${dragOverCell?.resourceId === resource.resourceId && 
-                            isSameDay(dragOverCell.day, day) ? 'bg-blue-100 ring-2 ring-blue-400' : ''}
-                        `}
-                        onClick={() => onSlotClick && onSlotClick(resource.resourceId, day)}
-                        onDragOver={(e) => handleDragOver(e, resource.resourceId, day)}
-                        onDragLeave={handleDragLeave}
-                        onDrop={(e) => handleDrop(e, resource.resourceId, day)}
-                      >
-                        {dayEvents.map((event) => (
+                  {/* Events für diesen Tag */}
+                  <div className="space-y-2">
+                    {dayEvents.length === 0 ? (
+                      <div className="text-center py-8 text-gray-400 text-xs">
+                        Keine Termine
+                      </div>
+                    ) : (
+                      dayEvents.map((event) => {
+                        // Bestimme Farbe basierend auf Aufbau/Abbau
+                        const title = (event.title || '').toLowerCase()
+                        const notes = (event.notes || '').toLowerCase()
+                        const isAufbau = event.setupDate || event.id.includes('-setup') || title.includes('aufbau') || notes.includes('aufbau')
+                        const isAbbau = event.dismantleDate || event.id.includes('-dismantle') || title.includes('abbau') || notes.includes('abbau')
+                        
+                        // Bestimme die CSS-Klassen für Farben
+                        let colorClasses = 'bg-slate-600 text-white border-l-4 border-slate-800 cursor-move' // Standard-Fallback
+                        
+                        if (event.sourceType === 'urlaub') {
+                          colorClasses = 'bg-orange-100 text-orange-800 border-l-4 border-orange-500 cursor-default'
+                        } else if (event.hasConflict) {
+                          colorClasses = 'bg-red-50 text-red-900 border-l-4 border-red-600 ring-1 ring-red-200 cursor-move'
+                        } else if (isAufbau) {
+                          colorClasses = 'bg-blue-500 text-white border-l-4 border-blue-700 cursor-move'
+                        } else if (isAbbau) {
+                          colorClasses = 'bg-green-500 text-white border-l-4 border-green-700 cursor-move'
+                        } else if (event.bestaetigt) {
+                          colorClasses = 'bg-emerald-500 text-white border-l-4 border-emerald-700 cursor-move'
+                        }
+                        
+                        return (
                           <div
                             key={event.id}
                             draggable={event.sourceType !== 'urlaub'}
@@ -343,27 +329,17 @@ export default function TimelineView({
                               onEventClick && onEventClick(event)
                             }}
                             className={`
-                              text-xs px-2 py-1.5 mb-1.5 rounded-md shadow
-                              hover:shadow-lg transition-all font-medium relative group
-                              ${event.sourceType === 'urlaub' 
-                                ? 'bg-gray-200 text-gray-800 border-l-4 border-gray-500 cursor-default'
-                                : event.hasConflict
-                                ? 'bg-red-50 text-red-900 border-l-4 border-red-600 ring-1 ring-red-200 cursor-move'
-                                : event.bestaetigt
-                                ? 'bg-green-500 text-white border-l-4 border-green-700 cursor-move'
-                                : 'bg-blue-500 text-white border-l-4 border-blue-700 cursor-move'
-                              }
+                              text-xs px-3 py-2 rounded-lg shadow-sm
+                              hover:shadow-md transition-all font-medium relative group
+                              ${colorClasses}
                               ${draggedEvent?.id === event.id ? 'opacity-50' : ''}
                             `}
-                            style={{
-                              backgroundColor: event.color && event.sourceType !== 'urlaub' ? event.color : undefined
-                            }}
                             title={`${event.title}\n${format(event.start, 'HH:mm', { locale: de })} - ${format(event.end, 'HH:mm', { locale: de })}\n${event.sourceType === 'urlaub' ? '' : 'Drag & Drop zum Verschieben'}`}
                           >
                             <div className="flex items-center gap-1 justify-between">
                               <div className="flex items-center gap-1 flex-1 min-w-0">
-                                {event.hasConflict && <span className="text-red-600 flex-shrink-0">⚠️</span>}
-                                <span className="truncate">{event.title}</span>
+                                {event.hasConflict && <span className="flex-shrink-0">⚠️</span>}
+                                <span className="font-semibold truncate">{event.title}</span>
                               </div>
                               {event.sourceType !== 'urlaub' && (
                                 <button
@@ -375,18 +351,34 @@ export default function TimelineView({
                                 </button>
                               )}
                             </div>
-                            <div className="text-[10px] opacity-80 mt-0.5">
-                              {format(event.start, 'HH:mm', { locale: de })} - {format(event.end, 'HH:mm', { locale: de })}
+                            {/* Projekt/Adresse-Info */}
+                            {(event.projektAdresse || event.projektName) && (
+                              <div className="text-[10px] opacity-90 mt-1">
+                                📍 {event.projektAdresse || event.projektName}
+                                {event.projektPlz && event.projektOrt && (
+                                  <span>, {event.projektPlz} {event.projektOrt}</span>
+                                )}
+                              </div>
+                            )}
+                            {/* Mitarbeiter-Info */}
+                            {event.mitarbeiterName && event.mitarbeiterName !== 'Nicht zugewiesen' && (
+                              <div className="text-[10px] opacity-90 mt-0.5">
+                                👤 {event.mitarbeiterName}
+                              </div>
+                            )}
+                            {/* Uhrzeit */}
+                            <div className="text-[10px] opacity-80 mt-1">
+                              🕐 {format(event.start, 'HH:mm', { locale: de })} - {format(event.end, 'HH:mm', { locale: de })}
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )
-                  })}
+                        )
+                      })
+                    )}
+                  </div>
                 </div>
               )
-            })
-          )}
+            })}
+          </div>
         </div>
       </div>
       

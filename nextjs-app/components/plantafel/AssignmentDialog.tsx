@@ -40,8 +40,14 @@ import { User, Briefcase, Trash2, Info, X, Calendar } from 'lucide-react'
 import { usePlantafelStore } from '@/lib/stores/plantafelStore'
 import { useEmployees, useProjects, useCreateAssignment, useUpdateAssignment, useDeleteAssignment } from '@/lib/queries/plantafelQueries'
 
+interface SelectedMitarbeiter {
+  id: string
+  name: string
+  personalnummer?: string
+}
+
 interface AssignmentFormData {
-  mitarbeiterId: string
+  mitarbeiterIds: SelectedMitarbeiter[] // Mehrere Mitarbeiter als Array
   projektId: string
   rolle: string
   notizen: string
@@ -52,7 +58,7 @@ interface AssignmentFormData {
 }
 
 const defaultFormData: AssignmentFormData = {
-  mitarbeiterId: '',
+  mitarbeiterIds: [],
   projektId: '',
   rolle: '',
   notizen: '',
@@ -98,8 +104,34 @@ export default function AssignmentDialog() {
         dismantleDate = format(new Date(selectedEvent.abbauVon), 'yyyy-MM-dd')
       }
       
+      // Im Edit-Modus alle Mitarbeiter laden (auch gruppierte)
+      const mitarbeiterIds: SelectedMitarbeiter[] = []
+      
+      // Prüfe ob es gruppierte Mitarbeiter gibt
+      if (selectedEvent.allMitarbeiterIds && selectedEvent.allMitarbeiterIds.length > 0) {
+        // Gruppiertes Event: Lade alle Mitarbeiter
+        for (let i = 0; i < selectedEvent.allMitarbeiterIds.length; i++) {
+          const id = selectedEvent.allMitarbeiterIds[i]
+          const name = selectedEvent.allMitarbeiterNames?.[i] || 'Unbekannt'
+          const employee = employees.find(e => e._id === id)
+          mitarbeiterIds.push({
+            id,
+            name,
+            personalnummer: employee?.personalnummer
+          })
+        }
+      } else if (selectedEvent.mitarbeiterId) {
+        // Einzelnes Event: Nur einen Mitarbeiter laden
+        const employee = employees.find(e => e._id === selectedEvent.mitarbeiterId)
+        mitarbeiterIds.push({
+          id: selectedEvent.mitarbeiterId,
+          name: selectedEvent.mitarbeiterName || 'Unbekannt',
+          personalnummer: employee?.personalnummer
+        })
+      }
+      
       setFormData({
-        mitarbeiterId: selectedEvent.mitarbeiterId || '',
+        mitarbeiterIds,
         projektId: selectedEvent.projektId || '',
         rolle: selectedEvent.rolle || '',
         notizen: selectedEvent.notes || '',
@@ -111,17 +143,29 @@ export default function AssignmentDialog() {
       // Erstellen: Slot-Daten vorausfüllen
       const clickedDate = format(selectedSlot.start, 'yyyy-MM-dd')
       
+      // Mitarbeiter vorauswählen wenn Team-View
+      const mitarbeiterIds: SelectedMitarbeiter[] = []
+      if (view === 'team' && selectedSlot.resourceId) {
+        const employee = employees.find(e => e._id === selectedSlot.resourceId)
+        if (employee) {
+          mitarbeiterIds.push({
+            id: employee._id || '',
+            name: `${employee.vorname} ${employee.nachname}`,
+            personalnummer: employee.personalnummer
+          })
+        }
+      }
+      
       setFormData({
         ...defaultFormData,
+        mitarbeiterIds,
         setupDate: clickedDate, // Vorausfüllen mit geklicktem Datum
-        // Je nach View den resourceId als Mitarbeiter oder Projekt vorauswählen
-        mitarbeiterId: view === 'team' ? selectedSlot.resourceId : '',
         projektId: view === 'project' ? selectedSlot.resourceId : ''
       })
     } else {
       setFormData(defaultFormData)
     }
-  }, [dialogMode, selectedEvent, selectedSlot, view])
+  }, [dialogMode, selectedEvent, selectedSlot, view, employees])
   
   const handleChange = (field: keyof AssignmentFormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -129,6 +173,40 @@ export default function AssignmentDialog() {
   
   const handleRemoveDate = (field: 'setupDate' | 'dismantleDate') => {
     setFormData(prev => ({ ...prev, [field]: '' }))
+  }
+  
+  // Mitarbeiter hinzufügen
+  const handleAddMitarbeiter = (employeeId: string) => {
+    if (!employeeId || employeeId === 'none') return
+    
+    // Prüfen ob bereits hinzugefügt
+    if ((formData?.mitarbeiterIds ?? []).some(m => m.id === employeeId)) {
+      toast.info('Mitarbeiter bereits hinzugefügt')
+      return
+    }
+    
+    const employee = employees.find(e => e._id === employeeId)
+    if (!employee) return
+    
+    setFormData(prev => ({
+      ...prev,
+      mitarbeiterIds: [
+        ...(prev?.mitarbeiterIds ?? []),
+        {
+          id: employee._id || '',
+          name: `${employee.vorname} ${employee.nachname}`,
+          personalnummer: employee.personalnummer
+        }
+      ]
+    }))
+  }
+  
+  // Mitarbeiter entfernen
+  const handleRemoveMitarbeiter = (employeeId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      mitarbeiterIds: (prev?.mitarbeiterIds ?? []).filter(m => m.id !== employeeId)
+    }))
   }
   
   const handleSubmit = async () => {
@@ -145,16 +223,6 @@ export default function AssignmentDialog() {
     }
     
     try {
-      const baseData = {
-        mitarbeiterId: formData.mitarbeiterId || undefined,
-        projektId: formData.projektId,
-        rolle: formData.rolle || undefined,
-        notizen: formData.notizen || undefined,
-        bestaetigt: formData.bestaetigt,
-        setupDate: formData.setupDate || undefined,
-        dismantleDate: formData.dismantleDate || undefined
-      }
-      
       // Berechne von/bis: Wenn nur ein Datum, dann gleicher Tag für Start und Ende
       const dates = [formData.setupDate, formData.dismantleDate].filter(Boolean)
       if (dates.length === 0) {
@@ -176,26 +244,84 @@ export default function AssignmentDialog() {
       bis.setHours(23, 59, 59, 999)
       
       if (dialogMode === 'edit' && selectedEvent) {
-        // Bearbeitungsmodus: Aktualisiere bestehenden Einsatz
+        // Bearbeitungsmodus: 
+        // 1. Bestehenden Einsatz mit erstem Mitarbeiter aktualisieren
+        // 2. Für jeden NEUEN Mitarbeiter einen neuen Einsatz erstellen
+        const mitarbeiterListe = formData?.mitarbeiterIds ?? []
+        
+        // Erster Mitarbeiter überschreibt den bestehenden Einsatz
+        const ersterMitarbeiter = mitarbeiterListe.length > 0 ? mitarbeiterListe[0] : null
+        
         const payload = {
-          ...baseData,
+          mitarbeiterId: ersterMitarbeiter?.id || undefined,
+          projektId: formData.projektId,
+          rolle: formData.rolle || undefined,
+          notizen: formData.notizen || undefined,
+          bestaetigt: formData.bestaetigt,
+          setupDate: formData.setupDate || undefined,
+          dismantleDate: formData.dismantleDate || undefined,
           von: von.toISOString(),
           bis: bis.toISOString()
         }
         
         const realId = selectedEvent.sourceId
         await updateMutation.mutateAsync({ id: realId, data: payload })
-        toast.success('Einsatz erfolgreich aktualisiert')
-      } else {
-        // Erstell-Modus: Erstelle Einsatz mit setup/dismantle
-        const payload = {
-          ...baseData,
-          von: von.toISOString(),
-          bis: bis.toISOString()
+        
+        // Für jeden ZUSÄTZLICHEN Mitarbeiter (ab Index 1) einen neuen Einsatz erstellen
+        let neueEinsaetze = 0
+        for (let i = 1; i < mitarbeiterListe.length; i++) {
+          const mitarbeiter = mitarbeiterListe[i]
+          const neuerPayload = {
+            mitarbeiterId: mitarbeiter.id || undefined,
+            projektId: formData.projektId,
+            rolle: formData.rolle || undefined,
+            notizen: formData.notizen || undefined,
+            bestaetigt: formData.bestaetigt,
+            setupDate: formData.setupDate || undefined,
+            dismantleDate: formData.dismantleDate || undefined,
+            von: von.toISOString(),
+            bis: bis.toISOString()
+          }
+          await createMutation.mutateAsync(neuerPayload)
+          neueEinsaetze++
         }
         
-        await createMutation.mutateAsync(payload)
-        toast.success('Einsatz erfolgreich erstellt')
+        if (neueEinsaetze > 0) {
+          toast.success(`Einsatz aktualisiert und ${neueEinsaetze} neue Einsätze erstellt`)
+        } else {
+          toast.success('Einsatz erfolgreich aktualisiert')
+        }
+      } else {
+        // Erstell-Modus: Erstelle Einsatz für JEDEN ausgewählten Mitarbeiter
+        const ausgewaehlteMitarbeiter = formData?.mitarbeiterIds ?? []
+        const mitarbeiterListe = ausgewaehlteMitarbeiter.length > 0 
+          ? ausgewaehlteMitarbeiter 
+          : [{ id: '', name: 'Nicht zugewiesen' }] // Mindestens einen Einsatz ohne Mitarbeiter erstellen
+        
+        let erstellteEinsaetze = 0
+        
+        for (const mitarbeiter of mitarbeiterListe) {
+          const payload = {
+            mitarbeiterId: mitarbeiter.id || undefined,
+            projektId: formData.projektId,
+            rolle: formData.rolle || undefined,
+            notizen: formData.notizen || undefined,
+            bestaetigt: formData.bestaetigt,
+            setupDate: formData.setupDate || undefined,
+            dismantleDate: formData.dismantleDate || undefined,
+            von: von.toISOString(),
+            bis: bis.toISOString()
+          }
+          
+          await createMutation.mutateAsync(payload)
+          erstellteEinsaetze++
+        }
+        
+        if (erstellteEinsaetze > 1) {
+          toast.success(`${erstellteEinsaetze} Einsätze erfolgreich erstellt`)
+        } else {
+          toast.success('Einsatz erfolgreich erstellt')
+        }
       }
       
       closeDialog()
@@ -237,7 +363,18 @@ export default function AssignmentDialog() {
   // Debug-Logging
   console.log('[AssignmentDialog] dialogMode:', dialogMode)
   console.log('[AssignmentDialog] isDialogOpen:', isDialogOpen)
-  console.log('[AssignmentDialog] selectedEvent:', selectedEvent ? { id: selectedEvent.id, sourceType: selectedEvent.sourceType } : null)
+  console.log('[AssignmentDialog] selectedEvent:', selectedEvent ? { 
+    id: selectedEvent.id, 
+    sourceType: selectedEvent.sourceType,
+    projektId: selectedEvent.projektId,
+    projektName: selectedEvent.projektName,
+    mitarbeiterId: selectedEvent.mitarbeiterId,
+    mitarbeiterName: selectedEvent.mitarbeiterName
+  } : null)
+  console.log('[AssignmentDialog] formData:', {
+    projektId: formData?.projektId,
+    mitarbeiterIds: formData?.mitarbeiterIds?.length
+  })
   
   return (
     <>
@@ -255,31 +392,77 @@ export default function AssignmentDialog() {
           </DialogHeader>
           
           <div className="space-y-6 py-4">
-            {/* Mitarbeiter */}
-            <div className="space-y-2">
+            {/* Mitarbeiter (Mehrfachauswahl) */}
+            <div className="space-y-3">
               <Label htmlFor="mitarbeiter" className="text-gray-900 font-medium flex items-center gap-2">
                 <User className="h-4 w-4" />
                 Mitarbeiter
+                {(formData?.mitarbeiterIds?.length ?? 0) > 0 && (
+                  <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800">
+                    {formData.mitarbeiterIds.length} ausgewählt
+                  </Badge>
+                )}
               </Label>
+              
+              {/* Ausgewählte Mitarbeiter als Badges */}
+              {(formData?.mitarbeiterIds?.length ?? 0) > 0 && (
+                <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  {formData.mitarbeiterIds.map((mitarbeiter) => (
+                    <Badge 
+                      key={mitarbeiter.id}
+                      className="bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200 px-3 py-1.5 flex items-center gap-2"
+                    >
+                      <User className="h-3 w-3" />
+                      <span className="font-medium">{mitarbeiter.name}</span>
+                      {mitarbeiter.personalnummer && (
+                        <span className="text-blue-600 text-xs">(#{mitarbeiter.personalnummer})</span>
+                      )}
+                      <button
+                        onClick={() => handleRemoveMitarbeiter(mitarbeiter.id)}
+                        className="ml-1 hover:bg-blue-300 rounded-full p-0.5"
+                        type="button"
+                        title="Mitarbeiter entfernen"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              
+              {/* Dropdown zum Hinzufügen */}
               <Select
-                value={formData.mitarbeiterId || undefined}
-                onValueChange={(value) => handleChange('mitarbeiterId', value === 'none' ? '' : value)}
+                value=""
+                onValueChange={handleAddMitarbeiter}
               >
                 <SelectTrigger className="bg-white text-gray-900 border-gray-300">
-                  <SelectValue placeholder="Mitarbeiter auswählen (optional)" />
+                  <SelectValue placeholder="+ Mitarbeiter hinzufügen (optional)" />
                 </SelectTrigger>
-                <SelectContent className="bg-white text-gray-900">
-                  <SelectItem value="none">Kein Mitarbeiter</SelectItem>
-                  {employees.filter(e => e.aktiv).map((employee) => (
-                    <SelectItem key={employee._id} value={employee._id || ''}>
-                      {employee.vorname} {employee.nachname}
-                      {employee.personalnummer && (
-                        <span className="text-gray-500 ml-2">(#{employee.personalnummer})</span>
-                      )}
-                    </SelectItem>
-                  ))}
+                <SelectContent className="bg-white text-gray-900 max-h-[300px]">
+                  {employees
+                    .filter(e => e.aktiv)
+                    .filter(e => !(formData?.mitarbeiterIds ?? []).some(m => m.id === e._id))
+                    .map((employee) => (
+                      <SelectItem key={employee._id} value={employee._id || ''}>
+                        {employee.vorname} {employee.nachname}
+                        {employee.personalnummer && (
+                          <span className="text-gray-500 ml-2">(#{employee.personalnummer})</span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  {employees.filter(e => e.aktiv).filter(e => !(formData?.mitarbeiterIds ?? []).some(m => m.id === e._id)).length === 0 && (
+                    <div className="px-2 py-1.5 text-sm text-gray-500">
+                      Alle Mitarbeiter bereits hinzugefügt
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
+              
+              {dialogMode === 'create' && (
+                <p className="text-xs text-gray-500">
+                  Sie können mehrere Mitarbeiter auswählen. Für jeden wird ein separater Einsatz erstellt.
+                </p>
+              )}
             </div>
             
             {/* Projekt */}
@@ -289,18 +472,23 @@ export default function AssignmentDialog() {
                 Projekt *
               </Label>
               <Select
-                value={formData.projektId}
+                value={formData?.projektId || ''}
                 onValueChange={(value) => handleChange('projektId', value)}
               >
                 <SelectTrigger className="bg-white text-gray-900 border-gray-300">
                   <SelectValue placeholder="Projekt auswählen" />
                 </SelectTrigger>
                 <SelectContent className="bg-white text-gray-900">
-                  {projects.filter(p => ['in_planung', 'aktiv'].includes(p.status)).map((project) => (
-                    <SelectItem key={project._id} value={project._id || ''}>
-                      {project.projektname} ({project.projektnummer})
-                    </SelectItem>
-                  ))}
+                  {projects
+                    .filter(p => 
+                      // Zeige aktive/geplante Projekte ODER das aktuell ausgewählte Projekt
+                      ['in_planung', 'aktiv'].includes(p.status) || p._id === formData?.projektId
+                    )
+                    .map((project) => (
+                      <SelectItem key={project._id} value={project._id || ''}>
+                        {project.projektname} ({project.projektnummer})
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

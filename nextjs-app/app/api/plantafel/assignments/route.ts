@@ -273,6 +273,24 @@ export async function GET(request: NextRequest) {
       )
     }
     
+    // Lade ALLE Projekte für Adressinformationen (unabhängig von View)
+    const alleProjektIds = [...new Set(einsaetze.map(e => e.projektId).filter(Boolean))]
+    const projektMap = new Map<string, Projekt>()
+    
+    if (alleProjektIds.length > 0) {
+      const projekteDocs = await db.collection<Projekt>('projekte')
+        .find({ 
+          _id: { $in: alleProjektIds.map(id => {
+            try { return new ObjectId(id as string) } catch { return id }
+          })}
+        })
+        .toArray()
+      
+      projekteDocs.forEach(p => {
+        projektMap.set(p._id?.toString() || '', p)
+      })
+    }
+    
     // Lade Ressourcen basierend auf View
     let resources: PlantafelResource[] = []
     
@@ -315,12 +333,25 @@ export async function GET(request: NextRequest) {
     }
     
     // Mappe Events - mapEinsatzToEvents gibt Array zurück (Aufbau + Abbau separat)
-    const einsatzEvents = einsaetze.flatMap(e => 
-      mapEinsatzToEvents({
+    // Erweitere Events mit Projekt-Adressinformationen
+    const einsatzEvents = einsaetze.flatMap(e => {
+      const events = mapEinsatzToEvents({
         ...e,
         _id: e._id?.toString()
       }, view)
-    )
+      
+      // Füge Projekt-Adressinformationen hinzu
+      const projekt = projektMap.get(e.projektId || '')
+      if (projekt?.bauvorhaben) {
+        return events.map(event => ({
+          ...event,
+          projektAdresse: projekt.bauvorhaben?.adresse,
+          projektPlz: projekt.bauvorhaben?.plz,
+          projektOrt: projekt.bauvorhaben?.ort
+        }))
+      }
+      return events
+    })
     
     const urlaubEvents = urlaube.map(u => {
       const event = mapUrlaubToEvent({
@@ -339,14 +370,20 @@ export async function GET(request: NextRequest) {
     
     let events: PlantafelEvent[] = [...einsatzEvents, ...urlaubEvents]
     
-    // DEDUPLIZIERUNG: Im Projekt-View Events nach Projekt+Datum+Typ gruppieren
+    // GRUPPIERUNG: Im Projekt-View Events nach Projekt+Datum+Typ gruppieren
+    // Sammle alle Mitarbeiter für jedes Projekt/Datum
     if (view === 'project') {
-      const grouped = new Map<string, PlantafelEvent>()
+      const grouped = new Map<string, PlantafelEvent & { allMitarbeiterIds: string[], allMitarbeiterNames: string[], sourceIds: string[] }>()
       
       events.forEach(event => {
         // Nur Einsatz-Events gruppieren (keine Urlaube)
         if (event.sourceType !== 'einsatz') {
-          grouped.set(event.id, event)
+          grouped.set(event.id, { 
+            ...event, 
+            allMitarbeiterIds: [], 
+            allMitarbeiterNames: [],
+            sourceIds: [event.sourceId]
+          })
           return
         }
         
@@ -355,18 +392,50 @@ export async function GET(request: NextRequest) {
         const typ = event.id.includes('-setup') ? 'setup' : event.id.includes('-dismantle') ? 'dismantle' : 'default'
         const groupKey = `${event.projektId}-${dateStr}-${typ}`
         
-        if (!grouped.has(groupKey)) {
+        const existing = grouped.get(groupKey)
+        
+        if (existing) {
+          // Füge Mitarbeiter zur Gruppe hinzu (wenn noch nicht vorhanden)
+          if (event.mitarbeiterId && !existing.allMitarbeiterIds.includes(event.mitarbeiterId)) {
+            existing.allMitarbeiterIds.push(event.mitarbeiterId)
+            existing.allMitarbeiterNames.push(event.mitarbeiterName || 'Nicht zugewiesen')
+          }
+          // Speichere auch die sourceId für spätere Updates
+          if (event.sourceId && !existing.sourceIds.includes(event.sourceId)) {
+            existing.sourceIds.push(event.sourceId)
+          }
+        } else {
           // Erstes Event dieser Gruppe - speichern
+          const allMitarbeiterIds = event.mitarbeiterId ? [event.mitarbeiterId] : []
+          const allMitarbeiterNames = event.mitarbeiterName ? [event.mitarbeiterName] : ['Nicht zugewiesen']
+          
           grouped.set(groupKey, {
             ...event,
-            id: groupKey // Neue eindeutige ID
+            id: groupKey, // Neue eindeutige ID für die Gruppe
+            allMitarbeiterIds,
+            allMitarbeiterNames,
+            sourceIds: [event.sourceId]
           })
         }
-        // Weitere Events mit gleichem Key werden ignoriert (dedupliziert)
       })
       
-      events = Array.from(grouped.values())
-      console.log(`[Plantafel] Nach Gruppierung (Projekt-View): ${events.length} Events (dedupliziert von ${einsatzEvents.length + urlaubEvents.length})`)
+      // Aktualisiere Titel mit Mitarbeiter-Anzahl
+      events = Array.from(grouped.values()).map(event => {
+        if (event.sourceType !== 'einsatz' || event.allMitarbeiterNames.length <= 1) {
+          return event
+        }
+        
+        // Mehrere Mitarbeiter: Zeige Anzahl im Titel
+        const typeLabel = event.id.includes('setup') ? ' (Aufbau)' : event.id.includes('dismantle') ? ' (Abbau)' : ''
+        const countLabel = `${event.allMitarbeiterNames.length} Mitarbeiter`
+        
+        return {
+          ...event,
+          title: `${event.projektName}${typeLabel} - ${countLabel}`
+        }
+      })
+      
+      console.log(`[Plantafel] Nach Gruppierung (Projekt-View): ${events.length} Events (von ${einsatzEvents.length + urlaubEvents.length})`)
     }
     
     console.log(`[Plantafel] Gesamt Events: ${events.length} (Einsätze: ${einsatzEvents.length}, Urlaube: ${urlaubEvents.length})`)

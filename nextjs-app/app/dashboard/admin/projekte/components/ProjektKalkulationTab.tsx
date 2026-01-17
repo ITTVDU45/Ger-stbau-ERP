@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Projekt, Vorkalkulation, Nachkalkulation } from '@/lib/db/types'
 import MonatsResultat from './kalkulation/MonatsResultat'
@@ -22,6 +22,7 @@ export default function ProjektKalkulationTab({ projekt, onProjektUpdated }: Pro
   const [nachkalkulation, setNachkalkulation] = useState<Nachkalkulation | undefined>(projekt.nachkalkulation)
   const [angebotNetto, setAngebotNetto] = useState<number | undefined>(undefined)
   const [activeTab, setActiveTab] = useState('vorkalkulation')
+  const [plantafelEinsaetze, setPlantafelEinsaetze] = useState<any[]>([])
 
   useEffect(() => {
     console.log('=== ProjektKalkulationTab ===')
@@ -33,6 +34,7 @@ export default function ProjektKalkulationTab({ projekt, onProjektUpdated }: Pro
     console.log('Vollständiges Projekt:', projekt)
 
     loadKalkulation()
+    loadPlantafelEinsaetze()
 
     if (projekt.angebotId) {
       console.log('→ Lade Angebot:', projekt.angebotId)
@@ -43,6 +45,81 @@ export default function ProjektKalkulationTab({ projekt, onProjektUpdated }: Pro
       autoZuweiseAngebot()
     }
   }, [projekt._id, projekt.angebotId])
+
+  // Lade Einsätze aus der Plantafel für dieses Projekt
+  const loadPlantafelEinsaetze = async () => {
+    try {
+      const response = await fetch(`/api/einsatz?projektId=${projekt._id}`)
+      if (response.ok) {
+        const data = await response.json()
+        const einsaetze = data.einsaetze || data || []
+        console.log('[ProjektKalkulationTab] Plantafel-Einsätze geladen:', einsaetze.length)
+        setPlantafelEinsaetze(einsaetze)
+      }
+    } catch (error) {
+      console.error('Fehler beim Laden der Plantafel-Einsätze:', error)
+    }
+  }
+
+  // Kombiniere zugewiesene Mitarbeiter aus Projekt UND Plantafel-Einsätzen
+  const alleMitarbeiter = useMemo(() => {
+    const mitarbeiterMap = new Map<string, any>()
+    
+    // 1. Füge manuell zugewiesene Mitarbeiter hinzu
+    projekt.zugewieseneMitarbeiter?.forEach((m, index) => {
+      const key = m.mitarbeiterId
+      mitarbeiterMap.set(key, {
+        ...m,
+        quelle: 'manuell',
+        index,
+        setupDate: undefined,
+        dismantleDate: undefined
+      })
+    })
+    
+    // 2. Füge Mitarbeiter aus Plantafel-Einsätzen hinzu
+    plantafelEinsaetze.forEach(einsatz => {
+      if (!einsatz.mitarbeiterId) return
+      
+      const key = einsatz.mitarbeiterId
+      const existing = mitarbeiterMap.get(key)
+      
+      if (existing) {
+        // Aktualisiere mit Plantafel-Daten
+        existing.setupDate = existing.setupDate || einsatz.setupDate
+        existing.dismantleDate = existing.dismantleDate || einsatz.dismantleDate
+        existing.quelle = 'beide'
+        // Markiere als Aufbau/Abbau Mitarbeiter basierend auf Einsatz-Daten
+        if (einsatz.setupDate) {
+          existing.stundenAufbau = existing.stundenAufbau || 8 // Default 8h für Aufbau
+        }
+        if (einsatz.dismantleDate) {
+          existing.stundenAbbau = existing.stundenAbbau || 8 // Default 8h für Abbau
+        }
+      } else {
+        // Neuer Mitarbeiter aus Plantafel
+        mitarbeiterMap.set(key, {
+          mitarbeiterId: einsatz.mitarbeiterId,
+          mitarbeiterName: einsatz.mitarbeiterName || 'Unbekannt',
+          rolle: einsatz.rolle || 'helfer',
+          von: einsatz.setupDate ? new Date(einsatz.setupDate) : undefined,
+          bis: einsatz.dismantleDate ? new Date(einsatz.dismantleDate) : undefined,
+          setupDate: einsatz.setupDate,
+          dismantleDate: einsatz.dismantleDate,
+          quelle: 'plantafel',
+          einsatzId: einsatz._id,
+          // Setze Stunden basierend auf Einsatz-Typ
+          stundenAufbau: einsatz.setupDate ? 8 : 0,
+          stundenAbbau: einsatz.dismantleDate ? 8 : 0
+        })
+      }
+    })
+    
+    const result = Array.from(mitarbeiterMap.values())
+    console.log('[ProjektKalkulationTab] Alle Mitarbeiter kombiniert:', result.length, 
+      'davon Plantafel:', result.filter(m => m.quelle === 'plantafel' || m.quelle === 'beide').length)
+    return result
+  }, [projekt.zugewieseneMitarbeiter, plantafelEinsaetze])
 
   const loadKalkulation = async () => {
     try {
@@ -204,7 +281,7 @@ export default function ProjektKalkulationTab({ projekt, onProjektUpdated }: Pro
             vorkalkulation={vorkalkulation}
             angebotId={projekt.angebotId}
             angebotssumme={angebotNetto || projekt.budget || projekt.angebotssumme}
-            zugewieseneMitarbeiter={projekt.zugewieseneMitarbeiter}
+            zugewieseneMitarbeiter={alleMitarbeiter}
             onUpdate={handleUpdate}
           />
         </TabsContent>
@@ -214,7 +291,7 @@ export default function ProjektKalkulationTab({ projekt, onProjektUpdated }: Pro
             projektId={projekt._id!}
             vorkalkulation={vorkalkulation}
             nachkalkulation={nachkalkulation}
-            zugewieseneMitarbeiter={projekt.zugewieseneMitarbeiter}
+            zugewieseneMitarbeiter={alleMitarbeiter}
             onUpdate={handleUpdate}
           />
         </TabsContent>

@@ -32,6 +32,7 @@ export const plantafelKeys = {
   all: ['plantafel'] as const,
   assignments: (from: string, to: string, view: PlantafelView, filters: PlantafelFilters) => 
     [...plantafelKeys.all, 'assignments', from, to, view, filters] as const,
+  allAssignments: () => [...plantafelKeys.all, 'allAssignments'] as const,
   conflicts: (from: string, to: string) => 
     [...plantafelKeys.all, 'conflicts', from, to] as const,
   employees: () => [...plantafelKeys.all, 'employees'] as const,
@@ -155,6 +156,35 @@ async function fetchProjects(): Promise<Projekt[]> {
   return data.projekte || []
 }
 
+/**
+ * Lädt ALLE Einsätze mit sehr weitem Datumsbereich
+ * Wird verwendet um zu prüfen welche Projekte bereits Aufbau/Abbau haben
+ */
+async function fetchAllAssignments(): Promise<any[]> {
+  // Sehr weiter Datumsbereich: 5 Jahre zurück bis 5 Jahre voraus
+  const from = new Date()
+  from.setFullYear(from.getFullYear() - 5)
+  const to = new Date()
+  to.setFullYear(to.getFullYear() + 5)
+  
+  const params = new URLSearchParams({
+    from: format(from, 'yyyy-MM-dd'),
+    to: format(to, 'yyyy-MM-dd'),
+    view: 'team',
+    showAbsences: 'false'
+  })
+  
+  const response = await fetch(`/api/plantafel/assignments?${params}`)
+  
+  if (!response.ok) {
+    throw new Error('Fehler beim Laden aller Einsätze')
+  }
+  
+  const data = await response.json()
+  // Gebe die Events zurück (enthalten projektId, setupDate, dismantleDate, etc.)
+  return data.events || []
+}
+
 async function createAssignment(data: CreateAssignmentRequest) {
   const response = await fetch('/api/plantafel/assignments', {
     method: 'POST',
@@ -260,6 +290,18 @@ export function useProjects() {
   })
 }
 
+/**
+ * Hook zum Laden ALLER Einsätze (ohne Datumsfilter)
+ * Verwendet für Sidebar um zu prüfen welche Projekte bereits geplant sind
+ */
+export function useAllAssignments() {
+  return useQuery({
+    queryKey: plantafelKeys.allAssignments(),
+    queryFn: fetchAllAssignments,
+    staleTime: 30 * 1000 // 30 Sekunden
+  })
+}
+
 // ============================================================================
 // MUTATION HOOKS
 // ============================================================================
@@ -275,6 +317,7 @@ export function useCreateAssignment() {
     onSuccess: () => {
       // Invalidiere alle Assignment-Queries
       queryClient.invalidateQueries({ queryKey: ['plantafel', 'assignments'] })
+      queryClient.invalidateQueries({ queryKey: ['plantafel', 'allAssignments'] })
       queryClient.invalidateQueries({ queryKey: ['plantafel', 'conflicts'] })
     }
   })

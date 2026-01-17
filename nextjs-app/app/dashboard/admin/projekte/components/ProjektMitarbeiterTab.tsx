@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -26,6 +26,7 @@ interface ProjektMitarbeiterTabProps {
 export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: ProjektMitarbeiterTabProps) {
   const [loading, setLoading] = useState(false)
   const [zeiterfassungen, setZeiterfassungen] = useState<Zeiterfassung[]>([])
+  const [plantafelEinsaetze, setPlantafelEinsaetze] = useState<any[]>([])
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [mitarbeiterToDelete, setMitarbeiterToDelete] = useState<{ 
     id: string
@@ -53,6 +54,7 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
 
   useEffect(() => {
     loadZeiterfassungen()
+    loadPlantafelEinsaetze()
   }, [projekt._id, projekt.zugewieseneMitarbeiter])
 
   const loadZeiterfassungen = async () => {
@@ -72,6 +74,79 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
       console.error('Fehler beim Laden der Zeiterfassungen:', error)
     }
   }
+
+  // Lade Einsätze aus der Plantafel für dieses Projekt
+  const loadPlantafelEinsaetze = async () => {
+    try {
+      // Lade alle Einsätze für dieses Projekt (ohne Datumsfilter)
+      const response = await fetch(`/api/einsatz?projektId=${projekt._id}`)
+      if (response.ok) {
+        const data = await response.json()
+        const einsaetze = data.einsaetze || data || []
+        console.log('[ProjektMitarbeiterTab] Plantafel-Einsätze geladen:', {
+          anzahl: einsaetze.length,
+          mitarbeiterIds: [...new Set(einsaetze.map((e: any) => e.mitarbeiterId).filter(Boolean))]
+        })
+        setPlantafelEinsaetze(einsaetze)
+      }
+    } catch (error) {
+      console.error('Fehler beim Laden der Plantafel-Einsätze:', error)
+    }
+  }
+
+  // Kombiniere zugewiesene Mitarbeiter aus Projekt UND Plantafel-Einsätzen
+  const alleMitarbeiter = useMemo(() => {
+    const mitarbeiterMap = new Map<string, any>()
+    
+    // 1. Füge manuell zugewiesene Mitarbeiter hinzu
+    projekt.zugewieseneMitarbeiter?.forEach((m, index) => {
+      const key = m.mitarbeiterId
+      mitarbeiterMap.set(key, {
+        ...m,
+        quelle: 'manuell',
+        index,
+        setupDate: undefined,
+        dismantleDate: undefined
+      })
+    })
+    
+    // 2. Füge Mitarbeiter aus Plantafel-Einsätzen hinzu
+    plantafelEinsaetze.forEach(einsatz => {
+      if (!einsatz.mitarbeiterId) return
+      
+      const key = einsatz.mitarbeiterId
+      const existing = mitarbeiterMap.get(key)
+      
+      if (existing) {
+        // Aktualisiere mit Plantafel-Daten
+        existing.setupDate = existing.setupDate || einsatz.setupDate
+        existing.dismantleDate = existing.dismantleDate || einsatz.dismantleDate
+        existing.quelle = 'beide'
+        // Aktualisiere Von/Bis falls aus Plantafel verfügbar
+        if (!existing.von && einsatz.setupDate) {
+          existing.von = new Date(einsatz.setupDate)
+        }
+        if (!existing.bis && einsatz.dismantleDate) {
+          existing.bis = new Date(einsatz.dismantleDate)
+        }
+      } else {
+        // Neuer Mitarbeiter aus Plantafel
+        mitarbeiterMap.set(key, {
+          mitarbeiterId: einsatz.mitarbeiterId,
+          mitarbeiterName: einsatz.mitarbeiterName || 'Unbekannt',
+          rolle: einsatz.rolle || 'helfer',
+          von: einsatz.setupDate ? new Date(einsatz.setupDate) : undefined,
+          bis: einsatz.dismantleDate ? new Date(einsatz.dismantleDate) : undefined,
+          setupDate: einsatz.setupDate,
+          dismantleDate: einsatz.dismantleDate,
+          quelle: 'plantafel',
+          einsatzId: einsatz._id
+        })
+      }
+    })
+    
+    return Array.from(mitarbeiterMap.values())
+  }, [projekt.zugewieseneMitarbeiter, plantafelEinsaetze])
 
   // Berechne erfasste Stunden pro Mitarbeiter für einen spezifischen Zeitraum
   const getErfassteStunden = (mitarbeiterId: string, von?: Date, bis?: Date, mitarbeiterObj?: any) => {
@@ -458,10 +533,13 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
         </div>
       </CardHeader>
       <CardContent>
-        {!projekt.zugewieseneMitarbeiter || projekt.zugewieseneMitarbeiter.length === 0 ? (
+        {alleMitarbeiter.length === 0 ? (
           <div className="text-center py-12">
             <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600 mb-4">Noch keine Mitarbeiter zugewiesen</p>
+            <p className="text-sm text-gray-500 mb-4">
+              Weisen Sie Mitarbeiter hier manuell zu oder nutzen Sie die Plantafel für die Einsatzplanung.
+            </p>
             <MitarbeiterZuweisenDialog projekt={projekt} onSuccess={onProjektUpdated}>
               <Button variant="outline" className="border-gray-300 text-gray-700">
                 <Plus className="h-4 w-4 mr-2" />
@@ -484,17 +562,7 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {projekt.zugewieseneMitarbeiter.map((mitarbeiter, index) => {
-                  // Debug: Log Mitarbeiter-IDs
-                  if (index === 0) {
-                    console.log('[ProjektMitarbeiterTab] Zugewiesene Mitarbeiter IDs:', 
-                      projekt.zugewieseneMitarbeiter?.map(m => ({ 
-                        name: m.mitarbeiterName, 
-                        id: m.mitarbeiterId 
-                      }))
-                    )
-                  }
-                  
+                {alleMitarbeiter.map((mitarbeiter, index) => {
                   const stundenInfo = getErfassteStunden(mitarbeiter.mitarbeiterId, mitarbeiter.von, mitarbeiter.bis, mitarbeiter)
                   
                   // Verwende manuell gesetzte Werte aus der Mitarbeiter-Zuweisung, falls vorhanden
@@ -508,7 +576,19 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
                   return (
                     <TableRow key={index}>
                       <TableCell className="font-medium text-gray-900">
-                        {mitarbeiter.mitarbeiterName}
+                        <div className="flex items-center gap-2">
+                          <span>{mitarbeiter.mitarbeiterName}</span>
+                          {mitarbeiter.quelle === 'plantafel' && (
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
+                              📅 Plantafel
+                            </Badge>
+                          )}
+                          {mitarbeiter.quelle === 'beide' && (
+                            <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-xs">
+                              ✓ Beide
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {getRolleBadge(mitarbeiter.rolle)}
@@ -624,13 +704,13 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
         )}
 
         {/* Zusammenfassung */}
-        {projekt.zugewieseneMitarbeiter && projekt.zugewieseneMitarbeiter.length > 0 && (
-          <div className="mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {alleMitarbeiter.length > 0 && (
+          <div className="mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <Card className="bg-blue-50 border-blue-200">
               <CardContent className="p-4">
                 <div className="text-sm text-blue-700 mb-1">Gesamt</div>
                 <div className="text-2xl font-bold text-blue-900">
-                  {projekt.zugewieseneMitarbeiter.length}
+                  {alleMitarbeiter.length}
                 </div>
                 <div className="text-xs text-blue-600 mt-1">Mitarbeiter</div>
               </CardContent>
@@ -640,7 +720,7 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
               <CardContent className="p-4">
                 <div className="text-sm text-purple-700 mb-1">Kolonnenführer</div>
                 <div className="text-2xl font-bold text-purple-900">
-                  {projekt.zugewieseneMitarbeiter.filter(m => m.rolle === 'kolonnenfuehrer').length}
+                  {alleMitarbeiter.filter(m => m.rolle === 'kolonnenfuehrer').length}
                 </div>
                 <div className="text-xs text-purple-600 mt-1">Zugewiesen</div>
               </CardContent>
@@ -650,7 +730,7 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
               <CardContent className="p-4">
                 <div className="text-sm text-orange-700 mb-1">Vorarbeiter</div>
                 <div className="text-2xl font-bold text-orange-900">
-                  {projekt.zugewieseneMitarbeiter.filter(m => m.rolle === 'vorarbeiter').length}
+                  {alleMitarbeiter.filter(m => m.rolle === 'vorarbeiter').length}
                 </div>
                 <div className="text-xs text-orange-600 mt-1">Zugewiesen</div>
               </CardContent>
@@ -660,7 +740,7 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
               <CardContent className="p-4">
                 <div className="text-sm text-green-700 mb-1">Monteure</div>
                 <div className="text-2xl font-bold text-green-900">
-                  {projekt.zugewieseneMitarbeiter.filter(m => m.rolle === 'monteur').length}
+                  {alleMitarbeiter.filter(m => m.rolle === 'monteur').length}
                 </div>
                 <div className="text-xs text-green-600 mt-1">Zugewiesen</div>
               </CardContent>
@@ -670,9 +750,19 @@ export default function ProjektMitarbeiterTab({ projekt, onProjektUpdated }: Pro
               <CardContent className="p-4">
                 <div className="text-sm text-gray-700 mb-1">Helfer</div>
                 <div className="text-2xl font-bold text-gray-900">
-                  {projekt.zugewieseneMitarbeiter.filter(m => m.rolle === 'helfer').length}
+                  {alleMitarbeiter.filter(m => m.rolle === 'helfer').length}
                 </div>
                 <div className="text-xs text-gray-600 mt-1">Zugewiesen</div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-indigo-50 border-indigo-200">
+              <CardContent className="p-4">
+                <div className="text-sm text-indigo-700 mb-1">Aus Plantafel</div>
+                <div className="text-2xl font-bold text-indigo-900">
+                  {alleMitarbeiter.filter(m => m.quelle === 'plantafel' || m.quelle === 'beide').length}
+                </div>
+                <div className="text-xs text-indigo-600 mt-1">📅 Geplant</div>
               </CardContent>
             </Card>
           </div>

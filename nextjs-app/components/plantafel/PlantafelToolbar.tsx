@@ -29,7 +29,8 @@ import {
   Search,
   AlertTriangle,
   Plus,
-  RotateCcw
+  RotateCcw,
+  LayoutList
 } from 'lucide-react'
 import { usePlantafelStore } from '@/lib/stores/plantafelStore'
 import { useEmployees, useProjects } from '@/lib/queries/plantafelQueries'
@@ -61,7 +62,9 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
     setSearchTerm,
     isConflictPanelOpen,
     toggleConflictPanel,
-    setDateRange
+    setDateRange,
+    sidebarMode,
+    setSidebarMode
   } = usePlantafelStore()
   
   const { data: employees = [] } = useEmployees()
@@ -184,21 +187,36 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
         
         {/* Aktionen */}
         <div className="flex items-center gap-2">
-          {/* Konflikt-Button */}
-          <Button
-            variant={isConflictPanelOpen ? 'default' : 'outline'}
-            size="sm"
-            onClick={toggleConflictPanel}
-            className={conflictCount > 0 ? 'border-red-300 text-red-700 bg-red-50' : 'text-gray-700 border-gray-200'}
-          >
-            <AlertTriangle className={`h-4 w-4 mr-2 ${conflictCount > 0 ? 'text-red-500' : 'text-gray-500'}`} />
-            Konflikte
-            {conflictCount > 0 && (
-              <Badge variant="destructive" className="ml-2">
-                {conflictCount}
-              </Badge>
-            )}
-          </Button>
+          {/* Sidebar Toggle: Konflikte / Projekte */}
+          <div className="flex rounded-lg border border-gray-200 p-1 bg-gray-100">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarMode('conflicts')}
+              className={`${sidebarMode === 'conflicts' 
+                ? 'bg-white text-gray-900 shadow-sm' 
+                : 'text-gray-600 hover:text-gray-900'} ${conflictCount > 0 ? 'text-red-600' : ''}`}
+            >
+              <AlertTriangle className={`h-4 w-4 mr-2 ${conflictCount > 0 ? 'text-red-500' : 'text-gray-500'}`} />
+              Konflikte
+              {conflictCount > 0 && (
+                <Badge variant="destructive" className="ml-2">
+                  {conflictCount}
+                </Badge>
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarMode('projects')}
+              className={sidebarMode === 'projects' 
+                ? 'bg-white text-gray-900 shadow-sm' 
+                : 'text-gray-600 hover:text-gray-900'}
+            >
+              <LayoutList className="h-4 w-4 mr-2" />
+              Projekte
+            </Button>
+          </div>
           
           {/* Neuer Einsatz */}
           <Button onClick={onCreateClick} className="bg-green-600 hover:bg-green-700 text-white shadow-md">
