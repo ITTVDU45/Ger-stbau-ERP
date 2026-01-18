@@ -248,29 +248,59 @@ export default function ProjektSidebar() {
     // Set mit Projekt-IDs die Abbau haben
     const projekteMitAbbau = new Set<string>()
     
-    // Prüfe alle Events (aus der gesamten Datenbank, nicht nur aktueller Zeitraum)
+    console.log('[ProjektSidebar] Prüfe Events:', allAssignments.length)
+    
+    // Prüfe alle Events (aus der gesamten Datenbank)
+    // Events haben IDs wie "einsatz-{id}-setup" oder "einsatz-{id}-dismantle"
     allAssignments.forEach(event => {
       const projektId = event.projektId?.toString() || ''
       if (!projektId) return
       
-      // Prüfe auf setupDate, dismantleDate, oder title/notes
+      const eventId = event.id || ''
       const title = (event.title || '').toLowerCase()
-      const notes = (event.notes || '').toLowerCase()
       
-      if (event.setupDate || title.includes('aufbau') || notes.includes('aufbau')) {
+      // Prüfe auf Aufbau-Event:
+      // - Event-ID endet mit "-setup"
+      // - Titel enthält "(aufbau)"
+      // - setupDate ist gesetzt
+      if (
+        eventId.endsWith('-setup') || 
+        title.includes('(aufbau)') ||
+        (event.setupDate && event.setupDate.trim() !== '')
+      ) {
         projekteMitAufbau.add(projektId)
+        console.log(`[ProjektSidebar] Projekt ${projektId} hat Aufbau (Event: ${eventId})`)
       }
-      if (event.dismantleDate || title.includes('abbau') || notes.includes('abbau')) {
+      
+      // Prüfe auf Abbau-Event:
+      // - Event-ID endet mit "-dismantle"
+      // - Titel enthält "(abbau)"
+      // - dismantleDate ist gesetzt
+      if (
+        eventId.endsWith('-dismantle') || 
+        title.includes('(abbau)') ||
+        (event.dismantleDate && event.dismantleDate.trim() !== '')
+      ) {
         projekteMitAbbau.add(projektId)
+        console.log(`[ProjektSidebar] Projekt ${projektId} hat Abbau (Event: ${eventId})`)
       }
     })
+    
+    console.log('[ProjektSidebar] Projekte mit Aufbau:', Array.from(projekteMitAufbau))
+    console.log('[ProjektSidebar] Projekte mit Abbau:', Array.from(projekteMitAbbau))
     
     // Filtere Projekte mit Status "in_planung" oder "aktiv"
     const alleProjekte = projekte.filter(p => ['in_planung', 'aktiv'].includes(p.status))
     
+    const ohneAufbau = alleProjekte.filter(p => !projekteMitAufbau.has(p._id || ''))
+    const ohneAbbau = alleProjekte.filter(p => !projekteMitAbbau.has(p._id || ''))
+    
+    console.log('[ProjektSidebar] Projekte ohne Aufbau:', ohneAufbau.map(p => p.projektname))
+    console.log('[ProjektSidebar] Projekte ohne Abbau:', ohneAbbau.map(p => p.projektname))
+    
     return {
-      projekteOhneAufbau: alleProjekte.filter(p => !projekteMitAufbau.has(p._id || '')),
-      projekteOhneAbbau: alleProjekte.filter(p => !projekteMitAbbau.has(p._id || ''))
+      projekteOhneAufbau: ohneAufbau,
+      projekteOhneAbbau: ohneAbbau
     }
   }, [projekte, allAssignments])
   
