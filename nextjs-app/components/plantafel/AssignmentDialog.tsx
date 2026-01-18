@@ -233,15 +233,15 @@ export default function AssignmentDialog() {
       // Wenn nur ein Datum: von und bis auf den gleichen Tag
       // Wenn zwei Daten: von = früheres, bis = späteres
       const sortedDates = dates.sort()
-      const vonDate = sortedDates[0]
-      const bisDate = sortedDates.length === 1 ? sortedDates[0] : sortedDates[sortedDates.length - 1]
+      const vonDateStr = sortedDates[0]
+      const bisDateStr = sortedDates.length === 1 ? sortedDates[0] : sortedDates[sortedDates.length - 1]
       
-      // Erstelle Date-Objekte in lokaler Zeitzone (nicht UTC)
-      const von = new Date(vonDate)
-      von.setHours(0, 0, 0, 0)
+      // Erstelle Date-Objekte in lokaler Zeitzone (YYYY-MM-DD → lokale Zeitzone)
+      const [vonYear, vonMonth, vonDay] = vonDateStr.split('-').map(Number)
+      const von = new Date(vonYear, vonMonth - 1, vonDay, 0, 0, 0, 0)
       
-      const bis = new Date(bisDate)
-      bis.setHours(23, 59, 59, 999)
+      const [bisYear, bisMonth, bisDay] = bisDateStr.split('-').map(Number)
+      const bis = new Date(bisYear, bisMonth - 1, bisDay, 23, 59, 59, 999)
       
       if (dialogMode === 'edit' && selectedEvent) {
         // Bearbeitungsmodus: 

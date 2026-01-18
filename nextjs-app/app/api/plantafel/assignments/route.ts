@@ -525,9 +525,23 @@ export async function POST(request: NextRequest) {
     } = body
     
     // Validierung - nur Projekt, von und bis sind Pflichtfelder
-    if (!projektId || !von || !bis) {
+    if (!projektId) {
       return NextResponse.json(
-        { erfolg: false, fehler: 'projektId, von und bis sind erforderlich' },
+        { erfolg: false, fehler: 'projektId ist erforderlich' },
+        { status: 400 }
+      )
+    }
+    
+    if (!von) {
+      return NextResponse.json(
+        { erfolg: false, fehler: 'von ist erforderlich' },
+        { status: 400 }
+      )
+    }
+    
+    if (!bis) {
+      return NextResponse.json(
+        { erfolg: false, fehler: 'bis ist erforderlich' },
         { status: 400 }
       )
     }
@@ -542,9 +556,10 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    if (vonDate >= bisDate) {
+    // Für eintägige Events: von darf gleich bis sein (unterschiedliche Uhrzeiten)
+    if (vonDate > bisDate) {
       return NextResponse.json(
-        { erfolg: false, fehler: 'Startdatum muss vor Enddatum liegen' },
+        { erfolg: false, fehler: 'Startdatum muss vor oder gleich Enddatum sein' },
         { status: 400 }
       )
     }

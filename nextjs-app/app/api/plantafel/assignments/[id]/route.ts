@@ -94,12 +94,12 @@ export async function PATCH(
       updateData.bis = bisDate
     }
     
-    // Validiere Datumsreihenfolge
+    // Validiere Datumsreihenfolge (eintägige Events erlaubt: von darf gleich bis sein)
     const finalVon = updateData.von || existingEinsatz.von
     const finalBis = updateData.bis || existingEinsatz.bis
-    if (finalVon >= finalBis) {
+    if (finalVon > finalBis) {
       return NextResponse.json(
-        { erfolg: false, fehler: 'Startdatum muss vor Enddatum liegen' },
+        { erfolg: false, fehler: 'Startdatum muss vor oder gleich Enddatum sein' },
         { status: 400 }
       )
     }
