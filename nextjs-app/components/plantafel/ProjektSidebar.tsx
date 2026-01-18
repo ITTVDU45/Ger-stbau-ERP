@@ -250,16 +250,24 @@ export default function ProjektSidebar() {
     // Set mit Projekt-IDs die Abbau haben
     const projekteMitAbbau = new Set<string>()
     
+    console.log('[ProjektSidebar] === START FILTER ===')
     console.log('[ProjektSidebar] Prüfe Events:', allAssignments.length)
+    console.log('[ProjektSidebar] Alle Projekte:', projekte.map(p => ({ id: p._id, name: p.projektname, nummer: p.projektnummer })))
     
     // Prüfe alle Events (aus der gesamten Datenbank)
     // Events haben IDs wie "einsatz-{id}-setup" oder "einsatz-{id}-dismantle"
     allAssignments.forEach(event => {
       const projektId = event.projektId?.toString() || ''
-      if (!projektId) return
+      if (!projektId) {
+        console.log('[ProjektSidebar] Event ohne projektId:', event.id)
+        return
+      }
       
       const eventId = event.id || ''
       const title = (event.title || '').toLowerCase()
+      const projektName = event.projektName || ''
+      
+      console.log(`[ProjektSidebar] Event: ${eventId}, Projekt: ${projektName} (${projektId}), setupDate: ${event.setupDate}, dismantleDate: ${event.dismantleDate}`)
       
       // Prüfe auf Aufbau-Event:
       // - Event-ID endet mit "-setup"
@@ -271,7 +279,7 @@ export default function ProjektSidebar() {
         (event.setupDate && event.setupDate.trim() !== '')
       ) {
         projekteMitAufbau.add(projektId)
-        console.log(`[ProjektSidebar] Projekt ${projektId} hat Aufbau (Event: ${eventId})`)
+        console.log(`[ProjektSidebar] ✓ Projekt ${projektId} (${projektName}) hat AUFBAU`)
       }
       
       // Prüfe auf Abbau-Event:
@@ -284,21 +292,31 @@ export default function ProjektSidebar() {
         (event.dismantleDate && event.dismantleDate.trim() !== '')
       ) {
         projekteMitAbbau.add(projektId)
-        console.log(`[ProjektSidebar] Projekt ${projektId} hat Abbau (Event: ${eventId})`)
+        console.log(`[ProjektSidebar] ✓ Projekt ${projektId} (${projektName}) hat ABBAU`)
       }
     })
     
-    console.log('[ProjektSidebar] Projekte mit Aufbau:', Array.from(projekteMitAufbau))
-    console.log('[ProjektSidebar] Projekte mit Abbau:', Array.from(projekteMitAbbau))
+    console.log('[ProjektSidebar] Projekte mit Aufbau (IDs):', Array.from(projekteMitAufbau))
+    console.log('[ProjektSidebar] Projekte mit Abbau (IDs):', Array.from(projekteMitAbbau))
     
     // Filtere Projekte mit Status "in_planung" oder "aktiv"
     const alleProjekte = projekte.filter(p => ['in_planung', 'aktiv'].includes(p.status))
     
-    const ohneAufbau = alleProjekte.filter(p => !projekteMitAufbau.has(p._id || ''))
-    const ohneAbbau = alleProjekte.filter(p => !projekteMitAbbau.has(p._id || ''))
+    const ohneAufbau = alleProjekte.filter(p => {
+      const hatAufbau = projekteMitAufbau.has(p._id || '')
+      if (!hatAufbau) {
+        console.log(`[ProjektSidebar] Projekt "${p.projektname}" (${p._id}) hat KEINEN Aufbau`)
+      }
+      return !hatAufbau
+    })
     
-    console.log('[ProjektSidebar] Projekte ohne Aufbau:', ohneAufbau.map(p => p.projektname))
-    console.log('[ProjektSidebar] Projekte ohne Abbau:', ohneAbbau.map(p => p.projektname))
+    const ohneAbbau = alleProjekte.filter(p => {
+      const hatAbbau = projekteMitAbbau.has(p._id || '')
+      return !hatAbbau
+    })
+    
+    console.log('[ProjektSidebar] Projekte ohne Aufbau:', ohneAufbau.map(p => `${p.projektname} (${p._id})`))
+    console.log('[ProjektSidebar] Projekte ohne Abbau:', ohneAbbau.map(p => `${p.projektname} (${p._id})`))
     
     return {
       projekteOhneAufbau: ohneAufbau,
