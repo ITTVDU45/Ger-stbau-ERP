@@ -210,14 +210,24 @@ export default function AssignmentDialog() {
   }
   
   const handleSubmit = async () => {
+    // Debug: Zeige FormData beim Submit
+    console.log('[AssignmentDialog] Submit FormData:', {
+      projektId: formData.projektId,
+      mitarbeiterIds: formData.mitarbeiterIds?.length,
+      setupDate: formData.setupDate,
+      dismantleDate: formData.dismantleDate
+    })
+    
     // Validierung
     if (!formData.projektId) {
+      console.error('[AssignmentDialog] Fehler: projektId fehlt!', formData)
       toast.error('Bitte wählen Sie ein Projekt aus')
       return
     }
     
     // Mindestens Aufbau ODER Abbau muss gesetzt sein
     if (!formData.setupDate && !formData.dismantleDate) {
+      console.error('[AssignmentDialog] Fehler: Kein Datum gesetzt!', formData)
       toast.error('Bitte geben Sie mindestens ein Aufbau- oder Abbau-Datum an')
       return
     }
@@ -313,6 +323,7 @@ export default function AssignmentDialog() {
             bis: bis.toISOString()
           }
           
+          console.log('[AssignmentDialog] Erstelle Einsatz mit Payload:', payload)
           await createMutation.mutateAsync(payload)
           erstellteEinsaetze++
         }

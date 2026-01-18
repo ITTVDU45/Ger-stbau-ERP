@@ -503,6 +503,16 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
+    // Debug-Logging
+    console.log('[POST /api/plantafel/assignments] Received body:', {
+      projektId: body.projektId,
+      mitarbeiterId: body.mitarbeiterId,
+      von: body.von,
+      bis: body.bis,
+      setupDate: body.setupDate,
+      dismantleDate: body.dismantleDate
+    })
+    
     const { 
       mitarbeiterId, 
       projektId, 
@@ -526,6 +536,7 @@ export async function POST(request: NextRequest) {
     
     // Validierung - nur Projekt, von und bis sind Pflichtfelder
     if (!projektId) {
+      console.error('[POST /api/plantafel/assignments] Validierungsfehler: projektId fehlt!')
       return NextResponse.json(
         { erfolg: false, fehler: 'projektId ist erforderlich' },
         { status: 400 }
