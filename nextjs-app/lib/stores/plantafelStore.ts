@@ -45,8 +45,8 @@ interface PlantafelState {
   // Conflict Panel
   isConflictPanelOpen: boolean
   
-  // Sidebar Mode (Konflikte oder Projekte)
-  sidebarMode: 'conflicts' | 'projects'
+  // Sidebar Mode (Konflikte oder Projekte, null = geschlossen)
+  sidebarMode: 'conflicts' | 'projects' | null
   
   // Actions
   setView: (view: PlantafelView) => void
@@ -76,7 +76,7 @@ interface PlantafelState {
   setConflictPanelOpen: (open: boolean) => void
   
   // Sidebar Mode
-  setSidebarMode: (mode: 'conflicts' | 'projects') => void
+  setSidebarMode: (mode: 'conflicts' | 'projects' | null) => void
 }
 
 // ============================================================================
@@ -117,7 +117,7 @@ export const usePlantafelStore = create<PlantafelState>()(
       dialogMode: 'create',
       selectedSlot: null,
       isConflictPanelOpen: false,
-      sidebarMode: 'projects',
+      sidebarMode: null,
       
       // View Actions
       setView: (view) => set({ view }),

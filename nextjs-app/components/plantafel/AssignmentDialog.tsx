@@ -392,76 +392,100 @@ export default function AssignmentDialog() {
           </DialogHeader>
           
           <div className="space-y-6 py-4">
-            {/* Mitarbeiter (Mehrfachauswahl) */}
+            {/* Mitarbeiter - Im Team-View beim Bearbeiten nur Anzeige, sonst Mehrfachauswahl */}
             <div className="space-y-3">
               <Label htmlFor="mitarbeiter" className="text-gray-900 font-medium flex items-center gap-2">
                 <User className="h-4 w-4" />
                 Mitarbeiter
-                {(formData?.mitarbeiterIds?.length ?? 0) > 0 && (
-                  <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800">
-                    {formData.mitarbeiterIds.length} ausgewählt
-                  </Badge>
+                {dialogMode === 'edit' && view === 'team' ? null : (
+                  (formData?.mitarbeiterIds?.length ?? 0) > 0 && (
+                    <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800">
+                      {formData.mitarbeiterIds.length} ausgewählt
+                    </Badge>
+                  )
                 )}
               </Label>
               
-              {/* Ausgewählte Mitarbeiter als Badges */}
-              {(formData?.mitarbeiterIds?.length ?? 0) > 0 && (
-                <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  {formData.mitarbeiterIds.map((mitarbeiter) => (
-                    <Badge 
-                      key={mitarbeiter.id}
-                      className="bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200 px-3 py-1.5 flex items-center gap-2"
-                    >
+              {/* Im Team-View beim Bearbeiten: Nur Anzeige (kein Entfernen/Hinzufügen) */}
+              {dialogMode === 'edit' && view === 'team' ? (
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  {(formData?.mitarbeiterIds?.length ?? 0) > 0 ? (
+                    <Badge className="bg-blue-100 text-blue-800 border-blue-300 px-3 py-1.5 flex items-center gap-2 w-fit">
                       <User className="h-3 w-3" />
-                      <span className="font-medium">{mitarbeiter.name}</span>
-                      {mitarbeiter.personalnummer && (
-                        <span className="text-blue-600 text-xs">(#{mitarbeiter.personalnummer})</span>
+                      <span className="font-medium">{formData.mitarbeiterIds[0].name}</span>
+                      {formData.mitarbeiterIds[0].personalnummer && (
+                        <span className="text-blue-600 text-xs">(#{formData.mitarbeiterIds[0].personalnummer})</span>
                       )}
-                      <button
-                        onClick={() => handleRemoveMitarbeiter(mitarbeiter.id)}
-                        className="ml-1 hover:bg-blue-300 rounded-full p-0.5"
-                        type="button"
-                        title="Mitarbeiter entfernen"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
                     </Badge>
-                  ))}
+                  ) : (
+                    <span className="text-gray-500 text-sm">Kein Mitarbeiter zugewiesen</span>
+                  )}
+                  <p className="text-xs text-gray-500 mt-2">
+                    Im Team-View ist der Mitarbeiter fix zugewiesen
+                  </p>
                 </div>
-              )}
-              
-              {/* Dropdown zum Hinzufügen */}
-              <Select
-                value=""
-                onValueChange={handleAddMitarbeiter}
-              >
-                <SelectTrigger className="bg-white text-gray-900 border-gray-300">
-                  <SelectValue placeholder="+ Mitarbeiter hinzufügen (optional)" />
-                </SelectTrigger>
-                <SelectContent className="bg-white text-gray-900 max-h-[300px]">
-                  {employees
-                    .filter(e => e.aktiv)
-                    .filter(e => !(formData?.mitarbeiterIds ?? []).some(m => m.id === e._id))
-                    .map((employee) => (
-                      <SelectItem key={employee._id} value={employee._id || ''}>
-                        {employee.vorname} {employee.nachname}
-                        {employee.personalnummer && (
-                          <span className="text-gray-500 ml-2">(#{employee.personalnummer})</span>
-                        )}
-                      </SelectItem>
-                    ))}
-                  {employees.filter(e => e.aktiv).filter(e => !(formData?.mitarbeiterIds ?? []).some(m => m.id === e._id)).length === 0 && (
-                    <div className="px-2 py-1.5 text-sm text-gray-500">
-                      Alle Mitarbeiter bereits hinzugefügt
+              ) : (
+                <>
+                  {/* Ausgewählte Mitarbeiter als Badges mit Entfernen-Button */}
+                  {(formData?.mitarbeiterIds?.length ?? 0) > 0 && (
+                    <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      {formData.mitarbeiterIds.map((mitarbeiter) => (
+                        <Badge 
+                          key={mitarbeiter.id}
+                          className="bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200 px-3 py-1.5 flex items-center gap-2"
+                        >
+                          <User className="h-3 w-3" />
+                          <span className="font-medium">{mitarbeiter.name}</span>
+                          {mitarbeiter.personalnummer && (
+                            <span className="text-blue-600 text-xs">(#{mitarbeiter.personalnummer})</span>
+                          )}
+                          <button
+                            onClick={() => handleRemoveMitarbeiter(mitarbeiter.id)}
+                            className="ml-1 hover:bg-blue-300 rounded-full p-0.5"
+                            type="button"
+                            title="Mitarbeiter entfernen"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
                     </div>
                   )}
-                </SelectContent>
-              </Select>
-              
-              {dialogMode === 'create' && (
-                <p className="text-xs text-gray-500">
-                  Sie können mehrere Mitarbeiter auswählen. Für jeden wird ein separater Einsatz erstellt.
-                </p>
+                  
+                  {/* Dropdown zum Hinzufügen */}
+                  <Select
+                    value=""
+                    onValueChange={handleAddMitarbeiter}
+                  >
+                    <SelectTrigger className="bg-white text-gray-900 border-gray-300">
+                      <SelectValue placeholder="+ Mitarbeiter hinzufügen (optional)" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white text-gray-900 max-h-[300px]">
+                      {employees
+                        .filter(e => e.aktiv)
+                        .filter(e => !(formData?.mitarbeiterIds ?? []).some(m => m.id === e._id))
+                        .map((employee) => (
+                          <SelectItem key={employee._id} value={employee._id || ''}>
+                            {employee.vorname} {employee.nachname}
+                            {employee.personalnummer && (
+                              <span className="text-gray-500 ml-2">(#{employee.personalnummer})</span>
+                            )}
+                          </SelectItem>
+                        ))}
+                      {employees.filter(e => e.aktiv).filter(e => !(formData?.mitarbeiterIds ?? []).some(m => m.id === e._id)).length === 0 && (
+                        <div className="px-2 py-1.5 text-sm text-gray-500">
+                          Alle Mitarbeiter bereits hinzugefügt
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  
+                  {dialogMode === 'create' && (
+                    <p className="text-xs text-gray-500">
+                      Sie können mehrere Mitarbeiter auswählen. Für jeden wird ein separater Einsatz erstellt.
+                    </p>
+                  )}
+                </>
               )}
             </div>
             

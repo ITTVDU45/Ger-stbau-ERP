@@ -258,7 +258,7 @@ export default function TransaktionenTabelle({
   }
 
   return (
-    <Card className="p-4 md:p-6 bg-white border-2 border-gray-200 flex flex-col" style={{ height: 'calc(100vh - 200px)', maxHeight: '900px' }}>
+    <Card className="p-4 md:p-6 bg-white border-2 border-gray-200 flex flex-col" style={{ height: 'calc(100vh - 50px)', minHeight: '1000px' }}>
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-4 flex-shrink-0">
         <h2 className="text-xl md:text-2xl font-bold text-gray-900">Transaktionsübersicht</h2>
         <div className="flex gap-2">

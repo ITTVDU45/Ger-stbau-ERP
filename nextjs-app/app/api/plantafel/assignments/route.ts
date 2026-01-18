@@ -370,6 +370,33 @@ export async function GET(request: NextRequest) {
     
     let events: PlantafelEvent[] = [...einsatzEvents, ...urlaubEvents]
     
+    // FILTER: Zeige nur Events, die zu den geladenen Resources gehören
+    const resourceIds = new Set(resources.map(r => r.resourceId))
+    
+    if (view === 'team') {
+      // Im Team-View: Nur Events mit Mitarbeitern aus den Resources zeigen
+      events = events.filter(event => {
+        // Urlaub-Events haben mitarbeiterId als resourceId
+        if (event.sourceType === 'urlaub') {
+          return resourceIds.has(event.resourceId || '')
+        }
+        // Einsatz-Events: Prüfe mitarbeiterId
+        return event.mitarbeiterId && resourceIds.has(event.mitarbeiterId)
+      })
+      console.log(`[Plantafel] Team-View: ${events.length} Events nach Resource-Filter`)
+    } else {
+      // Im Projekt-View: Nur Events mit Projekten aus den Resources zeigen
+      events = events.filter(event => {
+        // Urlaub-Events nicht im Projekt-View anzeigen
+        if (event.sourceType === 'urlaub') {
+          return false
+        }
+        // Einsatz-Events: Prüfe projektId
+        return event.projektId && resourceIds.has(event.projektId)
+      })
+      console.log(`[Plantafel] Projekt-View: ${events.length} Events nach Resource-Filter`)
+    }
+    
     // GRUPPIERUNG: Im Projekt-View Events nach Projekt+Datum+Typ gruppieren
     // Sammle alle Mitarbeiter für jedes Projekt/Datum
     if (view === 'project') {

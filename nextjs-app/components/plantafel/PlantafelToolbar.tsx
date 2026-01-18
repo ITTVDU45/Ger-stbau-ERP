@@ -192,7 +192,7 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setSidebarMode('conflicts')}
+              onClick={() => setSidebarMode(sidebarMode === 'conflicts' ? null : 'conflicts')}
               className={`${sidebarMode === 'conflicts' 
                 ? 'bg-white text-gray-900 shadow-sm' 
                 : 'text-gray-600 hover:text-gray-900'} ${conflictCount > 0 ? 'text-red-600' : ''}`}
@@ -208,13 +208,22 @@ export default function PlantafelToolbar({ conflictCount = 0, onCreateClick }: P
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setSidebarMode('projects')}
+              onClick={() => setSidebarMode(sidebarMode === 'projects' ? null : 'projects')}
               className={sidebarMode === 'projects' 
                 ? 'bg-white text-gray-900 shadow-sm' 
                 : 'text-gray-600 hover:text-gray-900'}
             >
-              <LayoutList className="h-4 w-4 mr-2" />
-              Projekte
+              {view === 'team' ? (
+                <>
+                  <Users className="h-4 w-4 mr-2" />
+                  Team
+                </>
+              ) : (
+                <>
+                  <LayoutList className="h-4 w-4 mr-2" />
+                  Projekte
+                </>
+              )}
             </Button>
           </div>
           

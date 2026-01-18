@@ -616,10 +616,11 @@ export default function PlantafelBoard() {
           )}
         </div>
         
-        {/* Sidebar: Konflikte oder Projekte */}
-        {sidebarMode === 'conflicts' ? (
+        {/* Sidebar: Konflikte oder Projekte (nur wenn sidebarMode gesetzt ist) */}
+        {sidebarMode === 'conflicts' && (
           <ConflictPanel conflicts={conflicts} isLoading={isLoading} />
-        ) : (
+        )}
+        {sidebarMode === 'projects' && (
           <ProjektSidebar />
         )}
       </div>

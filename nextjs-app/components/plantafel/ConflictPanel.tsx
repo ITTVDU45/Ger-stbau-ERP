@@ -30,9 +30,7 @@ interface ConflictPanelProps {
 }
 
 export default function ConflictPanel({ conflicts, isLoading }: ConflictPanelProps) {
-  const { isConflictPanelOpen, setConflictPanelOpen } = usePlantafelStore()
-  
-  if (!isConflictPanelOpen) return null
+  const { setSidebarMode } = usePlantafelStore()
   
   const errorCount = conflicts.filter(c => c.severity === 'error').length
   const warningCount = conflicts.filter(c => c.severity === 'warning').length
@@ -56,7 +54,7 @@ export default function ConflictPanel({ conflicts, isLoading }: ConflictPanelPro
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setConflictPanelOpen(false)}
+          onClick={() => setSidebarMode(null)}
           className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
         >
           <X className="h-4 w-4" />
