@@ -567,6 +567,8 @@ export default function PlantafelBoard() {
               onEventDrop={handleEventDrop}
               onEventResize={handleEventResize}
               
+              allDayAccessor="allDay"
+              
               eventPropGetter={eventPropGetter}
               
               components={{

@@ -332,7 +332,8 @@ export function mapEinsatzToEvents(einsatz: Einsatz, view: PlantafelView): Plant
       // Parse Datum in lokaler Zeitzone
       const [year, month, day] = einsatz.setupDate.split('-').map(Number)
       const setupStart = new Date(year, month - 1, day, 0, 0, 0, 0)
-      const setupEnd = new Date(year, month - 1, day, 23, 59, 59, 999)
+      // Für allDay Events: end = start + 1ms (damit RBC es als eintägig erkennt)
+      const setupEnd = new Date(year, month - 1, day, 0, 0, 0, 1)
       
       events.push({
         ...baseEvent,
@@ -350,7 +351,8 @@ export function mapEinsatzToEvents(einsatz: Einsatz, view: PlantafelView): Plant
       // Parse Datum in lokaler Zeitzone
       const [year, month, day] = einsatz.dismantleDate.split('-').map(Number)
       const dismantleStart = new Date(year, month - 1, day, 0, 0, 0, 0)
-      const dismantleEnd = new Date(year, month - 1, day, 23, 59, 59, 999)
+      // Für allDay Events: end = start + 1ms (damit RBC es als eintägig erkennt)
+      const dismantleEnd = new Date(year, month - 1, day, 0, 0, 0, 1)
       
       events.push({
         ...baseEvent,
