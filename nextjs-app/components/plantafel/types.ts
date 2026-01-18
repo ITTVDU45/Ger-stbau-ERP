@@ -46,6 +46,7 @@ export interface PlantafelEvent {
   start: Date
   end: Date
   resourceId: string // mitarbeiterId (Team-View) oder projektId (Projekt-View)
+  allDay?: boolean // Ganztägiges Event (für date-only Events)
 
   // Zusätzliche Metadaten
   type: PlantafelEventType
@@ -326,15 +327,12 @@ export function mapEinsatzToEvents(einsatz: Einsatz, view: PlantafelView): Plant
 
   // NEU: Prüfe zuerst simplified setup/dismantle
   if (einsatz.setupDate || einsatz.dismantleDate) {
-    // Nutze neue date-only Logik - WICHTIG: Lokale Zeitzone verwenden!
+    // Nutze neue date-only Logik - Ganztägige Events (allDay: true)
     if (einsatz.setupDate) {
-      // Parse Datum in lokaler Zeitzone (nicht UTC!)
-      const setupDate = new Date(einsatz.setupDate)
-      const setupStart = new Date(setupDate)
-      setupStart.setHours(0, 0, 0, 0) // 00:00:00 Lokalzeit
-      
-      const setupEnd = new Date(setupDate)
-      setupEnd.setHours(23, 59, 59, 999) // 23:59:59 Lokalzeit
+      // Parse Datum in lokaler Zeitzone
+      const [year, month, day] = einsatz.setupDate.split('-').map(Number)
+      const setupStart = new Date(year, month - 1, day, 0, 0, 0, 0)
+      const setupEnd = new Date(year, month - 1, day, 23, 59, 59, 999)
       
       events.push({
         ...baseEvent,
@@ -343,18 +341,16 @@ export function mapEinsatzToEvents(einsatz: Einsatz, view: PlantafelView): Plant
         start: setupStart,
         end: setupEnd,
         resourceId,
-        color: '#3b82f6' // Blau für Aufbau
+        color: '#3b82f6', // Blau für Aufbau
+        allDay: true
       })
     }
     
     if (einsatz.dismantleDate) {
-      // Parse Datum in lokaler Zeitzone (nicht UTC!)
-      const dismantleDate = new Date(einsatz.dismantleDate)
-      const dismantleStart = new Date(dismantleDate)
-      dismantleStart.setHours(0, 0, 0, 0) // 00:00:00 Lokalzeit
-      
-      const dismantleEnd = new Date(dismantleDate)
-      dismantleEnd.setHours(23, 59, 59, 999) // 23:59:59 Lokalzeit
+      // Parse Datum in lokaler Zeitzone
+      const [year, month, day] = einsatz.dismantleDate.split('-').map(Number)
+      const dismantleStart = new Date(year, month - 1, day, 0, 0, 0, 0)
+      const dismantleEnd = new Date(year, month - 1, day, 23, 59, 59, 999)
       
       events.push({
         ...baseEvent,
@@ -363,7 +359,8 @@ export function mapEinsatzToEvents(einsatz: Einsatz, view: PlantafelView): Plant
         start: dismantleStart,
         end: dismantleEnd,
         resourceId,
-        color: '#22c55e' // Grün für Abbau
+        color: '#22c55e', // Grün für Abbau
+        allDay: true
       })
     }
     
