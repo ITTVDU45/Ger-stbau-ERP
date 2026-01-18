@@ -225,6 +225,8 @@ export default function ProjektSidebar() {
   const [activeTab, setActiveTab] = useState<'aufbau' | 'abbau'>('aufbau')
   const [searchTerm, setSearchTerm] = useState('')
   
+  console.log('[ProjektSidebar] Render - allAssignments:', allAssignments.length)
+  
   const isLoading = projektLoading || assignmentLoading || mitarbeiterLoading
   
   // Filtere aktive Mitarbeiter basierend auf Suchbegriff

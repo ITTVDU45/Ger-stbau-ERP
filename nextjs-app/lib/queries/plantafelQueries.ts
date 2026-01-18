@@ -298,7 +298,9 @@ export function useAllAssignments() {
   return useQuery({
     queryKey: plantafelKeys.allAssignments(),
     queryFn: fetchAllAssignments,
-    staleTime: 30 * 1000 // 30 Sekunden
+    staleTime: 0, // Immer als "stale" markieren für sofortige Neuladen
+    refetchOnMount: true, // Bei jedem Mount neu laden
+    refetchOnWindowFocus: true // Bei Window-Focus neu laden
   })
 }
 
@@ -334,6 +336,7 @@ export function useUpdateAssignment() {
       updateAssignment(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plantafel', 'assignments'] })
+      queryClient.invalidateQueries({ queryKey: ['plantafel', 'allAssignments'] })
       queryClient.invalidateQueries({ queryKey: ['plantafel', 'conflicts'] })
     }
   })
@@ -349,6 +352,7 @@ export function useDeleteAssignment() {
     mutationFn: deleteAssignment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plantafel', 'assignments'] })
+      queryClient.invalidateQueries({ queryKey: ['plantafel', 'allAssignments'] })
       queryClient.invalidateQueries({ queryKey: ['plantafel', 'conflicts'] })
     }
   })
