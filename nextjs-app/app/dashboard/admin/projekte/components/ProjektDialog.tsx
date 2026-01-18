@@ -628,7 +628,7 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
           <TabsContent value="zeitraum" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="beginn">Beginn *</Label>
+                <Label htmlFor="beginn">Beginn</Label>
                 <Input
                   id="beginn"
                   type="date"
@@ -638,7 +638,7 @@ export default function ProjektDialog({ open, projekt, onClose }: ProjektDialogP
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="ende">Ende *</Label>
+                <Label htmlFor="ende">Ende</Label>
                 <Input
                   id="ende"
                   type="date"
