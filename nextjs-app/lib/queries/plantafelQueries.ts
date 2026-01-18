@@ -170,7 +170,7 @@ async function fetchAllAssignments(): Promise<any[]> {
   const params = new URLSearchParams({
     from: format(from, 'yyyy-MM-dd'),
     to: format(to, 'yyyy-MM-dd'),
-    view: 'team',
+    view: 'project',
     showAbsences: 'false'
   })
   

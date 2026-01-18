@@ -446,6 +446,27 @@
   max-width: 100%;
 }
 
+.rbc-month-view,
+.rbc-month-header,
+.rbc-month-header .rbc-header,
+.rbc-row-bg,
+.rbc-row-bg .rbc-day-bg,
+.rbc-date-cell {
+  box-sizing: border-box;
+}
+
+.rbc-month-header,
+.rbc-row-bg {
+  display: flex;
+  width: 100%;
+}
+
+.rbc-month-header .rbc-header,
+.rbc-row-bg .rbc-day-bg {
+  flex: 1 0 0;
+  min-width: 0;
+}
+
 .dark .rbc-month-view {
   border-color: #475569;
 }

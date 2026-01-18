@@ -87,6 +87,23 @@ export default function AssignmentDialog() {
   const [formData, setFormData] = useState<AssignmentFormData>(defaultFormData)
   const [activeTab, setActiveTab] = useState<'setup' | 'dismantle'>('setup')
   const [isDeleting, setIsDeleting] = useState(false)
+  const isDragMitarbeiterCreate = dialogMode === 'create' && view === 'team' && !!selectedSlot?.resourceId
+
+  function toDateOnly(value?: string) {
+    if (!value) return ''
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return ''
+    return format(parsed, 'yyyy-MM-dd')
+  }
+
+  function getEarliestDate(values: string[]) {
+    const validDates = values
+      .map(value => new Date(value))
+      .filter(date => !Number.isNaN(date.getTime()))
+      .sort((a, b) => a.getTime() - b.getTime())
+    if (validDates.length === 0) return ''
+    return format(validDates[0], 'yyyy-MM-dd')
+  }
   
   // Formular initialisieren
   useEffect(() => {
@@ -166,6 +183,48 @@ export default function AssignmentDialog() {
       setFormData(defaultFormData)
     }
   }, [dialogMode, selectedEvent, selectedSlot, view, employees])
+
+  useEffect(() => {
+    if (!isDialogOpen || dialogMode !== 'edit' || !selectedEvent?.projektId) return
+    let isActive = true
+
+    async function loadProjectDates() {
+      try {
+        const response = await fetch(`/api/einsatz?projektId=${selectedEvent.projektId}`)
+        if (!response.ok) return
+        const data = await response.json()
+        const einsaetze = data?.einsaetze ?? []
+        if (!isActive || !Array.isArray(einsaetze)) return
+
+        const setupCandidates = einsaetze
+          .map((einsatz: any) => einsatz.setupDate || toDateOnly(einsatz.aufbauVon))
+          .filter(Boolean)
+        const dismantleCandidates = einsaetze
+          .map((einsatz: any) => einsatz.dismantleDate || toDateOnly(einsatz.abbauVon))
+          .filter(Boolean)
+
+        const projectSetupDate = getEarliestDate(setupCandidates)
+        const projectDismantleDate = getEarliestDate(dismantleCandidates)
+
+        setFormData(prev => {
+          if (prev.projektId !== selectedEvent.projektId) return prev
+          return {
+            ...prev,
+            setupDate: prev.setupDate || projectSetupDate || '',
+            dismantleDate: prev.dismantleDate || projectDismantleDate || ''
+          }
+        })
+      } catch {
+        // Keine UI-Fehlermeldung nötig – Dialog funktioniert auch ohne Zusatzdaten
+      }
+    }
+
+    loadProjectDates()
+
+    return () => {
+      isActive = false
+    }
+  }, [isDialogOpen, dialogMode, selectedEvent?.projektId])
   
   const handleChange = (field: keyof AssignmentFormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -464,37 +523,41 @@ export default function AssignmentDialog() {
                   )}
                   
                   {/* Dropdown zum Hinzufügen */}
-                  <Select
-                    value=""
-                    onValueChange={handleAddMitarbeiter}
-                  >
-                    <SelectTrigger className="bg-white text-gray-900 border-gray-300">
-                      <SelectValue placeholder="+ Mitarbeiter hinzufügen (optional)" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white text-gray-900 max-h-[300px]">
-                      {employees
-                        .filter(e => e.aktiv)
-                        .filter(e => !(formData?.mitarbeiterIds ?? []).some(m => m.id === e._id))
-                        .map((employee) => (
-                          <SelectItem key={employee._id} value={employee._id || ''}>
-                            {employee.vorname} {employee.nachname}
-                            {employee.personalnummer && (
-                              <span className="text-gray-500 ml-2">(#{employee.personalnummer})</span>
-                            )}
-                          </SelectItem>
-                        ))}
-                      {employees.filter(e => e.aktiv).filter(e => !(formData?.mitarbeiterIds ?? []).some(m => m.id === e._id)).length === 0 && (
-                        <div className="px-2 py-1.5 text-sm text-gray-500">
-                          Alle Mitarbeiter bereits hinzugefügt
-                        </div>
+                  {!isDragMitarbeiterCreate && (
+                    <>
+                      <Select
+                        value=""
+                        onValueChange={handleAddMitarbeiter}
+                      >
+                        <SelectTrigger className="bg-white text-gray-900 border-gray-300">
+                          <SelectValue placeholder="+ Mitarbeiter hinzufügen (optional)" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white text-gray-900 max-h-[300px]">
+                          {employees
+                            .filter(e => e.aktiv)
+                            .filter(e => !(formData?.mitarbeiterIds ?? []).some(m => m.id === e._id))
+                            .map((employee) => (
+                              <SelectItem key={employee._id} value={employee._id || ''}>
+                                {employee.vorname} {employee.nachname}
+                                {employee.personalnummer && (
+                                  <span className="text-gray-500 ml-2">(#{employee.personalnummer})</span>
+                                )}
+                              </SelectItem>
+                            ))}
+                          {employees.filter(e => e.aktiv).filter(e => !(formData?.mitarbeiterIds ?? []).some(m => m.id === e._id)).length === 0 && (
+                            <div className="px-2 py-1.5 text-sm text-gray-500">
+                              Alle Mitarbeiter bereits hinzugefügt
+                            </div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      
+                      {dialogMode === 'create' && (
+                        <p className="text-xs text-gray-500">
+                          Sie können mehrere Mitarbeiter auswählen. Für jeden wird ein separater Einsatz erstellt.
+                        </p>
                       )}
-                    </SelectContent>
-                  </Select>
-                  
-                  {dialogMode === 'create' && (
-                    <p className="text-xs text-gray-500">
-                      Sie können mehrere Mitarbeiter auswählen. Für jeden wird ein separater Einsatz erstellt.
-                    </p>
+                    </>
                   )}
                 </>
               )}

@@ -425,7 +425,7 @@ export async function GET(request: NextRequest) {
           // Füge Mitarbeiter zur Gruppe hinzu (wenn noch nicht vorhanden)
           if (event.mitarbeiterId && !existing.allMitarbeiterIds.includes(event.mitarbeiterId)) {
             existing.allMitarbeiterIds.push(event.mitarbeiterId)
-            existing.allMitarbeiterNames.push(event.mitarbeiterName || 'Nicht zugewiesen')
+            existing.allMitarbeiterNames.push(event.mitarbeiterName || 'Unbekannt')
           }
           // Speichere auch die sourceId für spätere Updates
           if (event.sourceId && !existing.sourceIds.includes(event.sourceId)) {
@@ -434,7 +434,9 @@ export async function GET(request: NextRequest) {
         } else {
           // Erstes Event dieser Gruppe - speichern
           const allMitarbeiterIds = event.mitarbeiterId ? [event.mitarbeiterId] : []
-          const allMitarbeiterNames = event.mitarbeiterName ? [event.mitarbeiterName] : ['Nicht zugewiesen']
+          const allMitarbeiterNames = event.mitarbeiterId
+            ? [event.mitarbeiterName || 'Unbekannt']
+            : []
           
           grouped.set(groupKey, {
             ...event,

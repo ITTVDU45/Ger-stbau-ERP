@@ -24,7 +24,7 @@ import PlantafelToolbar from './PlantafelToolbar'
 import AssignmentDialog from './AssignmentDialog'
 import ConflictPanel from './ConflictPanel'
 import TimelineView from './TimelineView'
-import ProjektSidebar, { DraggedProject } from './ProjektSidebar'
+import ProjektSidebar, { DraggedMitarbeiter, DraggedProject } from './ProjektSidebar'
 
 // State & Queries
 import { usePlantafelStore } from '@/lib/stores/plantafelStore'
@@ -452,7 +452,26 @@ export default function PlantafelBoard() {
       if (!jsonData) return
       
       try {
-        const projektData: DraggedProject = JSON.parse(jsonData)
+        const dropData = JSON.parse(jsonData) as Partial<DraggedProject & DraggedMitarbeiter>
+
+        // Mitarbeiter-Drop: Dialog öffnen (Projekt muss gewählt werden)
+        if (dropData.mitarbeiterId) {
+          const slot = {
+            start: new Date(value),
+            end: new Date(new Date(value).getTime() + 8 * 60 * 60 * 1000),
+            resourceId: dropData.mitarbeiterId
+          }
+          openCreateDialog(slot)
+          return
+        }
+
+        // Projekt-Drop: Aufbau/Abbau direkt erstellen
+        if (!dropData.projektId || !dropData.typ) {
+          toast.error('Bitte ein Projekt für Aufbau oder Abbau auswählen')
+          return
+        }
+
+        const projektData = dropData as DraggedProject
         
         const startDate = new Date(value)
         startDate.setHours(8, 0, 0, 0)
@@ -486,7 +505,7 @@ export default function PlantafelBoard() {
         {children}
       </div>
     )
-  }, [createMutation])
+  }, [createMutation, openCreateDialog])
   
   // ============================================================================
   // VIEW MAPPING
