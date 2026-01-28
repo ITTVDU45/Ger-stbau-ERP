@@ -33,6 +33,13 @@ import { useAssignments, useUpdateAssignment, useCreateAssignment } from '@/lib/
 // Types
 import { PlantafelEvent, PlantafelResource } from './types'
 
+// Services
+import { 
+  dragDropService, 
+  UNASSIGNED_RESOURCE_ID,
+  DATA_ATTRIBUTES 
+} from '@/lib/services/plantafel'
+
 // ============================================================================
 // DATE-FNS LOCALIZER
 // ============================================================================
@@ -167,9 +174,13 @@ export default function PlantafelBoard() {
    */
   const handleEventDrop = useCallback(
     async ({ event, start, end, resourceId }: EventInteractionArgs<PlantafelEvent>) => {
-      // Nur Einsätze können verschoben werden
-      if (event.sourceType === 'urlaub') {
-        toast.error('Abwesenheiten können nicht verschoben werden')
+      // Normalisiere resourceId: undefined/null -> aktuelle resourceId beibehalten
+      const targetResourceId = resourceId as string || event.resourceId || UNASSIGNED_RESOURCE_ID
+      
+      // Validiere den Drop mit dem DragDropService
+      const validation = dragDropService.validateDrop(event, targetResourceId, view)
+      if (!validation.valid) {
+        toast.error(validation.reason || 'Ungültige Verschiebung')
         return
       }
       
@@ -181,24 +192,22 @@ export default function PlantafelBoard() {
         return
       }
       
-      // Berechne das neue Datum basierend auf dem Typ (Aufbau/Abbau)
-      const isAufbau = event.id.includes('-setup') || event.setupDate
-      const isAbbau = event.id.includes('-dismantle') || event.dismantleDate
-      const newDateStr = format(start as Date, 'yyyy-MM-dd')
-      
       try {
+        // Berechne Updates mit dem DragDropService
+        const updates = dragDropService.calculateUpdates(
+          event,
+          start as Date,
+          targetResourceId,
+          view
+        )
+        
+        // Überschreibe von/bis mit den genauen Werten
+        updates.von = (start as Date).toISOString()
+        updates.bis = (end as Date).toISOString()
+        
         await updateMutation.mutateAsync({
           id: einsatzId,
-          data: {
-            von: (start as Date).toISOString(),
-            bis: (end as Date).toISOString(),
-            // Aktualisiere auch das date-only Feld wenn es ein Aufbau/Abbau Event ist
-            ...(isAufbau && { setupDate: newDateStr }),
-            ...(isAbbau && { dismantleDate: newDateStr }),
-            // Bei Resource-Änderung: Je nach View Mitarbeiter oder Projekt aktualisieren
-            ...(resourceId && view === 'team' && { mitarbeiterId: resourceId as string }),
-            ...(resourceId && view === 'project' && { projektId: resourceId as string })
-          }
+          data: updates
         })
         toast.success('Einsatz verschoben')
       } catch (error: any) {
@@ -221,12 +230,16 @@ export default function PlantafelBoard() {
       }
       
       try {
+        // Berechne Resize-Updates mit dem DragDropService
+        const updates = dragDropService.calculateResizeUpdates(
+          event,
+          start as Date,
+          end as Date
+        )
+        
         await updateMutation.mutateAsync({
           id: event.sourceId,
-          data: {
-            von: (start as Date).toISOString(),
-            bis: (end as Date).toISOString()
-          }
+          data: updates
         })
         toast.success('Einsatz angepasst')
       } catch (error: any) {

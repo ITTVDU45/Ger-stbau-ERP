@@ -14,8 +14,12 @@ import { X, Trash2, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { PlantafelEvent, PlantafelResource, DateRange } from './types'
 import { DraggedProject } from './ProjektSidebar'
-// Avatar nicht mehr benötigt da keine Ressourcen-Spalte mehr
 import { useUpdateAssignment, useDeleteAssignment, useCreateAssignment } from '@/lib/queries/plantafelQueries'
+import { 
+  dragDropService, 
+  UNASSIGNED_RESOURCE_ID,
+  DATA_ATTRIBUTES 
+} from '@/lib/services/plantafel'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -108,10 +112,12 @@ export default function TimelineView({
     e.dataTransfer.effectAllowed = 'move'
   }
   
-  const handleDragOver = (e: React.DragEvent, resourceId: string, day: Date) => {
+  const handleDragOver = (e: React.DragEvent, day: Date) => {
     e.preventDefault()
     // Externe Drops (von ProjektSidebar) haben 'copy' als effectAllowed
     e.dataTransfer.dropEffect = draggedEvent ? 'move' : 'copy'
+    // Versuche resourceId aus dem Target zu extrahieren
+    const resourceId = dragDropService.extractResourceIdFromDrop(e) || ''
     setDragOverCell({ resourceId, day })
   }
   
@@ -119,9 +125,12 @@ export default function TimelineView({
     setDragOverCell(null)
   }
   
-  const handleDrop = async (e: React.DragEvent, targetResourceId: string, targetDay: Date) => {
+  const handleDrop = async (e: React.DragEvent, targetDay: Date) => {
     e.preventDefault()
     setDragOverCell(null)
+    
+    // Versuche resourceId aus dem Drop-Target zu extrahieren
+    const extractedResourceId = dragDropService.extractResourceIdFromDrop(e)
     
     // Prüfe ob externes Projekt gedroppt wurde
     const jsonData = e.dataTransfer.getData('application/json')
@@ -140,8 +149,8 @@ export default function TimelineView({
           projektId: projektData.projektId,
           von: startDate.toISOString(),
           bis: endDate.toISOString(),
-          // Je nach View und Typ
-          ...(view === 'team' && { mitarbeiterId: targetResourceId }),
+          // Je nach View und Typ - nur resourceId setzen wenn extrahiert
+          ...(view === 'team' && extractedResourceId && extractedResourceId !== UNASSIGNED_RESOURCE_ID && { mitarbeiterId: extractedResourceId }),
           ...(projektData.typ === 'aufbau' && { setupDate: format(targetDay, 'yyyy-MM-dd') }),
           ...(projektData.typ === 'abbau' && { dismantleDate: format(targetDay, 'yyyy-MM-dd') }),
           notizen: `${projektData.typ === 'aufbau' ? 'Aufbau' : 'Abbau'} - ${projektData.projektName}`
@@ -156,6 +165,14 @@ export default function TimelineView({
     }
     
     if (!draggedEvent) return
+    
+    // Validiere den Drop
+    const validation = dragDropService.validateDrop(draggedEvent, extractedResourceId || draggedEvent.resourceId, view)
+    if (!validation.valid) {
+      toast.error(validation.reason || 'Ungültige Verschiebung')
+      setDraggedEvent(null)
+      return
+    }
     
     try {
       // Setze die Zielzeit auf den Anfang des Tages und behalte die Original-Stunden bei
@@ -176,18 +193,31 @@ export default function TimelineView({
         newEnd.setDate(newEnd.getDate() + 1)
       }
       
-      // Update-Daten zusammenstellen
+      // WICHTIG: Nur Datum aktualisieren, NICHT die Resource ändern
+      // Die TimelineView hat keine Resource-Spalten, also behalten wir die bestehende Zuweisung bei
       const updateData: any = {
         von: newStart.toISOString(),
         bis: newEnd.toISOString(),
       }
       
-      // Ressource nur ändern wenn verschieden und je nach View
-      if (targetResourceId !== draggedEvent.resourceId) {
+      // Aufbau/Abbau-Datum aktualisieren wenn es ein solches Event ist
+      const isAufbau = draggedEvent.id.includes('-setup') || !!draggedEvent.setupDate
+      const isAbbau = draggedEvent.id.includes('-dismantle') || !!draggedEvent.dismantleDate
+      
+      if (isAufbau) {
+        updateData.setupDate = format(targetDay, 'yyyy-MM-dd')
+      }
+      if (isAbbau) {
+        updateData.dismantleDate = format(targetDay, 'yyyy-MM-dd')
+      }
+      
+      // Resource nur ändern wenn explizit eine neue Resource aus dem DOM extrahiert wurde
+      // UND diese sich von der aktuellen unterscheidet
+      if (extractedResourceId && extractedResourceId !== draggedEvent.resourceId) {
         if (view === 'team') {
-          updateData.mitarbeiterId = targetResourceId
+          updateData.mitarbeiterId = extractedResourceId === UNASSIGNED_RESOURCE_ID ? undefined : extractedResourceId
         } else if (view === 'project') {
-          updateData.projektId = targetResourceId
+          updateData.projektId = extractedResourceId
         }
       }
       
@@ -285,9 +315,10 @@ export default function TimelineView({
                   `}
                   style={{ minWidth: `${DAY_WIDTH}px` }}
                   onClick={() => onSlotClick && onSlotClick('', day)}
-                  onDragOver={(e) => handleDragOver(e, '', day)}
+                  onDragOver={(e) => handleDragOver(e, day)}
                   onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, '', day)}
+                  onDrop={(e) => handleDrop(e, day)}
+                  {...{ [DATA_ATTRIBUTES.date]: format(day, 'yyyy-MM-dd') }}
                 >
                   {/* Events für diesen Tag */}
                   <div className="space-y-2">
@@ -334,7 +365,7 @@ export default function TimelineView({
                               ${colorClasses}
                               ${draggedEvent?.id === event.id ? 'opacity-50' : ''}
                             `}
-                            title={`${event.title}\n${format(event.start, 'HH:mm', { locale: de })} - ${format(event.end, 'HH:mm', { locale: de })}\n${event.sourceType === 'urlaub' ? '' : 'Drag & Drop zum Verschieben'}`}
+                            title={`${event.title}\n${event.sourceType === 'urlaub' ? '' : 'Drag & Drop zum Verschieben'}`}
                           >
                             <div className="flex items-center gap-1 justify-between">
                               <div className="flex items-center gap-1 flex-1 min-w-0">
@@ -366,10 +397,7 @@ export default function TimelineView({
                                 👤 {event.mitarbeiterName}
                               </div>
                             )}
-                            {/* Uhrzeit */}
-                            <div className="text-[10px] opacity-80 mt-1">
-                              🕐 {format(event.start, 'HH:mm', { locale: de })} - {format(event.end, 'HH:mm', { locale: de })}
-                            </div>
+                            {/* Uhrzeit wird nicht mehr angezeigt - nicht relevant für Mitarbeiter */}
                           </div>
                         )
                       })
@@ -404,9 +432,6 @@ export default function TimelineView({
                         {!isSameDay(eventToDelete.start, eventToDelete.end) && (
                           <> - {format(eventToDelete.end, 'dd.MM.yyyy', { locale: de })}</>
                         )}
-                      </span>
-                      <span className="block text-sm text-gray-500">
-                        {format(eventToDelete.start, 'HH:mm')} - {format(eventToDelete.end, 'HH:mm')} Uhr
                       </span>
                     </div>
                     <span className="text-sm text-amber-600 flex items-center justify-center gap-1 mt-3">

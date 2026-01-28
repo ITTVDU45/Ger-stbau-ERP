@@ -10,6 +10,7 @@ import { getDatabase } from '@/lib/db/client'
 import { Einsatz, Mitarbeiter, Projekt } from '@/lib/db/types'
 import { ObjectId } from 'mongodb'
 import { syncEinsatzToZeiterfassung, deleteZeiterfassungenForEinsatz } from '@/lib/services/plantafelSyncService'
+import { UNASSIGNED_RESOURCE_ID } from '@/lib/services/plantafel'
 
 /**
  * PATCH /api/plantafel/assignments/[id]
@@ -105,35 +106,67 @@ export async function PATCH(
     }
     
     // Aktualisiere Mitarbeiter (falls geändert)
-    if (mitarbeiterId !== undefined && mitarbeiterId !== existingEinsatz.mitarbeiterId) {
-      const mitarbeiter = await db.collection<Mitarbeiter>('mitarbeiter')
-        .findOne({ _id: new ObjectId(mitarbeiterId) })
-      
-      if (!mitarbeiter) {
-        return NextResponse.json(
-          { erfolg: false, fehler: 'Mitarbeiter nicht gefunden' },
-          { status: 404 }
-        )
+    // Normalisiere bestehende ID für korrekten Vergleich
+    const existingMitarbeiterId = existingEinsatz.mitarbeiterId?.toString()
+    if (mitarbeiterId !== undefined && mitarbeiterId !== existingMitarbeiterId) {
+      // Wenn mitarbeiterId leer, null, oder UNASSIGNED_RESOURCE_ID ist, entferne die Zuweisung
+      if (!mitarbeiterId || mitarbeiterId === UNASSIGNED_RESOURCE_ID) {
+        updateData.mitarbeiterId = undefined
+        updateData.mitarbeiterName = 'Nicht zugewiesen'
+      } else {
+        // Validiere ObjectId Format
+        if (!ObjectId.isValid(mitarbeiterId)) {
+          return NextResponse.json(
+            { erfolg: false, fehler: 'Ungültige Mitarbeiter-ID' },
+            { status: 400 }
+          )
+        }
+        
+        const mitarbeiter = await db.collection<Mitarbeiter>('mitarbeiter')
+          .findOne({ _id: new ObjectId(mitarbeiterId) })
+        
+        if (!mitarbeiter) {
+          return NextResponse.json(
+            { erfolg: false, fehler: 'Mitarbeiter nicht gefunden' },
+            { status: 404 }
+          )
+        }
+        
+        updateData.mitarbeiterId = mitarbeiterId
+        updateData.mitarbeiterName = `${mitarbeiter.vorname} ${mitarbeiter.nachname}`
       }
-      
-      updateData.mitarbeiterId = mitarbeiterId
-      updateData.mitarbeiterName = `${mitarbeiter.vorname} ${mitarbeiter.nachname}`
     }
     
     // Aktualisiere Projekt (falls geändert)
-    if (projektId !== undefined && projektId !== existingEinsatz.projektId) {
-      const projekt = await db.collection<Projekt>('projekte')
-        .findOne({ _id: new ObjectId(projektId) })
-      
-      if (!projekt) {
-        return NextResponse.json(
-          { erfolg: false, fehler: 'Projekt nicht gefunden' },
-          { status: 404 }
-        )
+    // Normalisiere bestehende ID für korrekten Vergleich
+    const existingProjektId = existingEinsatz.projektId?.toString()
+    if (projektId !== undefined && projektId !== existingProjektId) {
+      // Wenn projektId leer/null ist, entferne die Zuweisung
+      if (!projektId) {
+        updateData.projektId = undefined
+        updateData.projektName = 'Nicht zugewiesen'
+      } else {
+        // Validiere ObjectId Format
+        if (!ObjectId.isValid(projektId)) {
+          return NextResponse.json(
+            { erfolg: false, fehler: 'Ungültige Projekt-ID' },
+            { status: 400 }
+          )
+        }
+        
+        const projekt = await db.collection<Projekt>('projekte')
+          .findOne({ _id: new ObjectId(projektId) })
+        
+        if (!projekt) {
+          return NextResponse.json(
+            { erfolg: false, fehler: 'Projekt nicht gefunden' },
+            { status: 404 }
+          )
+        }
+        
+        updateData.projektId = projektId
+        updateData.projektName = projekt.projektname
       }
-      
-      updateData.projektId = projektId
-      updateData.projektName = projekt.projektname
     }
     
     // Aktualisiere optionale Felder
@@ -170,29 +203,35 @@ export async function PATCH(
     // Lade aktualisierten Einsatz
     const updatedEinsatz = await einsatzCollection.findOne({ _id: new ObjectId(id) })
     
+    // Null-Check für updatedEinsatz
+    if (!updatedEinsatz) {
+      return NextResponse.json(
+        { erfolg: false, fehler: 'Einsatz konnte nach dem Update nicht geladen werden' },
+        { status: 500 }
+      )
+    }
+    
     // NEU: Sync zu Zeiterfassung
     let syncResult = { created: 0, deleted: 0 }
-    if (updatedEinsatz) {
-      const einsatzWithId: Einsatz = {
-        ...updatedEinsatz,
-        _id: updatedEinsatz._id?.toString()
-      }
-      
-      if (einsatzWithId.bestaetigt) {
-        // Bestätigt: Zeiterfassungen erstellen/aktualisieren
-        syncResult = await syncEinsatzToZeiterfassung(einsatzWithId, db)
-      } else {
-        // Nicht mehr bestätigt: Zeiterfassungen löschen
-        const deletedCount = await deleteZeiterfassungenForEinsatz(id, db)
-        syncResult = { created: 0, deleted: deletedCount }
-      }
+    const einsatzWithId: Einsatz = {
+      ...updatedEinsatz,
+      _id: updatedEinsatz._id?.toString()
+    }
+    
+    if (einsatzWithId.bestaetigt) {
+      // Bestätigt: Zeiterfassungen erstellen/aktualisieren
+      syncResult = await syncEinsatzToZeiterfassung(einsatzWithId, db)
+    } else {
+      // Nicht mehr bestätigt: Zeiterfassungen löschen
+      const deletedCount = await deleteZeiterfassungenForEinsatz(id, db)
+      syncResult = { created: 0, deleted: deletedCount }
     }
     
     return NextResponse.json({
       erfolg: true,
       einsatz: {
         ...updatedEinsatz,
-        _id: updatedEinsatz?._id?.toString()
+        _id: updatedEinsatz._id?.toString()
       },
       zeiterfassungSync: syncResult
     })

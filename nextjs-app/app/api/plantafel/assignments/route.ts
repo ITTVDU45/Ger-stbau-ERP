@@ -23,6 +23,7 @@ import {
   getOverlapPeriod
 } from '@/components/plantafel/types'
 import { syncEinsatzToZeiterfassung } from '@/lib/services/plantafelSyncService'
+import { UNASSIGNED_RESOURCE_ID, UNASSIGNED_RESOURCE_TITLE } from '@/lib/services/plantafel'
 
 /**
  * Berechnet Konflikte für eine Liste von Events
@@ -311,6 +312,16 @@ export async function GET(request: NextRequest) {
         ...mapMitarbeiterToResource(m),
         resourceId: m._id?.toString() || ''
       }))
+      
+      // Füge "Nicht zugewiesen"-Resource hinzu für Einsätze ohne Mitarbeiter
+      resources.push({
+        resourceId: UNASSIGNED_RESOURCE_ID,
+        resourceTitle: UNASSIGNED_RESOURCE_TITLE,
+        type: 'employee',
+        aktiv: true,
+        vorname: 'Nicht',
+        nachname: 'zugewiesen'
+      })
     } else {
       const projektQuery: any = { 
         status: { $in: ['in_planung', 'aktiv'] }
@@ -375,13 +386,24 @@ export async function GET(request: NextRequest) {
     
     if (view === 'team') {
       // Im Team-View: Nur Events mit Mitarbeitern aus den Resources zeigen
+      // WICHTIG: UNASSIGNED_RESOURCE_ID ist erlaubt für "Nicht zugewiesen"-Resource
       events = events.filter(event => {
-        // Urlaub-Events haben mitarbeiterId als resourceId
-        if (event.sourceType === 'urlaub') {
-          return resourceIds.has(event.resourceId || '')
+        // resourceId muss vorhanden sein
+        if (event.resourceId === undefined || event.resourceId === null) {
+          console.log(`[Plantafel Filter] Event ohne resourceId (undefined/null) wird entfernt:`, event.id)
+          return false
         }
-        // Einsatz-Events: Prüfe mitarbeiterId
-        return event.mitarbeiterId && resourceIds.has(event.mitarbeiterId)
+        
+        // Prüfe ob resourceId in den verfügbaren Resources ist
+        // UNASSIGNED_RESOURCE_ID wird automatisch gefunden da es in resources.push() hinzugefügt wurde
+        const hasResource = resourceIds.has(event.resourceId)
+        if (!hasResource) {
+          console.log(`[Plantafel Filter] Event resourceId nicht in Resources:`, {
+            eventId: event.id,
+            resourceId: event.resourceId
+          })
+        }
+        return hasResource
       })
       console.log(`[Plantafel] Team-View: ${events.length} Events nach Resource-Filter`)
     } else {
@@ -391,8 +413,12 @@ export async function GET(request: NextRequest) {
         if (event.sourceType === 'urlaub') {
           return false
         }
-        // Einsatz-Events: Prüfe projektId
-        return event.projektId && resourceIds.has(event.projektId)
+        // Einsatz-Events: Prüfe projektId (das ist resourceId im Projekt-View)
+        // Im Projekt-View müssen Events ein Projekt haben
+        if (!event.resourceId || event.resourceId === '') {
+          return false
+        }
+        return resourceIds.has(event.resourceId)
       })
       console.log(`[Plantafel] Projekt-View: ${events.length} Events nach Resource-Filter`)
     }
@@ -536,15 +562,7 @@ export async function POST(request: NextRequest) {
       stundenAbbau
     } = body
     
-    // Validierung - nur Projekt, von und bis sind Pflichtfelder
-    if (!projektId) {
-      console.error('[POST /api/plantafel/assignments] Validierungsfehler: projektId fehlt!')
-      return NextResponse.json(
-        { erfolg: false, fehler: 'projektId ist erforderlich' },
-        { status: 400 }
-      )
-    }
-    
+    // Validierung - nur von und bis sind Pflichtfelder
     if (!von) {
       return NextResponse.json(
         { erfolg: false, fehler: 'von ist erforderlich' },
@@ -581,9 +599,17 @@ export async function POST(request: NextRequest) {
     
     // Lade Mitarbeiter- und Projekt-Namen (Mitarbeiter ist optional)
     let mitarbeiter = null
-    let mitarbeiterName = ''
+    let mitarbeiterName = 'Nicht zugewiesen'
     
     if (mitarbeiterId) {
+      // Validiere ObjectId Format
+      if (!ObjectId.isValid(mitarbeiterId)) {
+        return NextResponse.json(
+          { erfolg: false, fehler: 'Ungültige Mitarbeiter-ID' },
+          { status: 400 }
+        )
+      }
+      
       mitarbeiter = await db.collection<Mitarbeiter>('mitarbeiter')
         .findOne({ _id: new ObjectId(mitarbeiterId) })
       
@@ -596,22 +622,37 @@ export async function POST(request: NextRequest) {
       mitarbeiterName = `${mitarbeiter.vorname} ${mitarbeiter.nachname}`
     }
     
-    const projekt = await db.collection<Projekt>('projekte')
-      .findOne({ _id: new ObjectId(projektId) })
+    // Lade Projekt (optional)
+    let projekt = null
+    let projektName = 'Nicht zugewiesen'
     
-    if (!projekt) {
-      return NextResponse.json(
-        { erfolg: false, fehler: 'Projekt nicht gefunden' },
-        { status: 404 }
-      )
+    if (projektId) {
+      // Validiere ObjectId Format
+      if (!ObjectId.isValid(projektId)) {
+        return NextResponse.json(
+          { erfolg: false, fehler: 'Ungültige Projekt-ID' },
+          { status: 400 }
+        )
+      }
+      
+      projekt = await db.collection<Projekt>('projekte')
+        .findOne({ _id: new ObjectId(projektId) })
+      
+      if (!projekt) {
+        return NextResponse.json(
+          { erfolg: false, fehler: 'Projekt nicht gefunden' },
+          { status: 404 }
+        )
+      }
+      projektName = projekt.projektname
     }
     
     // Erstelle Einsatz
     const neuerEinsatz: Omit<Einsatz, '_id'> = {
       mitarbeiterId: mitarbeiterId || undefined,
       mitarbeiterName: mitarbeiterName || 'Nicht zugewiesen',
-      projektId,
-      projektName: projekt.projektname,
+      projektId: projektId || undefined,
+      projektName,
       von: vonDate,
       bis: bisDate,
       rolle: rolle || undefined,

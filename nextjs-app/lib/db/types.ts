@@ -1346,6 +1346,48 @@ export interface FinanzenKIBericht {
   erstelltVon?: string
 }
 
+// KI-Bericht Snapshot (für Kunden und Overview)
+export interface KIBerichtSnapshot {
+  _id?: string
+  typ: 'kunde' | 'overview'
+  kundeId?: string
+  kundeName?: string
+  zeitraum: {
+    typ: string
+    von?: Date
+    bis?: Date
+  }
+  zeitraumBeschreibung: string
+  bericht: {
+    executiveSummary: string
+    aktivitaeten: string
+    finanzen: string
+    projekte: string
+    risikenUndEmpfehlungen: string
+    highlights: string[]
+    offenePunkte: string[]
+    naechsteSchritte: string[]
+  }
+  datenSnapshot: {
+    anzahlAnfragen?: number
+    anzahlAngebote?: number
+    anzahlRechnungen?: number
+    anzahlProjekte?: number
+    anzahlMitarbeiter?: number
+    anzahlMahnungen?: number
+    gesamtumsatz?: number
+    offenerBetrag?: number
+    [key: string]: any
+  }
+  generiertAm: Date
+  generiertVon: string
+  modelVersion: string
+  tokenCount?: number
+  generierungsdauer: number
+  version: number
+  aktiv: boolean
+}
+
 // Firmen-/Unternehmenseinstellungen
 export interface FirmenEinstellungen {
   _id?: string

@@ -6,6 +6,7 @@
  */
 
 import { Einsatz, Urlaub, Mitarbeiter, Projekt } from '@/lib/db/types'
+import { UNASSIGNED_RESOURCE_ID } from '@/lib/services/plantafel/constants'
 
 // ============================================================================
 // VIEW & FILTER TYPES
@@ -292,14 +293,21 @@ export function mapEinsatzToEvents(einsatz: Einsatz, view: PlantafelView): Plant
   const events: PlantafelEvent[] = []
   
   // Titel-Logik:
-  // - Team-View: Zeilen = Mitarbeiter → Events zeigen MITARBEITER-Namen
-  // - Projekt-View: Zeilen = Projekte → Events zeigen PROJEKT-Namen
+  // - Team-View: Zeilen = Mitarbeiter → Events zeigen MITARBEITER-NAME (wenn vorhanden)
+  // - Projekt-View: Zeilen = Projekte → Events zeigen PROJEKT-NAME (wenn vorhanden)
+  // Prüfe ob Projektname wirklich ein Projekt ist (nicht "Nicht zugewiesen")
+  const hasValidProjekt = einsatz.projektName && einsatz.projektName !== 'Nicht zugewiesen'
+  const hasValidMitarbeiter = einsatz.mitarbeiterId && einsatz.mitarbeiterName && einsatz.mitarbeiterName !== 'Nicht zugewiesen'
+  
   const baseTitle = view === 'team'
-    ? (einsatz.mitarbeiterId && einsatz.mitarbeiterName !== 'Nicht zugewiesen')
-      ? einsatz.mitarbeiterName
-      : 'Nicht zugewiesen'
-    : einsatz.projektName || 'Unbekanntes Projekt'
-  const resourceId = view === 'team' ? einsatz.mitarbeiterId : einsatz.projektId
+    ? (hasValidMitarbeiter ? einsatz.mitarbeiterName : (hasValidProjekt ? einsatz.projektName : 'Kein Projekt'))
+    : (hasValidProjekt ? einsatz.projektName : 'Kein Projekt')
+  
+  // resourceId: Im Team-View nutze UNASSIGNED_RESOURCE_ID wenn kein Mitarbeiter
+  // Im Projekt-View bleibt leerer String (Events ohne Projekt werden gefiltert)
+  const resourceId = view === 'team' 
+    ? (einsatz.mitarbeiterId || UNASSIGNED_RESOURCE_ID) 
+    : (einsatz.projektId || '')
 
   const baseEvent = {
     type: 'einsatz' as PlantafelEventType,

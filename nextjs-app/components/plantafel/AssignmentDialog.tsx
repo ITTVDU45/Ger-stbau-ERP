@@ -278,17 +278,26 @@ export default function AssignmentDialog() {
     })
     
     // Validierung
-    if (!formData.projektId) {
-      console.error('[AssignmentDialog] Fehler: projektId fehlt!', formData)
-      toast.error('Bitte wählen Sie ein Projekt aus')
-      return
-    }
-    
     // Mindestens Aufbau ODER Abbau muss gesetzt sein
     if (!formData.setupDate && !formData.dismantleDate) {
       console.error('[AssignmentDialog] Fehler: Kein Datum gesetzt!', formData)
       toast.error('Bitte geben Sie mindestens ein Aufbau- oder Abbau-Datum an')
       return
+    }
+    
+    // View-spezifische Validierung
+    if (view === 'project') {
+      // Im Projekt-View: Projekt ist verpflichtend
+      if (!formData.projektId) {
+        toast.error('Bitte wählen Sie ein Projekt aus')
+        return
+      }
+    } else if (view === 'team') {
+      // Im Team-View: Mindestens ein Mitarbeiter ist verpflichtend
+      if (!formData.mitarbeiterIds || formData.mitarbeiterIds.length === 0) {
+        toast.error('Bitte wählen Sie mindestens einen Mitarbeiter aus')
+        return
+      }
     }
     
     try {
@@ -466,7 +475,7 @@ export default function AssignmentDialog() {
             <div className="space-y-3">
               <Label htmlFor="mitarbeiter" className="text-gray-900 font-medium flex items-center gap-2">
                 <User className="h-4 w-4" />
-                Mitarbeiter
+                Mitarbeiter {view === 'team' ? '*' : '(optional)'}
                 {dialogMode === 'edit' && view === 'team' ? null : (
                   (formData?.mitarbeiterIds?.length ?? 0) > 0 && (
                     <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800">
@@ -530,7 +539,7 @@ export default function AssignmentDialog() {
                         onValueChange={handleAddMitarbeiter}
                       >
                         <SelectTrigger className="bg-white text-gray-900 border-gray-300">
-                          <SelectValue placeholder="+ Mitarbeiter hinzufügen (optional)" />
+                          <SelectValue placeholder={view === 'team' ? '+ Mitarbeiter hinzufügen *' : '+ Mitarbeiter hinzufügen (optional)'} />
                         </SelectTrigger>
                         <SelectContent className="bg-white text-gray-900 max-h-[300px]">
                           {employees
@@ -567,14 +576,14 @@ export default function AssignmentDialog() {
             <div className="space-y-2">
               <Label htmlFor="projekt" className="text-gray-900 font-medium flex items-center gap-2">
                 <Briefcase className="h-4 w-4" />
-                Projekt *
+                Projekt {view === 'project' ? '*' : '(optional)'}
               </Label>
               <Select
                 value={formData?.projektId || ''}
                 onValueChange={(value) => handleChange('projektId', value)}
               >
                 <SelectTrigger className="bg-white text-gray-900 border-gray-300">
-                  <SelectValue placeholder="Projekt auswählen" />
+                  <SelectValue placeholder={view === 'project' ? 'Projekt auswählen *' : 'Projekt auswählen (optional)'} />
                 </SelectTrigger>
                 <SelectContent className="bg-white text-gray-900">
                   {projects

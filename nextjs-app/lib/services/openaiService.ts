@@ -143,9 +143,172 @@ function getZeitraumBeschreibung(typ: string): string {
     aktuelles_quartal: 'Aktuelles Quartal',
     vorjahr: 'Vorjahr',
     letztes_quartal: 'Letztes Quartal',
-    benutzerdefiniert: 'Benutzerdefinierter Zeitraum'
+    benutzerdefiniert: 'Benutzerdefinierter Zeitraum',
+    tag: 'Heute',
+    woche: 'Diese Woche',
+    monat: 'Dieser Monat',
+    quartal: 'Dieses Quartal',
+    jahr: 'Dieses Jahr',
+    custom: 'Benutzerdefiniert'
   }
   return labels[typ] || 'Unbekannter Zeitraum'
+}
+
+/**
+ * Generiert einen KI-Übersichtsbericht für das gesamte Unternehmen
+ */
+export async function generiereOverviewBericht(
+  overviewData: {
+    overview: any[]
+    charts?: any[]
+    tables?: any[]
+  }
+): Promise<KIBerichtResult> {
+  const startTime = Date.now()
+
+  // KPIs extrahieren
+  const kpis = overviewData.overview.reduce((acc, kpi) => {
+    acc[kpi.id] = kpi
+    return acc
+  }, {} as Record<string, any>)
+
+  // System-Prompt
+  const systemPrompt = `Du bist ein Business-Analyst für ein Gerüstbau-ERP-System. 
+Deine Aufgabe ist es, prägnante und professionelle Unternehmens-Übersichtsberichte zu erstellen.
+Die Berichte sollen klar strukturiert sein und strategische Handlungsempfehlungen für das gesamte Unternehmen enthalten.
+Schreibe auf Deutsch in einem professionellen, aber verständlichen Stil.
+Antworte IMMER im JSON-Format mit den vorgegebenen Feldern.`
+
+  // Charts-Daten formatieren
+  const chartsText = overviewData.charts?.map((chart, idx) => {
+    if (chart.typ === 'line' && chart.id === 'umsatz-pro-monat') {
+      return `Umsatz-Trend:\n${chart.daten.map((d: any) => `  ${d.monat}: ${d.umsatz.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}`).join('\n')}`
+    }
+    if (chart.typ === 'pie' && chart.id === 'projektstatus') {
+      return `Projektstatus-Verteilung:\n${chart.daten.map((d: any) => `  ${d.name}: ${d.wert} Projekte`).join('\n')}`
+    }
+    if (chart.typ === 'bar' && chart.id === 'mitarbeiter-auslastung') {
+      return `Mitarbeiter-Auslastung (Top 10):\n${chart.daten.map((d: any) => `  ${d.name}: ${d.auslastung.toFixed(1)}%`).join('\n')}`
+    }
+    if (chart.typ === 'area' && chart.id === 'einnahmen-ausgaben') {
+      return `Einnahmen vs. Ausgaben:\n${chart.daten.map((d: any) => `  ${d.monat}: Einnahmen ${d.einnahmen.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}, Ausgaben ${d.ausgaben.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}`).join('\n')}`
+    }
+    return null
+  }).filter(Boolean).join('\n\n') || 'Keine Chart-Daten verfügbar'
+
+  // Tabellen-Daten formatieren
+  const tablesText = overviewData.tables?.map((table) => {
+    if (table.id === 'top-projekte') {
+      return `Top-Projekte nach Umsatz:\n${table.daten.slice(0, 5).map((d: any, idx: number) => `  ${idx + 1}. ${d.projektName}: ${d.umsatz.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}`).join('\n')}`
+    }
+    if (table.id === 'top-kunden') {
+      return `Top-Kunden nach Umsatz:\n${table.daten.slice(0, 5).map((d: any, idx: number) => `  ${idx + 1}. ${d.kundeName}: ${d.umsatz.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}`).join('\n')}`
+    }
+    if (table.id === 'top-mitarbeiter') {
+      return `Top-Mitarbeiter nach Arbeitsstunden:\n${table.daten.slice(0, 5).map((d: any, idx: number) => `  ${idx + 1}. ${d.mitarbeiterName}: ${d.stunden.toFixed(1)} Stunden`).join('\n')}`
+    }
+    if (table.id === 'ueberfaellige-rechnungen') {
+      return `Überfällige Rechnungen:\n${table.daten.slice(0, 5).map((d: any, idx: number) => `  ${idx + 1}. ${d.kundeName}: ${d.offenerBetrag.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}`).join('\n')}`
+    }
+    return null
+  }).filter(Boolean).join('\n\n') || 'Keine Tabellen-Daten verfügbar'
+
+  // User-Prompt
+  const userPrompt = `Erstelle einen Unternehmens-Übersichtsbericht für ein Gerüstbau-Unternehmen:
+
+**Kennzahlen (KPIs):**
+- Gesamtumsatz: ${kpis.umsatz?.wert?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) || 'N/A'} ${kpis.umsatz?.trend ? `(Trend: ${kpis.umsatz.trend > 0 ? '+' : ''}${kpis.umsatz.trend.toFixed(1)}%)` : ''}
+- Aktive Projekte: ${kpis['aktive-projekte']?.wert || 0}
+- Aktive Mitarbeiter: ${kpis['aktive-mitarbeiter']?.wert || 0}
+- Offene Rechnungen: ${kpis['offene-rechnungen']?.wert || 0} ${kpis['offene-rechnungen']?.untertitel ? `(${kpis['offene-rechnungen'].untertitel})` : ''}
+- Offene Angebote: ${kpis['offene-angebote']?.wert || 0} ${kpis['offene-angebote']?.untertitel ? `(${kpis['offene-angebote'].untertitel})` : ''}
+- Urlaubstage: ${kpis.urlaubstage?.wert || 'N/A'} ${kpis.urlaubstage?.untertitel ? `(${kpis.urlaubstage.untertitel})` : ''}
+
+**Charts & Trends:**
+${chartsText}
+
+**Top-Listen:**
+${tablesText}
+
+**Aufgabe:**
+Erstelle einen strukturierten Bericht mit folgenden Abschnitten:
+
+1. **Executive Summary** (3-4 Sätze): Kurze Zusammenfassung der wichtigsten Erkenntnisse für das gesamte Unternehmen
+2. **Aktivitäten** (4-5 Sätze): Was ist im Zeitraum passiert? Welche Entwicklungen gibt es?
+3. **Finanzen** (4-5 Sätze): Analyse der finanziellen Situation des Unternehmens (Umsatz, offene Rechnungen, Cashflow)
+4. **Projekte** (3-4 Sätze): Status der Projekte, Top-Projekte, Projektverteilung
+5. **Mitarbeiter** (3-4 Sätze): Auslastung, Top-Mitarbeiter, Urlaubsstatus
+6. **Risiken und Empfehlungen** (4-6 Sätze): Identifizierte Risiken und konkrete strategische Handlungsempfehlungen für das Unternehmen
+7. **Highlights** (4-6 Stichpunkte): Wichtigste Highlights und Erfolge
+8. **Offene Punkte** (3-5 Stichpunkte): Was ist noch offen/zu klären? (z.B. überfällige Rechnungen, offene Angebote)
+9. **Nächste Schritte** (4-6 Stichpunkte): Konkrete strategische Handlungsempfehlungen für die nächsten Wochen/Monate
+
+Verwende eine sachliche, professionelle Sprache. Sei prägnant und fokussiere auf das Wesentliche.
+Der Bericht soll eine strategische Übersicht für die Geschäftsführung sein.
+
+Antworte im JSON-Format mit folgender Struktur:
+{
+  "executiveSummary": "...",
+  "aktivitaeten": "...",
+  "finanzen": "...",
+  "projekte": "...",
+  "risikenUndEmpfehlungen": "...",
+  "highlights": ["...", "...", "..."],
+  "offenePunkte": ["...", "..."],
+  "naechsteSchritte": ["...", "...", "..."]
+}`
+
+  try {
+    const response = await getOpenAI().chat.completions.create({
+      model: 'gpt-4-turbo-preview',
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user',
+          content: userPrompt
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 2500,
+      response_format: { type: 'json_object' }
+    })
+
+    const content = response.choices[0].message.content
+    if (!content) {
+      throw new Error('Keine gültige Antwort von OpenAI erhalten')
+    }
+
+    const result = JSON.parse(content) as KIBerichtResult
+
+    const endTime = Date.now()
+    const generierungsdauer = endTime - startTime
+
+    return {
+      ...result,
+      tokenCount: response.usage?.total_tokens,
+      generierungsdauer
+    }
+  } catch (error: any) {
+    console.error('Fehler bei der KI-Übersichtsbericht-Erstellung:', error)
+    
+    // Spezifische Fehlerbehandlung
+    if (error?.status === 401 || error?.code === 'invalid_api_key') {
+      throw new Error('OpenAI API-Key ist ungültig oder nicht konfiguriert. Bitte überprüfen Sie die Umgebungsvariable OPENAI_API_KEY.')
+    }
+    
+    if (error?.status === 429) {
+      throw new Error('OpenAI API-Rate-Limit erreicht. Bitte versuchen Sie es später erneut.')
+    }
+    
+    if (error?.message) {
+      throw new Error(`Fehler bei der KI-Übersichtsbericht-Erstellung: ${error.message}`)
+    }
+    
+    throw new Error('Fehler bei der KI-Übersichtsbericht-Erstellung')
+  }
 }
 
 /**
